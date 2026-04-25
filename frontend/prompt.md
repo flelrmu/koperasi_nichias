@@ -1,3 +1,6 @@
+#Websocket Real-time
+web ini dibangun dengan websocket realtime integrasi dengan socket.io. Setiap fungsi yang bisa mengubah data, saya ingin agar data tersebut bisa update secara realtime dengan websocket. serta notifikasi untuk update realtime.
+
 # Instruksi Master Sistem: Frontend Koperasi Nichias
 Saya sedang membangun sistem manajemen koperasi. Anda harus bertindak sebagai Senior Frontend Developer yang berspesialisasi dalam React, Tailwind CSS, dan Atomic Design.
 
@@ -24,3 +27,7 @@ Anda harus dengan ketat mengikuti struktur folder ini:
 
 # Protokol Konsistensi
 Sebelum menghasilkan kode apa pun, selalu periksa file yang ada di 'src/components/' untuk menggunakan kembali (reuse) Atoms dan Molecules yang sudah dibuat. Jangan mendefinisikan ulang gaya (styles); selalu gunakan tema global.
+
+## Aturan Pengurus
+semua pengurus (bendahara, sekretaris, koordinator simpan pinjam, wakil ketua dan ketua) memiliki halaman yang sama.
+tetapi ada hak akses yang berbeda. ada fungsi yang hanya bisa diakses oleh bendahara, ada fungsi yang hanya bisa diakses oleh sekretaris, ada fungsi yang hanya bisa diakses oleh koordinator simpan pinjam, dan seterusnya.

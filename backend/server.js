@@ -5,17 +5,54 @@ const db = require('./models');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const peraturanRoutes = require('./routes/peraturanRoutes');
 
 const app = express();
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require('socket.io');
+
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"]
+  }
+});
+
 const PORT = process.env.PORT || 5000;
+
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Socket.io connection logic
+io.on('connection', (socket) => {
+  console.log('⚡ Client connected to Socket.io:', socket.id);
+  
+  socket.on('disconnect', (reason) => {
+    console.log(`🔥 Client disconnected (${socket.id}). Reason: ${reason}`);
+  });
+
+  socket.on('error', (error) => {
+    console.error(`❌ Socket error (${socket.id}):`, error);
+  });
+});
+
+// Pass io to request object for use in controllers
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/peraturan', peraturanRoutes);
 
 // Test route
 app.get('/', (req, res) => {
@@ -30,7 +67,7 @@ db.sequelize
   .authenticate()
   .then(() => {
     console.log('✅ Koneksi database berhasil!');
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`🚀 Server berjalan di http://localhost:${PORT}`);
     });
   })

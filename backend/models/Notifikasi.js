@@ -20,6 +20,14 @@ module.exports = (sequelize, DataTypes) => {
     pesan: {
       type: DataTypes.TEXT,
     },
+    tipe: {
+      type: DataTypes.ENUM('pendaftaran', 'umum', 'sistem'),
+      defaultValue: 'umum',
+    },
+    link: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
     is_read: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,

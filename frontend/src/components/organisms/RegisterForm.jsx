@@ -102,20 +102,26 @@ export default function RegisterForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Client-side validation
+    // Client-side validation (Semua 11 field wajib diisi)
     if (
       !formData.email ||
       !formData.password ||
       !formData.nama_lengkap ||
+      !formData.no_identitas ||
+      !formData.tempat_lahir ||
+      !formData.tanggal_lahir ||
       !formData.jabatan ||
-      !formData.divisi
+      !formData.divisi ||
+      !formData.no_hp ||
+      !formData.no_rekening_bank ||
+      !formData.alamat
     ) {
       setModalConfig({
         isOpen: true,
         type: "error",
         title: "Pendaftaran Gagal",
         message:
-          "Mohon lengkapi field wajib: Email, Password, Nama Lengkap, Jabatan, dan Divisi.",
+          "Mohon lengkapi seluruh data pendaftaran (11 field wajib diisi).",
       });
       return;
     }
@@ -199,6 +205,7 @@ export default function RegisterForm() {
               placeholder="Email (@koperasi-nichias.co.id) *"
               value={formData.email}
               onChange={handleChange}
+              required
             />
             {formData.email && !/^[^\s@]+@koperasi-nichias\.co\.id$/i.test(formData.email) && (
               <motion.p 
@@ -223,6 +230,7 @@ export default function RegisterForm() {
                 onFocus={() => setPasswordFocused(true)}
                 onBlur={() => setTimeout(() => setPasswordFocused(false), 200)}
                 className="pr-10"
+                required
               />
               <button
                 type="button"
@@ -292,30 +300,34 @@ export default function RegisterForm() {
             placeholder="Nama Lengkap *"
             value={formData.nama_lengkap}
             onChange={handleChange}
+            required
           />
           <Input
             id="register-no-identitas"
             name="no_identitas"
-            placeholder="No. Identitas (NIK/KTP)"
+            placeholder="No. Identitas (NIK/KTP) *"
             value={formData.no_identitas}
             onChange={handleChange}
+            required
           />
 
           {/* Baris 3: Tempat Lahir & Tanggal Lahir */}
           <Input
             id="register-tempat-lahir"
             name="tempat_lahir"
-            placeholder="Tempat Lahir"
+            placeholder="Tempat Lahir *"
             value={formData.tempat_lahir}
             onChange={handleChange}
+            required
           />
           <Input
             id="register-tanggal-lahir"
             name="tanggal_lahir"
             type="date"
-            placeholder="Tanggal Lahir"
+            placeholder="Tanggal Lahir *"
             value={formData.tanggal_lahir}
             onChange={handleChange}
+            required
           />
 
           {/* Baris 4: Jabatan & Divisi */}
@@ -325,6 +337,7 @@ export default function RegisterForm() {
             options={JABATAN_OPTIONS}
             value={formData.jabatan}
             onChange={handleChange}
+            required
           />
           <Select
             id="register-divisi"
@@ -332,22 +345,25 @@ export default function RegisterForm() {
             options={DIVISI_OPTIONS}
             value={formData.divisi}
             onChange={handleChange}
+            required
           />
 
           {/* Baris 5: No HP & No Rekening */}
           <Input
             id="register-no-hp"
             name="no_hp"
-            placeholder="Nomor Telepon"
+            placeholder="Nomor Telepon *"
             value={formData.no_hp}
             onChange={handleChange}
+            required
           />
           <Input
             id="register-no-rekening"
             name="no_rekening_bank"
-            placeholder="No Rekening Bank"
+            placeholder="No Rekening Bank *"
             value={formData.no_rekening_bank}
             onChange={handleChange}
+            required
           />
 
           {/* Baris 6: Alamat (full width) */}
@@ -355,10 +371,11 @@ export default function RegisterForm() {
             <Textarea
               id="register-alamat"
               name="alamat"
-              placeholder="Alamat Lengkap"
+              placeholder="Alamat Lengkap *"
               value={formData.alamat}
               onChange={handleChange}
               rows={3}
+              required
             />
           </div>
         </div>

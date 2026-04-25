@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Wallet, CreditCard, ArrowUpRight, ArrowDownRight, Clock, Plus } from 'lucide-react';
-import Button from '../components/atoms/Button';
-import StatusBadge from '../components/atoms/StatusBadge';
+import Button from '../../components/atoms/Button';
+import StatusBadge from '../../components/atoms/StatusBadge';
 
 export default function Dashboard() {
   const containerVariants = {

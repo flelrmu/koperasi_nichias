@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Wallet, Plus, ArrowUpRight, Clock } from 'lucide-react';
-import Button from '../components/atoms/Button';
-import StatusBadge from '../components/atoms/StatusBadge';
+import Button from '../../components/atoms/Button';
+import StatusBadge from '../../components/atoms/StatusBadge';
 
 export default function Simpanan() {
   const containerVariants = {

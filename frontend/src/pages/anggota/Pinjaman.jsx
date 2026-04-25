@@ -2,14 +2,41 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
-import StatusBadge from '../components/atoms/StatusBadge';
-import Button from '../components/atoms/Button';
-import Input from '../components/atoms/Input';
-import Select from '../components/atoms/Select';
-import Textarea from '../components/atoms/Textarea';
+import StatusBadge from '../../components/atoms/StatusBadge';
+import Button from '../../components/atoms/Button';
+import Input from '../../components/atoms/Input';
+import Select from '../../components/atoms/Select';
+import Textarea from '../../components/atoms/Textarea';
 
 export default function Pinjaman() {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    jenis_pinjaman: 'uang',
+    nama_barang: '',
+    jumlah_pinjaman: '',
+    terbilang: '',
+    keperluan: '',
+    tenor: '10'
+  });
+
+  const formatNumber = (value) => {
+    if (!value) return '';
+    // Remove all non-digit characters
+    const numberValue = value.replace(/\D/g, '');
+    // Format with dots as thousands separators
+    return numberValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    
+    if (name === 'jumlah_pinjaman') {
+      const formattedValue = formatNumber(value);
+      setFormData(prev => ({ ...prev, [name]: formattedValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -144,6 +171,9 @@ export default function Pinjaman() {
                   <div>
                     <FormLabel>Jenis Pinjaman</FormLabel>
                     <Select 
+                      name="jenis_pinjaman"
+                      value={formData.jenis_pinjaman}
+                      onChange={handleInputChange}
                       options={[
                         { value: 'uang', label: 'Uang' },
                         { value: 'barang', label: 'Barang' }
@@ -151,9 +181,30 @@ export default function Pinjaman() {
                       className="text-[#3b2a63] font-bold"
                     />
                   </div>
+
+                  {formData.jenis_pinjaman === 'barang' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                    >
+                      <FormLabel>Nama Barang</FormLabel>
+                      <Input 
+                        name="nama_barang"
+                        value={formData.nama_barang}
+                        onChange={handleInputChange}
+                        placeholder="Masukkan nama barang"
+                        className="text-[#3b2a63] font-bold"
+                      />
+                    </motion.div>
+                  )}
+
                   <div>
                     <FormLabel>Jumlah Pinjaman</FormLabel>
                     <Input 
+                      name="jumlah_pinjaman"
+                      value={formData.jumlah_pinjaman}
+                      onChange={handleInputChange}
                       placeholder="10.000.000"
                       className="text-[#3b2a63] font-bold"
                     />
@@ -161,6 +212,9 @@ export default function Pinjaman() {
                   <div>
                     <FormLabel>Terbilang</FormLabel>
                     <Input 
+                      name="terbilang"
+                      value={formData.terbilang}
+                      onChange={handleInputChange}
                       placeholder="Sepuluh Juta Rupiah"
                       className="text-[#3b2a63] font-bold"
                     />
@@ -168,6 +222,9 @@ export default function Pinjaman() {
                   <div>
                     <FormLabel>Untuk Keperluan</FormLabel>
                     <Input 
+                      name="keperluan"
+                      value={formData.keperluan}
+                      onChange={handleInputChange}
                       placeholder="Bisnis"
                       className="text-[#3b2a63] font-bold"
                     />
@@ -187,13 +244,15 @@ export default function Pinjaman() {
                   <div>
                     <FormLabel>Lama Angsuran</FormLabel>
                     <Select 
+                      name="tenor"
+                      value={formData.tenor}
+                      onChange={handleInputChange}
                       options={[
                         { value: '10', label: '10 Bulan' },
-                        { value: '12', label: '12 Bulan' },
-                        { value: '24', label: '24 Bulan' }
+                        { value: '15', label: '15 Bulan' },
+                        { value: '20', label: '20 Bulan' }
                       ]}
-                      disabled
-                      className="!bg-white text-[#e2e8f0] border-[#f1f5f9] !opacity-100 font-bold"
+                      className="text-[#3b2a63] font-bold"
                     />
                   </div>
                   <div>

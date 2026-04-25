@@ -1,19 +1,21 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../models');
+const { generateNoAnggota } = require('../utils/idGenerator');
 
 const User = db.User;
 const Anggota = db.Anggota;
 const Pengurus = db.Pengurus;
+const Notifikasi = db.Notifikasi;
 
 /**
  * POST /api/auth/register
  * Mendaftarkan calon anggota baru.
  * - Validasi email domain @koperasi-nichias.co.id
  * - Validasi password complexity
- * - Cek status email existing (Aktif/Pending/Ditolak)
- * - Jika Ditolak → UPDATE data lama, status kembali Pending
+ * - Cek status email existing (Aktif/Pending)
  * - Jika baru → INSERT ke tabel users & anggota
+ * - Kirim notifikasi ke semua Sekretaris via Socket.IO
  */
 const register = async (req, res) => {
   const {
@@ -30,11 +32,23 @@ const register = async (req, res) => {
     alamat,
   } = req.body;
 
-  // Validasi field wajib
-  if (!email || !password || !nama_lengkap || !jabatan || !divisi) {
+  // Validasi field wajib (Semua 11 field harus diisi)
+  if (
+    !email || 
+    !password || 
+    !nama_lengkap || 
+    !no_identitas || 
+    !tempat_lahir || 
+    !tanggal_lahir || 
+    !jabatan || 
+    !divisi || 
+    !no_hp || 
+    !no_rekening_bank || 
+    !alamat
+  ) {
     return res.status(400).json({
       success: false,
-      message: 'Field email, password, nama lengkap, jabatan, dan divisi wajib diisi.',
+      message: 'Semua data (11 field) wajib diisi lengkap.',
     });
   }
 
@@ -85,65 +99,6 @@ const register = async (req, res) => {
         return res.status(409).json({
           success: false,
           message: 'Pendaftaran Anda sedang diproses, harap tunggu.',
-        });
-      }
-
-      // Jika statusnya 'Ditolak' → UPDATE data lama
-      if (status === 'Ditolak') {
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Update user
-        await existingUser.update(
-          { password: hashedPassword },
-          { transaction }
-        );
-
-        // Update anggota
-        await existingUser.anggota.update(
-          {
-            nama_lengkap,
-            no_identitas: no_identitas || null,
-            tempat_lahir: tempat_lahir || null,
-            tanggal_lahir: tanggal_lahir || null,
-            jabatan,
-            divisi,
-            no_hp: no_hp || null,
-            no_rekening_bank: no_rekening_bank || null,
-            alamat: alamat || null,
-            status_keanggotaan: 'Pending',
-            tanggal_registrasi: new Date(),
-            tanggal_bergabung: null,
-            no_anggota: null,
-          },
-          { transaction }
-        );
-
-        await transaction.commit();
-
-        // Generate JWT token
-        const token = jwt.sign(
-          {
-            user_id: existingUser.user_id,
-            email: existingUser.email,
-            role: existingUser.role,
-          },
-          process.env.JWT_SECRET,
-          { expiresIn: '24h' }
-        );
-
-        return res.status(200).json({
-          success: true,
-          message: 'Pendaftaran ulang berhasil! Data Anda telah diperbarui.',
-          data: {
-            token,
-            user: {
-              user_id: existingUser.user_id,
-              email: existingUser.email,
-              role: existingUser.role,
-              nama_lengkap,
-              status_keanggotaan: 'Pending',
-            },
-          },
         });
       }
 
@@ -198,8 +153,60 @@ const register = async (req, res) => {
       { transaction }
     );
 
+    // 3. Buat notifikasi untuk semua Sekretaris
+    const sekretarisList = await User.findAll({
+      where: { role: 'Sekretaris' },
+      attributes: ['user_id'],
+      transaction,
+    });
+
+    const notifJudul = 'Pendaftaran Baru';
+    const notifPesan = `${nama_lengkap} (${divisi}) telah mendaftar sebagai calon anggota koperasi.`;
+    const notifLink = `/admin/users?highlight=${newAnggota.anggota_id}`;
+
+    const notifikasiRecords = sekretarisList.map(s => ({
+      user_id: s.user_id,
+      judul: notifJudul,
+      pesan: notifPesan,
+      tipe: 'pendaftaran',
+      link: notifLink,
+      is_read: false,
+    }));
+
+    if (notifikasiRecords.length > 0) {
+      await Notifikasi.bulkCreate(notifikasiRecords, { transaction });
+    }
+
     // Commit transaction
     await transaction.commit();
+
+    // 4. Fetch full data from DB for complete socket payload
+    const fullAnggota = await Anggota.findByPk(newAnggota.anggota_id, {
+      include: [{ model: User, as: 'user', attributes: ['email', 'role'] }]
+    });
+    const anggotaPlain = fullAnggota.get({ plain: true });
+
+    // 5. Emit Socket.IO event untuk notifikasi real-time
+    const notifPayload = {
+      notifikasi: {
+        judul: notifJudul,
+        pesan: notifPesan,
+        tipe: 'pendaftaran',
+        link: notifLink,
+        created_at: new Date().toISOString(),
+      },
+      anggota: anggotaPlain,
+    };
+
+    console.log(`📤 Emitting notifikasi:pendaftaran-baru for ${nama_lengkap}`);
+    req.io.emit('notifikasi:pendaftaran-baru', notifPayload);
+
+    // Emit juga user:created agar UserManagement table auto-update
+    console.log(`📤 Emitting user:created for ${nama_lengkap}`);
+    req.io.emit('user:created', {
+      type: 'anggota',
+      user: anggotaPlain,
+    });
 
     // Generate JWT token
     const token = jwt.sign(
@@ -306,9 +313,6 @@ const login = async (req, res) => {
         case 'Pending':
           redirectPath = '/dashboard/pending';
           break;
-        case 'Ditolak':
-          redirectPath = '/dashboard/ditolak';
-          break;
         case 'Aktif':
           redirectPath = '/dashboard';
           break;
@@ -351,4 +355,115 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { register, login };
+/**
+ * POST /api/auth/admin/create-user
+ * Membuat user baru oleh admin/pengurus.
+ */
+const adminCreateUser = async (req, res) => {
+  const {
+    type, // 'Anggota' atau 'Pengurus'
+    email,
+    password,
+    nama_lengkap,
+    // Field khusus Anggota
+    no_identitas,
+    tempat_lahir,
+    tanggal_lahir,
+    jabatan,
+    divisi,
+    no_hp,
+    no_rekening_bank,
+    alamat,
+    // Field khusus Pengurus
+    role, // e.g., 'Sekretaris', 'Bendahara'
+  } = req.body;
+
+  // ... (Validasi tetap sama)
+  if (!email || !password || !nama_lengkap || !type) {
+    return res.status(400).json({ success: false, message: 'Field email, password, nama lengkap, dan tipe user wajib diisi.' });
+  }
+
+  const transaction = await db.sequelize.transaction();
+
+  try {
+    const existingUser = await User.findOne({ where: { email }, transaction });
+    if (existingUser) {
+      await transaction.rollback();
+      return res.status(409).json({ success: false, message: 'Email sudah terdaftar.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await User.create({
+      email,
+      password: hashedPassword,
+      role: type === 'Pengurus' ? role : 'Anggota',
+    }, { transaction });
+
+    let detailInstance;
+    if (type === 'Anggota') {
+      const gNoAnggota = await generateNoAnggota();
+      detailInstance = await Anggota.create({
+        user_id: newUser.user_id,
+        nama_lengkap,
+        no_anggota: gNoAnggota,
+        no_identitas,
+        tempat_lahir: tempat_lahir || null,
+        tanggal_lahir: tanggal_lahir || null,
+        jabatan,
+        divisi,
+        no_hp: no_hp || null,
+        no_rekening_bank: no_rekening_bank || null,
+        alamat: alamat || null,
+        status_keanggotaan: 'Aktif',
+        tanggal_bergabung: new Date(),
+      }, { transaction });
+    } else {
+      detailInstance = await Pengurus.create({
+        user_id: newUser.user_id,
+        nama_lengkap,
+        jabatan: role,
+        no_hp: no_hp || null,
+        alamat: alamat || null,
+      }, { transaction });
+    }
+
+    await transaction.commit();
+
+    // Ambil data LENGKAP untuk emit & response
+    let fullData;
+    if (type.toLowerCase() === 'anggota') {
+      fullData = await Anggota.findByPk(detailInstance.anggota_id, {
+        include: [{ model: User, as: 'user', attributes: ['email', 'role'] }]
+      });
+    } else {
+      fullData = await Pengurus.findByPk(detailInstance.pengurus_id, {
+        include: [{ model: User, as: 'user', attributes: ['email', 'role'] }]
+      });
+    }
+
+    // Ubah ke JSON murni & pastikan casing konsisten (lowercase)
+    const socketPayload = { 
+      type: type.toLowerCase(), 
+      user: fullData.get({ plain: true }) 
+    };
+
+    console.log(`📤 Emitting user:created event for ${socketPayload.type}:`, socketPayload.user.nama_lengkap);
+
+    // Emit event real-time dengan data lengkap
+    req.io.emit('user:created', socketPayload);
+
+    return res.status(201).json({
+      success: true,
+      message: `User ${type} berhasil dibuat.`,
+      data: socketPayload.user
+    });
+  } catch (error) {
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(409).json({ success: false, message: 'Nomor Identitas atau Email sudah digunakan.' });
+    }
+    return res.status(500).json({ success: false, message: 'Terjadi kesalahan pada server saat membuat user.', error: error.message });
+  }
+};
+
+module.exports = { register, login, adminCreateUser };

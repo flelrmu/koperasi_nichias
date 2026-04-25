@@ -25,9 +25,28 @@ module.exports = {
         type: Sequelize.STRING(100),
         comment: 'Diisi jika jenis=Barang',
       },
+      keperluan: {
+        type: Sequelize.TEXT,
+        comment: 'Alasan atau tujuan pengajuan pinjaman',
+      },
       jumlah_pinjaman: {
         type: Sequelize.DECIMAL(15, 2),
-        comment: 'Uang Cair atau Harga Beli Barang',
+        comment: 'Nominal Uang/Harga Barang yang DIAJUKAN',
+      },
+      terbilang: {
+        type: Sequelize.TEXT,
+        comment: 'Jumlah pinjaman diajukan dalam bentuk tulisan/huruf',
+      },
+      tenor: {
+        type: Sequelize.INTEGER,
+        comment: 'Bulan (10/15/20) yang diajukan',
+      },
+      tanggal_pengajuan: {
+        type: Sequelize.DATEONLY,
+      },
+      pinjaman_disetujui: {
+        type: Sequelize.DECIMAL(15, 2),
+        comment: 'Nominal yang DI-ACC (Bisa lebih kecil dari pengajuan)',
       },
       total_bunga: {
         type: Sequelize.DECIMAL(15, 2),
@@ -35,17 +54,11 @@ module.exports = {
       },
       total_angsuran: {
         type: Sequelize.DECIMAL(15, 2),
-        comment: 'Pokok + Bunga',
-      },
-      tenor: {
-        type: Sequelize.INTEGER,
-        comment: 'Bulan (10/15/20)',
+        comment: 'Pokok Disetujui + Bunga',
       },
       angsuran_per_bulan: {
         type: Sequelize.DECIMAL(15, 2),
-      },
-      tanggal_pengajuan: {
-        type: Sequelize.DATEONLY,
+        comment: 'Limit Potongan Gaji dicek berdasarkan Jabatan',
       },
       acc_koordinator_id: {
         type: Sequelize.INTEGER,
@@ -59,6 +72,10 @@ module.exports = {
       },
       tgl_acc_koordinator: {
         type: Sequelize.DATE,
+      },
+      catatan_pengurus: {
+        type: Sequelize.TEXT,
+        comment: 'Alasan penolakan atau catatan kondisi persetujuan',
       },
       status: {
         type: Sequelize.ENUM('Pending', 'Approved', 'Rejected', 'Lunas'),

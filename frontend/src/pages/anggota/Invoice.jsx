@@ -1,9 +1,9 @@
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Printer, Download } from 'lucide-react';
-import Logo from '../components/atoms/Logo';
-import Button from '../components/atoms/Button';
-import StatusBadge from '../components/atoms/StatusBadge';
+import Logo from '../../components/atoms/Logo';
+import Button from '../../components/atoms/Button';
+import StatusBadge from '../../components/atoms/StatusBadge';
 
 export default function Invoice() {
   const { id } = useParams();

@@ -34,12 +34,12 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DATEONLY,
     },
     jabatan: {
-      type: DataTypes.ENUM('Staff', 'Assistant_Manager', 'Manager'),
+      type: DataTypes.ENUM('Staff', 'Assistant_Manager', 'Manager', 'Lainnya'),
       allowNull: false,
       comment: 'Untuk menentukan Limit Potongan (Staff/Mgr)',
     },
     divisi: {
-      type: DataTypes.ENUM('Marketing', 'Purchasing', 'HRD', 'Admin', 'Keuangan'),
+      type: DataTypes.ENUM('Marketing', 'Purchasing', 'HRD', 'Admin', 'Keuangan', 'Lainnya'),
       allowNull: false,
       comment: 'Departemen tempat anggota bekerja',
     },
@@ -62,7 +62,7 @@ module.exports = (sequelize, DataTypes) => {
       comment: 'Diisi saat Sekretaris klik Approve',
     },
     status_keanggotaan: {
-      type: DataTypes.ENUM('Pending', 'Aktif', 'Ditolak', 'Keluar'),
+      type: DataTypes.ENUM('Pending', 'Aktif', 'Keluar'),
       defaultValue: 'Pending',
     },
   }, {

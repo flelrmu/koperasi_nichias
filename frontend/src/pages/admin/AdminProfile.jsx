@@ -1,19 +1,28 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, User, Mail, CreditCard, Phone, MapPin, Briefcase, Building, Landmark, Lock, LogOut, Save, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useSocket } from '../context/SocketContext';
-import Button from '../components/atoms/Button';
-import Input from '../components/atoms/Input';
-import StatusBadge from '../components/atoms/StatusBadge';
-import Modal from '../components/molecules/Modal';
+import { 
+  Camera, 
+  User, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Briefcase, 
+  Lock, 
+  Save, 
+  ShieldCheck,
+  Loader2
+} from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
+import Button from '../../components/atoms/Button';
+import Input from '../../components/atoms/Input';
+import StatusBadge from '../../components/atoms/StatusBadge';
+import Modal from '../../components/molecules/Modal';
 
-export default function Profile() {
-  const navigate = useNavigate();
+export default function AdminProfile() {
   const { user, api } = useAuth();
   const socket = useSocket();
-
+  
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingPwd, setIsSavingPwd] = useState(false);
@@ -23,14 +32,9 @@ export default function Profile() {
   const [profileData, setProfileData] = useState({
     nama: '',
     email: '',
-    noIdentitas: '',
-    noHp: '',
-    tempatLahir: '',
-    tanggalLahir: '',
     jabatan: '',
-    unitKerja: '',
+    noHp: '',
     alamat: '',
-    noRekening: '',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -48,18 +52,13 @@ export default function Profile() {
           setProfileData({
             nama: data.nama_lengkap || '',
             email: data.user?.email || '',
-            noIdentitas: data.no_identitas || '',
-            noHp: data.no_hp || '',
-            tempatLahir: data.tempat_lahir || '',
-            tanggalLahir: data.tanggal_lahir || '',
             jabatan: data.jabatan || '',
-            unitKerja: data.divisi || '',
+            noHp: data.no_hp || '',
             alamat: data.alamat || '',
-            noRekening: data.no_rekening_bank || '',
           });
         }
       } catch (error) {
-        console.error('Error fetching profile:', error);
+        console.error('Error fetching admin profile:', error);
       } finally {
         setIsLoading(false);
       }
@@ -70,20 +69,15 @@ export default function Profile() {
   useEffect(() => {
     if (!socket || !user) return;
     const handleUserUpdate = (e) => {
-      if (e.type === 'anggota' && e.data.user_id === user.user_id) {
+      if (e.type === 'pengurus' && e.data.user_id === user.user_id) {
          const data = e.data;
          setProfileData(prev => ({
             ...prev,
             nama: data.nama_lengkap || '',
             email: data.user?.email || '',
-            noIdentitas: data.no_identitas || '',
-            noHp: data.no_hp || '',
-            tempatLahir: data.tempat_lahir || '',
-            tanggalLahir: data.tanggal_lahir || '',
             jabatan: data.jabatan || '',
-            unitKerja: data.divisi || '',
+            noHp: data.no_hp || '',
             alamat: data.alamat || '',
-            noRekening: data.no_rekening_bank || '',
          }));
       }
     };
@@ -107,10 +101,7 @@ export default function Profile() {
     try {
       const dbFormat = {
         no_hp: profileData.noHp,
-        tempat_lahir: profileData.tempatLahir,
-        tanggal_lahir: profileData.tanggalLahir,
         alamat: profileData.alamat,
-        no_rekening_bank: profileData.noRekening
       };
       const res = await api.put('/user/profile', dbFormat);
       if (res.data.success) {
@@ -160,12 +151,14 @@ export default function Profile() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 size={40} className="animate-spin text-[#004A9C]" />
-        <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Memuat Profil...</p>
+        <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Memuat Profil Admin...</p>
       </div>
     );
   }
 
-  const userInitials = profileData.nama ? profileData.nama.charAt(0).toUpperCase() : 'U';
+  const userInitials = profileData.nama
+    ? profileData.nama.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
+    : 'U';
 
   return (
     <motion.div 
@@ -176,8 +169,8 @@ export default function Profile() {
     >
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Profil Anggota</h2>
-          <p className="text-gray-500 mt-1">Kelola informasi pribadi dan keamanan akun Anda.</p>
+          <h2 className="text-2xl font-bold text-gray-800">Profil Pengurus</h2>
+          <p className="text-gray-500 mt-1">Kelola informasi pribadi dan keamanan akun pengurus Anda.</p>
         </div>
       </div>
 
@@ -194,12 +187,12 @@ export default function Profile() {
               </button>
             </div>
             <h3 className="text-xl font-bold text-gray-800">{profileData.nama}</h3>
-            <p className="text-gray-500 text-sm mb-3">{profileData.jabatan}</p>
+            <p className="text-gray-500 text-sm mb-3 font-medium">{profileData.jabatan}</p>
             <StatusBadge status="Aktif" />
             
             <div className="w-full mt-6 pt-6 border-t border-gray-100 text-left space-y-4">
               <div className="flex flex-col gap-1">
-                <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Email</span>
+                <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Email Utama</span>
                 <div className="flex items-center text-gray-700 text-sm font-medium">
                   <Mail size={16} className="mr-3 text-[#004A9C]/70" />
                   <span className="truncate">{profileData.email}</span>
@@ -212,13 +205,6 @@ export default function Profile() {
                   <span>{profileData.noHp}</span>
                 </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Unit Kerja</span>
-                <div className="flex items-center text-gray-700 text-sm font-medium">
-                  <Building size={16} className="mr-3 text-[#004A9C]/70" />
-                  <span>{profileData.unitKerja}</span>
-                </div>
-              </div>
             </div>
           </div>
         </motion.div>
@@ -228,10 +214,10 @@ export default function Profile() {
           
           {/* Profile Details Form */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
+            <div className="p-6 border-b border-gray-100 bg-gray-50/50">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                 <User size={20} className="mr-2 text-[#004A9C]" />
-                Detail Informasi Personal
+                Detail Informasi Pengurus
               </h3>
             </div>
             <div className="p-6">
@@ -253,7 +239,7 @@ export default function Profile() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Email Utama</label>
+                    <label className="text-sm font-medium text-gray-700">Email Koperasi</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Mail size={16} className="text-gray-400" />
@@ -269,22 +255,21 @@ export default function Profile() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Nomor Identitas (KTP)</label>
+                    <label className="text-sm font-medium text-gray-700">Jabatan Saat Ini</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <CreditCard size={16} className="text-gray-400" />
+                        <Briefcase size={16} className="text-gray-400" />
                       </div>
                       <Input 
-                        name="noIdentitas"
-                        value={profileData.noIdentitas}
+                        name="jabatan"
+                        value={profileData.jabatan}
+                        className="pl-10 bg-gray-50 cursor-not-allowed"
                         disabled
-                        className="pl-10 bg-gray-50/70 text-gray-500"
-                        required
                       />
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Nomor Handphone</label>
+                    <label className="text-sm font-medium text-gray-700">Nomor Handphone (WA)</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Phone size={16} className="text-gray-400" />
@@ -298,73 +283,8 @@ export default function Profile() {
                       />
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Tempat Lahir</label>
-                    <Input 
-                      name="tempatLahir"
-                      value={profileData.tempatLahir}
-                      onChange={handleProfileChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Tanggal Lahir</label>
-                    <Input 
-                      type="date"
-                      name="tanggalLahir"
-                      value={profileData.tanggalLahir}
-                      onChange={handleProfileChange}
-                      className="text-gray-700"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Jabatan</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Briefcase size={16} className="text-gray-400" />
-                      </div>
-                      <Input 
-                        name="jabatan"
-                        value={profileData.jabatan}
-                        disabled
-                        className="pl-10 bg-gray-50/70 text-gray-500"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Unit Kerja</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Building size={16} className="text-gray-400" />
-                      </div>
-                      <Input 
-                        name="unitKerja"
-                        value={profileData.unitKerja}
-                        disabled
-                        className="pl-10 bg-gray-50/70 text-gray-500"
-                        required
-                      />
-                    </div>
-                  </div>
                   <div className="space-y-1 md:col-span-2">
-                    <label className="text-sm font-medium text-gray-700">Nomor Rekening Bank</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Landmark size={16} className="text-gray-400" />
-                      </div>
-                      <Input 
-                        name="noRekening"
-                        value={profileData.noRekening}
-                        onChange={handleProfileChange}
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1 md:col-span-2">
-                    <label className="text-sm font-medium text-gray-700">Alamat Lengkap</label>
+                    <label className="text-sm font-medium text-gray-700">Alamat Tinggal</label>
                     <div className="relative w-full">
                       <div className="absolute top-3.5 left-3 pointer-events-none">
                         <MapPin size={16} className="text-gray-400" />
@@ -373,14 +293,14 @@ export default function Profile() {
                         name="alamat"
                         value={profileData.alamat}
                         onChange={handleProfileChange}
-                        className="w-full px-4 py-3 pl-10 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#004A9C]/50 focus:border-[#004A9C] transition-all text-gray-700 min-h-[100px] text-sm"
+                        className="w-full px-4 py-3 pl-10 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#004A9C]/50 focus:border-[#004A9C] transition-all text-gray-700 min-h-[100px] text-sm font-poppins"
                         required
                       />
                     </div>
                   </div>
                 </div>
                 <div className="flex justify-end pt-2">
-                  <Button type="submit" disabled={isSaving} className="flex items-center">
+                  <Button type="submit" disabled={isSaving} className="flex items-center !px-8">
                     {isSaving ? <Loader2 className="animate-spin mr-2" size={16} /> : <Save size={16} className="mr-2" />}
                     {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
                   </Button>
@@ -391,7 +311,7 @@ export default function Profile() {
 
           {/* Change Password Form */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
+            <div className="p-6 border-b border-gray-100 bg-gray-50/50">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                 <Lock size={20} className="mr-2 text-[#004A9C]" />
                 Keamanan & Password
@@ -405,7 +325,7 @@ export default function Profile() {
                     <Input 
                       type="password"
                       name="oldPassword"
-                      placeholder="Masukkan password saat ini"
+                      placeholder="Masukkan password lama"
                       value={passwordData.oldPassword}
                       onChange={handlePasswordChange}
                       required
@@ -435,42 +355,18 @@ export default function Profile() {
                   </div>
                 </div>
                 <div className="flex justify-end pt-2">
-                  <Button type="submit" disabled={isSavingPwd} className="flex items-center !bg-[#EB5757] hover:!bg-[#d44a4a]">
+                  <Button type="submit" disabled={isSavingPwd} className="flex items-center !bg-[#EB5757] hover:!bg-[#d44a4a] !px-8">
                     {isSavingPwd ? <Loader2 className="animate-spin mr-2" size={16} /> : <Lock size={16} className="mr-2" />}
-                    {isSavingPwd ? 'Memproses...' : 'Ubah Password'}
+                    {isSavingPwd ? 'Memproses...' : 'Update Password'}
                   </Button>
                 </div>
               </form>
             </div>
           </div>
 
-          {/* Danger Zone */}
-          <motion.div variants={itemVariants} className="mt-8">
-            <div className="bg-[#EB5757]/5 border border-[#EB5757]/20 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-              <div>
-                <h4 className="text-[#EB5757] font-semibold text-lg flex items-center">
-                  <span className="shrink-0 w-8 h-8 rounded-full bg-[#EB5757]/10 flex items-center justify-center mr-3">
-                    <LogOut size={16} className="text-[#EB5757]" />
-                  </span>
-                  Keluar dari Koperasi
-                </h4>
-                <p className="text-[#EB5757]/80 text-sm mt-2 max-w-lg">
-                  Tindakan ini akan mengajukan permohonan keluar dari keanggotaan Koperasi Nichias dan bersifat permanen.
-                </p>
-              </div>
-              <button 
-                type="button"
-                onClick={() => navigate('/pengajuan-keluar')}
-                className="bg-white border hover:bg-[#EB5757] border-[#EB5757] text-[#EB5757] hover:text-white font-medium py-2.5 px-6 rounded-xl transition-all shadow-sm max-sm:w-full flex items-center justify-center whitespace-nowrap lg:text-sm"
-              >
-                Keluar Koperasi
-              </button>
-            </div>
-          </motion.div>
-
         </motion.div>
       </div>
-      
+
       {/* Status Modal (Success/Error) */}
       <Modal
         isOpen={statusModal.isOpen}

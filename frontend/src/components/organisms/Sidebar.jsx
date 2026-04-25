@@ -1,14 +1,27 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Wallet, CreditCard, User, LogOut, X } from 'lucide-react';
+import { 
+  Home, 
+  Wallet, 
+  CreditCard, 
+  User, 
+  LogOut, 
+  X, 
+  LayoutDashboard, 
+  UserCheck, 
+  PiggyBank, 
+  BarChart3, 
+  Settings 
+} from 'lucide-react';
 import Logo from '../atoms/Logo';
 import Modal from '../molecules/Modal';
 import { useAuth } from '../../context/AuthContext';
+import { MANAGEMENT_ROLES } from '../../utils/roles';
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const handleLogoutConfirm = () => {
@@ -17,11 +30,26 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     navigate('/login');
   };
 
-  const navItems = [
+  // Menu items for Anggota
+  const MEMBER_MENU_ITEMS = [
     { name: 'Dashboard', path: '/dashboard', icon: Home },
     { name: 'Simpanan', path: '/simpanan', icon: Wallet },
     { name: 'Pinjaman', path: '/pinjaman', icon: CreditCard },
   ];
+
+  // Menu items for Admin/Pengurus
+  const ADMIN_MENU_ITEMS = [
+    { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard, roles: MANAGEMENT_ROLES },
+    { name: 'Manajemen Users', path: '/admin/users', icon: User, roles: MANAGEMENT_ROLES },
+    { name: 'Simpan Pinjam', path: '/admin/simpan-pinjam', icon: PiggyBank, roles: MANAGEMENT_ROLES },
+    { name: 'Keuangan', path: '/admin/keuangan', icon: BarChart3, roles: MANAGEMENT_ROLES },
+    { name: 'Konfigurasi', path: '/admin/konfigurasi', icon: Settings, roles: MANAGEMENT_ROLES },
+  ];
+
+  // Determine menu items based on role
+  const navItems = user?.role === 'Anggota' 
+    ? MEMBER_MENU_ITEMS 
+    : ADMIN_MENU_ITEMS.filter(item => item.roles.includes(user?.role));
 
   return (
     <>

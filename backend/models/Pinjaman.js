@@ -21,9 +21,28 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING(100),
       comment: 'Diisi jika jenis=Barang',
     },
+    keperluan: {
+      type: DataTypes.TEXT,
+      comment: 'Alasan atau tujuan pengajuan pinjaman',
+    },
     jumlah_pinjaman: {
       type: DataTypes.DECIMAL(15, 2),
-      comment: 'Uang Cair atau Harga Beli Barang',
+      comment: 'Nominal Uang/Harga Barang yang DIAJUKAN',
+    },
+    terbilang: {
+      type: DataTypes.TEXT,
+      comment: 'Jumlah pinjaman diajukan dalam bentuk tulisan/huruf',
+    },
+    tenor: {
+      type: DataTypes.INTEGER,
+      comment: 'Bulan (10/15/20) yang diajukan',
+    },
+    tanggal_pengajuan: {
+      type: DataTypes.DATEONLY,
+    },
+    pinjaman_disetujui: {
+      type: DataTypes.DECIMAL(15, 2),
+      comment: 'Nominal yang DI-ACC (Bisa lebih kecil dari pengajuan)',
     },
     total_bunga: {
       type: DataTypes.DECIMAL(15, 2),
@@ -31,17 +50,11 @@ module.exports = (sequelize, DataTypes) => {
     },
     total_angsuran: {
       type: DataTypes.DECIMAL(15, 2),
-      comment: 'Pokok + Bunga',
-    },
-    tenor: {
-      type: DataTypes.INTEGER,
-      comment: 'Bulan (10/15/20)',
+      comment: 'Pokok Disetujui + Bunga',
     },
     angsuran_per_bulan: {
       type: DataTypes.DECIMAL(15, 2),
-    },
-    tanggal_pengajuan: {
-      type: DataTypes.DATEONLY,
+      comment: 'Limit Potongan Gaji dicek berdasarkan Jabatan',
     },
     acc_koordinator_id: {
       type: DataTypes.INTEGER,
@@ -53,6 +66,10 @@ module.exports = (sequelize, DataTypes) => {
     },
     tgl_acc_koordinator: {
       type: DataTypes.DATE,
+    },
+    catatan_pengurus: {
+      type: DataTypes.TEXT,
+      comment: 'Alasan penolakan atau catatan kondisi persetujuan',
     },
     status: {
       type: DataTypes.ENUM('Pending', 'Approved', 'Rejected', 'Lunas'),

@@ -33,7 +33,6 @@ export default function ProtectedRoute({ children, allowedRoles, allowedStatus }
     if (user.role === 'Anggota') {
       const status = user.status_keanggotaan;
       if (status === 'Pending') return <Navigate to="/dashboard/pending" replace />;
-      if (status === 'Ditolak') return <Navigate to="/dashboard/ditolak" replace />;
       return <Navigate to="/dashboard" replace />;
     }
     return <Navigate to="/admin/dashboard" replace />;
@@ -44,7 +43,6 @@ export default function ProtectedRoute({ children, allowedRoles, allowedStatus }
     if (!allowedStatus.includes(user.status_keanggotaan)) {
       const status = user.status_keanggotaan;
       if (status === 'Pending') return <Navigate to="/dashboard/pending" replace />;
-      if (status === 'Ditolak') return <Navigate to="/dashboard/ditolak" replace />;
       return <Navigate to="/dashboard" replace />;
     }
   }

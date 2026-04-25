@@ -1,80 +1,184 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/molecules/ProtectedRoute';
+import { MANAGEMENT_ROLES } from './utils/roles';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import DashboardLayout from './components/templates/DashboardLayout';
-import Dashboard from './pages/Dashboard';
-import Simpanan from './pages/Simpanan';
-import Pinjaman from './pages/Pinjaman';
-import Invoice from './pages/Invoice';
+import Dashboard from './pages/anggota/Dashboard';
+import Simpanan from './pages/anggota/Simpanan';
+import Pinjaman from './pages/anggota/Pinjaman';
+import Invoice from './pages/anggota/Invoice';
 import Profile from './pages/Profile';
-import PengajuanKeluar from './pages/PengajuanKeluar';
-import DashboardPending from './pages/DashboardPending';
-import DashboardDitolak from './pages/DashboardDitolak';
-import AdminDashboard from './pages/AdminDashboard';
+import KoperasiRules from './pages/KoperasiRules';
+import RuleDetail from './pages/RuleDetail';
+import PengajuanKeluar from './pages/anggota/PengajuanKeluar';
+import DashboardPending from './pages/anggota/DashboardPending';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import ConfigRules from './pages/admin/ConfigRules';
+import EditRuleDetail from './pages/admin/EditRuleDetail';
+import TambahPeraturan from './pages/admin/TambahPeraturan';
+import UserManagement from './pages/admin/UserManagement';
+import SimpanPinjam from './pages/admin/SimpanPinjam';
+import InputBaruSimpanan from './pages/admin/InputBaruSimpanan';
+import FinanceManagement from './pages/admin/FinanceManagement';
+import AdminProfile from './pages/admin/AdminProfile';
+import TambahUser from './pages/admin/TambahUser';
+import GuestLayout from './components/templates/GuestLayout';
+import GuestRules from './pages/GuestRules';
+import GuestRuleDetail from './pages/GuestRuleDetail';
+
+import { SocketProvider } from './context/SocketContext';
+import { NotificationProvider } from './context/NotificationContext';
+import NotificationToast from './components/molecules/NotificationToast';
+import EditUser from './pages/admin/EditUser';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} />
+      <SocketProvider>
+        <NotificationProvider>
+          <Router>
+            <NotificationToast />
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/login" element={<Login />} />
+              
+              {/* Guest Rules Routes */}
+              <Route path="/rules" element={<GuestLayout />}>
+                <Route index element={<GuestRules />} />
+                <Route path=":id" element={<GuestRuleDetail />} />
+              </Route>
 
-          {/* Anggota Pending Dashboard */}
-          <Route
-            path="/dashboard/pending"
-            element={
-              <ProtectedRoute allowedRoles={['Anggota']} allowedStatus={['Pending']}>
-                <DashboardPending />
-              </ProtectedRoute>
-            }
-          />
+              {/* Anggota Pending Dashboard */}
+              <Route
+                path="/dashboard/pending"
+                element={
+                  <ProtectedRoute allowedRoles={['Anggota']} allowedStatus={['Pending']}>
+                    <DashboardPending />
+                  </ProtectedRoute>
+                }
+              />
 
-          {/* Anggota Ditolak Dashboard */}
-          <Route
-            path="/dashboard/ditolak"
-            element={
-              <ProtectedRoute allowedRoles={['Anggota']} allowedStatus={['Ditolak']}>
-                <DashboardDitolak />
-              </ProtectedRoute>
-            }
-          />
+              {/* Anggota Aktif Dashboard */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute allowedRoles={['Anggota']} allowedStatus={['Aktif']}>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="simpanan" element={<Simpanan />} />
+                <Route path="pinjaman" element={<Pinjaman />} />
+                <Route path="pinjaman/invoice/:id" element={<Invoice />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="koperasi-rules" element={<KoperasiRules />} />
+                <Route path="koperasi-rules/:id" element={<RuleDetail />} />
+                <Route path="pengajuan-keluar" element={<PengajuanKeluar />} />
+              </Route>
 
-          {/* Anggota Aktif Dashboard */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute allowedRoles={['Anggota']} allowedStatus={['Aktif']}>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="simpanan" element={<Simpanan />} />
-            <Route path="pinjaman" element={<Pinjaman />} />
-            <Route path="pinjaman/invoice/:id" element={<Invoice />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="pengajuan-keluar" element={<PengajuanKeluar />} />
-          </Route>
+              {/* Admin/Pengurus Dashboard */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute allowedRoles={['Ketua', 'Wakil_Ketua', 'Sekretaris', 'Bendahara', 'Koordinator_Simpan_Pinjam']}>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route 
+                  path="profile" 
+                  element={
+                    <ProtectedRoute allowedRoles={MANAGEMENT_ROLES}>
+                      <AdminProfile />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="users" 
+                  element={
+                    <ProtectedRoute allowedRoles={MANAGEMENT_ROLES}>
+                      <UserManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="users/tambah" 
+                  element={
+                    <ProtectedRoute allowedRoles={MANAGEMENT_ROLES}>
+                      <TambahUser />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="users/edit/:type/:id" 
+                  element={
+                    <ProtectedRoute allowedRoles={MANAGEMENT_ROLES}>
+                      <EditUser />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="simpan-pinjam" 
+                  element={
+                    <ProtectedRoute allowedRoles={MANAGEMENT_ROLES}>
+                      <SimpanPinjam />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="simpan-pinjam/input-baru/:id" 
+                  element={
+                    <ProtectedRoute allowedRoles={MANAGEMENT_ROLES}>
+                      <InputBaruSimpanan />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="keuangan" 
+                  element={
+                    <ProtectedRoute allowedRoles={MANAGEMENT_ROLES}>
+                      <FinanceManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="konfigurasi" 
+                  element={
+                    <ProtectedRoute allowedRoles={MANAGEMENT_ROLES}>
+                      <ConfigRules />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="konfigurasi/tambah" 
+                  element={
+                    <ProtectedRoute allowedRoles={['Sekretaris']}>
+                      <TambahPeraturan />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="konfigurasi/:id" 
+                  element={
+                    <ProtectedRoute allowedRoles={MANAGEMENT_ROLES}>
+                      <EditRuleDetail />
+                    </ProtectedRoute>
+                  } 
+                />
+              </Route>
 
-          {/* Admin/Pengurus Dashboard */}
-          <Route
-            path="/admin/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={['Ketua', 'Wakil_Ketua', 'Sekretaris', 'Bendahara', 'Koordinator_Simpan_Pinjam']}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Catch-all: redirect to login */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Router>
+              {/* Catch-all: redirect to login */}
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+          </Router>
+        </NotificationProvider>
+      </SocketProvider>
     </AuthProvider>
   );
 }

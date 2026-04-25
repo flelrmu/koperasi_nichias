@@ -1,13 +1,45 @@
 import { useState, useRef, useEffect } from 'react';
-import { Menu, Bell, Info, CheckCircle2, Clock, Wallet, Star } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Menu, Bell, Info, Clock, UserPlus, CheckCircle2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
+import { formatRelativeTime } from '../molecules/NotificationToast';
+
+function getNotifIconAndColor(tipe, isRead) {
+  switch (tipe) {
+    case 'pendaftaran':
+      return {
+        Icon: UserPlus,
+        color: isRead ? 'text-gray-400 bg-gray-100' : 'text-[#004A9C] bg-[#004A9C]/10',
+      };
+    case 'sistem':
+      return {
+        Icon: CheckCircle2,
+        color: isRead ? 'text-gray-400 bg-gray-100' : 'text-[#F2994A] bg-[#F2994A]/10',
+      };
+    default:
+      return {
+        Icon: Bell,
+        color: isRead ? 'text-gray-400 bg-gray-100' : 'text-gray-500 bg-gray-100',
+      };
+  }
+}
 
 export default function Topbar({ toggleSidebar }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Always call hooks unconditionally at top level (React Rules of Hooks)
+  const notifContext = useNotifications();
+
+  // Notifications available for all authenticated users
+  const notifications = notifContext.notifications;
+  const unreadCount = notifContext.unreadCount;
+  const markAsRead = notifContext.markAsRead;
+  const markAllAsRead = notifContext.markAllAsRead;
 
   // Dynamic user info
   const userName = user?.nama_lengkap || user?.email || 'User';
@@ -20,14 +52,6 @@ export default function Topbar({ toggleSidebar }) {
     .slice(0, 2)
     .join('')
     .toUpperCase();
-
-  const notifications = [
-    { id: 1, title: 'Pinjaman Disetujui', message: 'Pengajuan pinjaman Anda sebesar Rp 5.000.000 telah disetujui.', time: '5 mnt lalu', type: 'success', icon: CheckCircle2, isRead: false },
-    { id: 2, title: 'Tagihan Jatuh Tempo', message: 'Tagihan pinjaman bulan ini jatuh tempo dalam 3 hari.', time: '2 jam lalu', type: 'warning', icon: Clock, isRead: false },
-    { id: 3, title: 'Simpanan Sukses', message: 'Simpanan Wajib bulan April berhasil dipotong.', time: '1 hari lalu', type: 'info', icon: Wallet, isRead: true },
-    { id: 4, title: 'Promo Merdeka', message: 'Dapatkan bunga pinjaman spesial hanya 0.8% bulan ini!', time: '2 hari lalu', type: 'promo', icon: Star, isRead: true },
-    { id: 5, title: 'Pembayaran Diterima', message: 'Terima kasih, angsuran pinjaman Anda telah kami terima.', time: '3 hari lalu', type: 'success', icon: CheckCircle2, isRead: true },
-  ];
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -42,15 +66,22 @@ export default function Topbar({ toggleSidebar }) {
     };
   }, [dropdownRef]);
 
-  const getIconStatusColor = (type) => {
-    switch (type) {
-      case 'success': return 'text-[#27AE60] bg-[#27AE60]/10';
-      case 'warning': return 'text-[#F2994A] bg-[#F2994A]/10';
-      case 'promo': return 'text-[#004A9C] bg-[#004A9C]/10';
-      case 'info': 
-      default: return 'text-gray-500 bg-gray-100';
+  const handleNotifClick = (notif) => {
+    // Mark as read
+    if (!notif.is_read && notif.id) {
+      markAsRead(notif.id);
     }
+    // Navigate to link
+    if (notif.link) {
+      navigate(notif.link);
+    }
+    setShowNotifications(false);
   };
+
+  const handleMarkAllRead = () => {
+    markAllAsRead();
+  };
+
   return (
     <header className="bg-white border-b border-gray-200 h-20 flex items-center justify-between px-4 sm:px-6 lg:px-8 sticky top-0 z-30">
       <div className="flex items-center gap-4">
@@ -73,7 +104,18 @@ export default function Topbar({ toggleSidebar }) {
             className="p-2 text-gray-500 hover:text-[#004A9C] transition-colors relative"
           >
             <Bell size={20} />
-            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[#EB5757] rounded-full border-2 border-white animate-pulse"></span>
+            {unreadCount > 0 && (
+              <motion.span
+                key={unreadCount}
+                initial={{ scale: 0.5 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-0.5 -right-0.5 min-w-[20px] h-5 px-1 bg-[#EB5757] rounded-full border-2 border-white flex items-center justify-center"
+              >
+                <span className="text-white text-[10px] font-bold leading-none">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              </motion.span>
+            )}
           </button>
 
           <AnimatePresence>
@@ -86,60 +128,98 @@ export default function Topbar({ toggleSidebar }) {
                 className="absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 overflow-hidden z-50 focus:outline-none"
               >
                 <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                  <h3 className="font-semibold text-gray-800">Notifikasi</h3>
-                  <button className="text-xs text-[#004A9C] hover:underline font-medium">Tandai semua dibaca</button>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-gray-800">Notifikasi</h3>
+                    {unreadCount > 0 && (
+                      <span className="px-2 py-0.5 bg-[#004A9C] text-white text-[10px] font-bold rounded-full">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  {unreadCount > 0 && (
+                    <button 
+                      onClick={handleMarkAllRead}
+                      className="text-xs text-[#004A9C] hover:underline font-medium"
+                    >
+                      Tandai semua dibaca
+                    </button>
+                  )}
                 </div>
                 
                 <div className="max-h-[400px] overflow-y-auto w-full no-scrollbar">
-                  {notifications.map((notif) => {
-                    const NotifIcon = notif.icon;
-                    return (
-                      <div 
-                        key={notif.id} 
-                        className={`p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors flex gap-4 cursor-pointer relative ${!notif.isRead ? 'bg-[#DFEAF4]/20' : ''}`}
-                      >
-                        {!notif.isRead && (
-                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#004A9C]"></div>
-                        )}
-                        <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${getIconStatusColor(notif.type)}`}>
-                          <NotifIcon size={20} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className={`text-sm tracking-tight mb-0.5 ${!notif.isRead ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>
-                            {notif.title}
-                          </h4>
-                          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-1">
-                            {notif.message}
-                          </p>
-                          <span className="text-[10px] font-medium text-gray-400 flex items-center">
-                            <Clock size={10} className="mr-1" />
-                            {notif.time}
-                          </span>
-                        </div>
+                  {notifications.length > 0 ? (
+                    notifications.slice(0, 20).map((notif) => {
+                      const { Icon, color } = getNotifIconAndColor(notif.tipe, notif.is_read);
+                      return (
+                        <motion.div 
+                          key={notif.id} 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className={`p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors flex gap-4 cursor-pointer relative ${!notif.is_read ? 'bg-[#DFEAF4]/20' : ''}`}
+                          onClick={() => handleNotifClick(notif)}
+                        >
+                          {!notif.is_read && (
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#004A9C]"></div>
+                          )}
+                          <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${color}`}>
+                            <Icon size={20} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`text-sm tracking-tight mb-0.5 ${!notif.is_read ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>
+                              {notif.judul}
+                            </h4>
+                            <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-1">
+                              {notif.pesan}
+                            </p>
+                            <span className="text-[10px] font-medium text-gray-400 flex items-center">
+                              <Clock size={10} className="mr-1" />
+                              {formatRelativeTime(notif.created_at)}
+                            </span>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  ) : (
+                    <div className="py-12 text-center">
+                      <div className="w-14 h-14 mx-auto bg-gray-50 rounded-2xl flex items-center justify-center text-gray-200 mb-3">
+                        <Bell size={28} />
                       </div>
-                    );
-                  })}
+                      <p className="text-sm font-semibold text-gray-400">Belum ada notifikasi</p>
+                      <p className="text-xs text-gray-300 mt-1">Notifikasi baru akan muncul di sini</p>
+                    </div>
+                  )}
                 </div>
                 
-                <div className="p-3 border-t border-gray-100 text-center bg-gray-50/50">
-                  <button className="text-sm text-[#004A9C] font-semibold hover:underline">
-                    Lihat semua notifikasi
-                  </button>
-                </div>
+                {notifications.length > 0 && (
+                  <div className="p-3 border-t border-gray-100 text-center bg-gray-50/50">
+                    <span className="text-xs text-gray-400 font-medium">
+                      {notifications.length} notifikasi terakhir
+                    </span>
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-        <button className="p-2 text-gray-500 hover:text-[#004A9C] transition-colors relative">
-          <Info size={20} />          
-        </button>
+        {user?.role === 'Anggota' && (
+          <Link 
+            to="/koperasi-rules" 
+            className="p-2 text-gray-500 hover:text-[#004A9C] hover:bg-gray-100 rounded-lg transition-all"
+            title="Peraturan Koperasi"
+          >
+            <Info size={20} />          
+          </Link>
+        )}
         
         <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
           <div className="text-right hidden sm:block">
             <p className="text-sm font-semibold text-gray-800">{userName}</p>
             <p className="text-xs text-gray-500">{userRole}</p>
           </div>
-          <Link to="/profile" className="w-10 h-10 rounded-full bg-[#004A9C] text-white flex items-center justify-center font-semibold border-2 border-[#DFEAF4] hover:ring-2 hover:ring-[#004A9C] hover:ring-offset-2 transition-all">
+          <Link 
+            to={user?.role === 'Anggota' ? '/profile' : '/admin/profile'} 
+            className="w-10 h-10 rounded-full bg-[#004A9C] text-white flex items-center justify-center font-semibold border-2 border-[#DFEAF4] hover:ring-2 hover:ring-[#004A9C] hover:ring-offset-2 transition-all"
+          >
             {userInitials}
           </Link>
         </div>

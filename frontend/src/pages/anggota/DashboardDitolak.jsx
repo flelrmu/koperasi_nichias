@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
 import { XCircle, RefreshCw, LogOut, MessageCircle, Phone, Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import Logo from '../components/atoms/Logo';
-import Button from '../components/atoms/Button';
+import { useAuth } from '../../context/AuthContext';
+import Logo from '../../components/atoms/Logo';
+import Button from '../../components/atoms/Button';
 
 export default function DashboardDitolak() {
   const navigate = useNavigate();

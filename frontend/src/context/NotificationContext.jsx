@@ -1,0 +1,175 @@
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useSocket } from './SocketContext';
+import { useAuth } from './AuthContext';
+import { isManagement } from '../utils/roles';
+
+const NotificationContext = createContext(null);
+
+export function NotificationProvider({ children }) {
+  const socket = useSocket();
+  const { api, user, isAuthenticated } = useAuth();
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [toastQueue, setToastQueue] = useState([]);
+
+  // Use refs to avoid stale closures in socket handlers
+  const authRef = useRef({ isAuthenticated, user });
+  useEffect(() => {
+    authRef.current = { isAuthenticated, user };
+  }, [isAuthenticated, user]);
+
+  // Fetch notifications from API (for persisted notifications)
+  const fetchNotifications = useCallback(async () => {
+    if (!authRef.current.isAuthenticated) return;
+    
+    try {
+      const res = await api.get('/notifications');
+      if (res.data.success) {
+        setNotifications(res.data.data);
+        setUnreadCount(res.data.unreadCount);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching notifications:', error);
+    }
+  }, [api]);
+
+  // Fetch on mount and when auth changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchNotifications();
+    } else {
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  }, [isAuthenticated, user?.role, fetchNotifications]);
+
+  // Listen for real-time Socket.IO events
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewRegistration = (data) => {
+      console.log('🔔 Real-time notifikasi:pendaftaran-baru received:', data);
+      
+      const { isAuthenticated: authed, user: currentUser } = authRef.current;
+      if (!authed || !isManagement(currentUser?.role)) return;
+
+      const newNotif = {
+        id: `temp_${Date.now()}`,
+        judul: data.notifikasi.judul,
+        pesan: data.notifikasi.pesan,
+        tipe: data.notifikasi.tipe,
+        link: data.notifikasi.link,
+        is_read: false,
+        created_at: data.notifikasi.created_at,
+      };
+
+      setNotifications(prev => [newNotif, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
+
+      // Refetch from DB to get real notification IDs
+      setTimeout(() => fetchNotifications(), 1500);
+    };
+
+    // Handle member approval notification (for Anggota role)
+    const handleMemberApproved = (data) => {
+      console.log('🔔 Real-time member:approved received:', data);
+      
+      const { isAuthenticated: authed, user: currentUser } = authRef.current;
+      if (!authed) return;
+
+      // Check if this approval is for the current user
+      if (currentUser?.user_id === data.user_id) {
+        const newNotif = {
+          id: `temp_approved_${Date.now()}`,
+          judul: 'Pendaftaran Diterima! 🎉',
+          pesan: 'Selamat! Pendaftaran Anda telah disetujui. Anda sekarang resmi menjadi anggota Koperasi Nichias.',
+          tipe: 'sistem',
+          link: '/dashboard',
+          is_read: false,
+          created_at: new Date().toISOString(),
+        };
+
+        setNotifications(prev => [newNotif, ...prev]);
+        setUnreadCount(prev => prev + 1);
+        setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
+      }
+    };
+
+    const handleReconnect = () => {
+      console.log('🔄 Socket reconnected, refetching notifications...');
+      const { isAuthenticated: authed } = authRef.current;
+      if (authed) {
+        fetchNotifications();
+      }
+    };
+
+    socket.on('notifikasi:pendaftaran-baru', handleNewRegistration);
+    socket.on('member:approved', handleMemberApproved);
+    socket.on('connect', handleReconnect);
+
+    return () => {
+      socket.off('notifikasi:pendaftaran-baru', handleNewRegistration);
+      socket.off('member:approved', handleMemberApproved);
+      socket.off('connect', handleReconnect);
+    };
+  }, [socket, fetchNotifications]);
+
+  // Mark single notification as read
+  const markAsRead = useCallback(async (id) => {
+    if (String(id).startsWith('temp_')) {
+      setNotifications(prev => prev.map(n => (n.id === id ? { ...n, is_read: true } : n)));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+      return;
+    }
+    try {
+      await api.put(`/notifications/${id}/read`);
+      setNotifications(prev => prev.map(n => (n.id === id ? { ...n, is_read: true } : n)));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('❌ Error marking notification as read:', error);
+    }
+  }, [api]);
+
+  // Mark all notifications as read
+  const markAllAsRead = useCallback(async () => {
+    try {
+      await api.put('/notifications/read-all');
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('❌ Error marking all as read:', error);
+    }
+  }, [api]);
+
+  // Remove a toast from the queue
+  const dismissToast = useCallback((toastId) => {
+    setToastQueue(prev => prev.filter(t => t._toastId !== toastId));
+  }, []);
+
+  const value = {
+    notifications,
+    unreadCount,
+    toastQueue,
+    fetchNotifications,
+    markAsRead,
+    markAllAsRead,
+    dismissToast,
+  };
+
+  return (
+    <NotificationContext.Provider value={value}>
+      {children}
+    </NotificationContext.Provider>
+  );
+}
+
+export function useNotifications() {
+  const context = useContext(NotificationContext);
+  if (!context) {
+    throw new Error('useNotifications must be used within a NotificationProvider');
+  }
+  return context;
+}
+
+export default NotificationContext;
