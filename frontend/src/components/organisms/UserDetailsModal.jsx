@@ -72,8 +72,10 @@ export default function UserDetailsModal({ isOpen, onClose, user, type }) {
               <div className="absolute -inset-1 bg-gradient-to-r from-[#004A9C] to-[#002D5F] rounded-3xl blur opacity-0 group-hover:opacity-10 transition duration-1000 group-hover:duration-200"></div>
               
               <div className="relative flex flex-col items-center">
-                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-[#DFEAF4] to-white flex items-center justify-center text-4xl font-bold text-[#004A9C] mb-4 shadow-inner shadow-[#004A9C]/10 border border-[#DFEAF4]">
-                  {user.nama_lengkap?.charAt(0)}
+                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-[#DFEAF4] to-white flex items-center justify-center text-4xl font-bold text-[#004A9C] mb-4 shadow-inner shadow-[#004A9C]/10 border border-[#DFEAF4] overflow-hidden">
+                  {user.foto_profil ? (
+                    <img src={`http://localhost:5000${user.foto_profil}`} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (user.nama_lengkap?.charAt(0))}
                 </div>
                 <h3 className="text-xl font-bold text-gray-800 text-center">{user.nama_lengkap}</h3>
                 <p className="text-gray-400 text-xs text-center mt-1">{user.user?.email}</p>

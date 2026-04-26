@@ -27,6 +27,10 @@ module.exports = (sequelize, DataTypes) => {
     alamat: {
       type: DataTypes.TEXT,
     },
+    foto_profil: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
   }, {
     tableName: 'pengurus',
     timestamps: false,

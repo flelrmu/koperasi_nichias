@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, 
@@ -27,6 +28,7 @@ import {
   Area
 } from 'recharts';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import StatusBadge from '../../components/atoms/StatusBadge';
 
 // Mock data for charts
@@ -47,8 +49,39 @@ const financeData = [
 ];
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, api } = useAuth();
+  const socket = useSocket();
   const roleLabel = user?.role?.replace(/_/g, ' ') || 'Pengurus';
+
+  const [dashboardData, setDashboardData] = useState({
+    topStats: { totalAnggotaAktif: 0, pendaftaranPending: 0, pinjamanPending: 0, aktifitasHariIni: 0 },
+    aliranDana: [],
+    distribusiDivisi: [],
+    ringkasanSimpanan: { pokok: 0, wajib: 0, sukarela: 0, total: 0 },
+    nilaiPinjaman: { berjalan: 0, potensi: 0, total: 0 }
+  });
+
+  const fetchDashboardData = async () => {
+    try {
+      const response = await api.get('/dashboard');
+      if (response.data.success) {
+        setDashboardData(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+
+    if (socket) {
+      socket.on('dashboardUpdate', fetchDashboardData);
+      return () => {
+        socket.off('dashboardUpdate', fetchDashboardData);
+      };
+    }
+  }, [socket]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -62,18 +95,10 @@ export default function AdminDashboard() {
 
   // Stats for Member & Pending
   const topStats = [
-    { label: 'Total Anggota Aktif', value: '1,248', icon: Users, color: '#004A9C', trend: '+12% bln ini' },
-    { label: 'Pendaftaran Pending', value: '18', icon: UserPlus, color: '#F2994A', trend: 'Perlu review' },
-    { label: 'Pinjaman Pending', value: '7', icon: Clock, color: '#EB5757', trend: 'Segera proses' },
-    { label: 'Aktivitas Hari Ini', value: '42', icon: Activity, color: '#27AE60', trend: 'Normal' },
-  ];
-
-  // Savings Stats
-  const savingsStats = [
-    { label: 'Simpanan Pokok', value: 'Rp 125.000.000', color: '#004A9C' },
-    { label: 'Simpanan Wajib', value: 'Rp 450.000.000', color: '#27AE60' },
-    { label: 'Simpanan Sukarela', value: 'Rp 89.500.000', color: '#F2994A' },
-    { label: 'Total Dana Simpanan', value: 'Rp 664.500.000', color: '#1e293b', highlighted: true },
+    { label: 'Total Anggota Aktif', value: dashboardData.topStats.totalAnggotaAktif.toString(), icon: Users, color: '#004A9C', trend: 'Live' },
+    { label: 'Pendaftaran Pending', value: dashboardData.topStats.pendaftaranPending.toString(), icon: UserPlus, color: '#F2994A', trend: 'Perlu review' },
+    { label: 'Pinjaman Pending', value: dashboardData.topStats.pinjamanPending.toString(), icon: Clock, color: '#EB5757', trend: 'Segera proses' },
+    { label: 'Aktivitas Hari Ini', value: dashboardData.topStats.aktifitasHariIni.toString(), icon: Activity, color: '#27AE60', trend: 'Normal' },
   ];
 
   const formatCurrency = (value) => {
@@ -83,6 +108,15 @@ export default function AdminDashboard() {
       maximumFractionDigits: 0
     }).format(value);
   };
+
+  // Savings Stats
+  const savingsStats = [
+    { label: 'Simpanan Pokok', value: formatCurrency(dashboardData.ringkasanSimpanan.pokok), color: '#004A9C' },
+    { label: 'Simpanan Wajib', value: formatCurrency(dashboardData.ringkasanSimpanan.wajib), color: '#27AE60' },
+    { label: 'Simpanan Sukarela', value: formatCurrency(dashboardData.ringkasanSimpanan.sukarela), color: '#F2994A' },
+    { label: 'Total Dana Simpanan', value: formatCurrency(dashboardData.ringkasanSimpanan.total), color: '#1e293b', highlighted: true },
+  ];
+
 
   return (
     <motion.div 
@@ -160,7 +194,7 @@ export default function AdminDashboard() {
           </div>
           <div className="flex-1 p-6 h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={financeData}>
+              <AreaChart data={dashboardData.aliranDana.length > 0 ? dashboardData.aliranDana : financeData}>
                 <defs>
                   <linearGradient id="colorDebit" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#004A9C" stopOpacity={0.3}/>
@@ -177,6 +211,7 @@ export default function AdminDashboard() {
                 <RechartsTooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                   cursor={{ stroke: '#004A9C', strokeWidth: 1, strokeDasharray: '5 5' }}
+                  formatter={(value) => formatCurrency(value)}
                 />
                 <Area type="monotone" dataKey="debit" stroke="#004A9C" strokeWidth={3} fillOpacity={1} fill="url(#colorDebit)" />
                 <Area type="monotone" dataKey="credit" stroke="#27AE60" strokeWidth={3} fillOpacity={1} fill="url(#colorCredit)" />
@@ -195,7 +230,7 @@ export default function AdminDashboard() {
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
-                  data={divisionData}
+                  data={dashboardData.distribusiDivisi.length > 0 ? dashboardData.distribusiDivisi : divisionData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -203,7 +238,7 @@ export default function AdminDashboard() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {divisionData.map((entry, index) => (
+                  {(dashboardData.distribusiDivisi.length > 0 ? dashboardData.distribusiDivisi : divisionData).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -211,7 +246,7 @@ export default function AdminDashboard() {
               </PieChart>
             </ResponsiveContainer>
             <div className="grid grid-cols-2 gap-4 w-full mt-4">
-              {divisionData.map((item, idx) => (
+              {(dashboardData.distribusiDivisi.length > 0 ? dashboardData.distribusiDivisi : divisionData).map((item, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></div>
                   <span className="text-[11px] font-bold text-gray-600 truncate">{item.name}</span>
@@ -267,7 +302,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex-1 flex flex-col justify-center text-center">
-            <p className="text-5xl font-black text-[#111827] mb-2">Rp 1.104.280.000</p>
+            <p className="text-5xl font-black text-[#111827] mb-2">{formatCurrency(dashboardData.nilaiPinjaman.total)}</p>
             <p className="text-sm font-semibold text-gray-400 max-w-xs mx-auto">
               Total estimasi dana kas yang sedang dipinjam (Aktif) dan potensi dana keluar (Pending).
             </p>
@@ -276,11 +311,11 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 gap-4 mt-8 pt-8 border-t border-gray-50">
             <div className="bg-orange-50/30 p-4 rounded-2xl text-center">
               <p className="text-[10px] font-bold text-orange-600 uppercase mb-1">Potensi (Pending)</p>
-              <p className="text-lg font-black text-orange-800">Rp 45.5M</p>
+              <p className="text-lg font-black text-orange-800">{formatCurrency(dashboardData.nilaiPinjaman.potensi)}</p>
             </div>
             <div className="bg-green-50/30 p-4 rounded-2xl text-center">
               <p className="text-[10px] font-bold text-green-600 uppercase mb-1">Berjalan (Aktif)</p>
-              <p className="text-lg font-black text-green-800">Rp 1.05M</p>
+              <p className="text-lg font-black text-green-800">{formatCurrency(dashboardData.nilaiPinjaman.berjalan)}</p>
             </div>
           </div>
         </motion.div>

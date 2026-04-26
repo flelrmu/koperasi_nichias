@@ -96,7 +96,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-[#004A9C]/10">
+        <div className="p-4 border-t border-[#004A9C]/10 flex flex-col gap-2">
           <button
             onClick={() => setIsLogoutModalOpen(true)}
             className="w-full flex items-center gap-3 px-4 py-3 text-[#EB5757] hover:bg-[#EB5757]/10 rounded-xl transition-colors font-medium"

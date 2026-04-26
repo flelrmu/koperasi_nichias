@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Menu, Bell, Info, Clock, UserPlus, CheckCircle2 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { formatRelativeTime } from '../molecules/NotificationToast';
 
@@ -27,8 +28,10 @@ function getNotifIconAndColor(tipe, isRead) {
 }
 
 export default function Topbar({ toggleSidebar }) {
-  const { user } = useAuth();
+  const { user, updateUserData } = useAuth();
+  const socket = useSocket();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -66,6 +69,19 @@ export default function Topbar({ toggleSidebar }) {
     };
   }, [dropdownRef]);
 
+  // Listen for real-time photo updates
+  useEffect(() => {
+    if (!socket || !user) return;
+    const handlePhotoUpdated = (e) => {
+      if ((e.type === 'anggota' && user.role === 'Anggota' && e.data.user_id === user.user_id) ||
+          (e.type === 'pengurus' && user.role !== 'Anggota' && e.data.user_id === user.user_id)) {
+          updateUserData({ foto_profil: e.data.foto_profil });
+      }
+    };
+    socket.on('user:photoUpdated', handlePhotoUpdated);
+    return () => socket.off('user:photoUpdated', handlePhotoUpdated);
+  }, [socket, user, updateUserData]);
+
   const handleNotifClick = (notif) => {
     // Mark as read
     if (!notif.is_read && notif.id) {
@@ -92,7 +108,19 @@ export default function Topbar({ toggleSidebar }) {
           <Menu size={24} />
         </button>
         <h1 className="text-xl font-semibold text-gray-800 hidden sm:block">
-          Dashboard {user?.role === 'Anggota' ? 'Anggota' : 'Pengurus'}
+          {(() => {
+            const path = location.pathname;
+            if (path === '/dashboard' || path === '/admin/dashboard') return `Dashboard ${user?.role === 'Anggota' ? 'Anggota' : 'Pengurus'}`;
+            if (path.includes('/simpanan')) return 'Simpanan';
+            if (path.includes('/pinjaman')) return 'Pinjaman';
+            if (path.includes('/admin/users')) return 'Manajemen Users';
+            if (path.includes('/admin/simpan-pinjam')) return 'Simpan Pinjam';
+            if (path.includes('/admin/keuangan')) return 'Keuangan';
+            if (path.includes('/admin/konfigurasi')) return 'Konfigurasi';
+            if (path.includes('/profile')) return 'Profil Saya';
+            if (path.includes('/koperasi-rules')) return 'Peraturan Koperasi';
+            return `Dashboard ${user?.role === 'Anggota' ? 'Anggota' : 'Pengurus'}`;
+          })()}
         </h1>
       </div>
 
@@ -218,9 +246,11 @@ export default function Topbar({ toggleSidebar }) {
           </div>
           <Link 
             to={user?.role === 'Anggota' ? '/profile' : '/admin/profile'} 
-            className="w-10 h-10 rounded-full bg-[#004A9C] text-white flex items-center justify-center font-semibold border-2 border-[#DFEAF4] hover:ring-2 hover:ring-[#004A9C] hover:ring-offset-2 transition-all"
+            className="w-10 h-10 rounded-full bg-[#004A9C] text-white flex items-center justify-center font-semibold border-2 border-[#DFEAF4] hover:ring-2 hover:ring-[#004A9C] hover:ring-offset-2 transition-all overflow-hidden shrink-0"
           >
-            {userInitials}
+            {user?.foto_profil ? (
+               <img src={`http://localhost:5000${user.foto_profil}`} alt="Avatar" className="w-full h-full object-cover" />
+            ) : userInitials}
           </Link>
         </div>
       </div>

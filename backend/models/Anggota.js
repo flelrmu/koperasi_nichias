@@ -65,6 +65,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('Pending', 'Aktif', 'Keluar'),
       defaultValue: 'Pending',
     },
+    foto_profil: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
   }, {
     tableName: 'anggota',
     timestamps: false,

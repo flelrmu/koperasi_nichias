@@ -13,6 +13,7 @@ import {
 import Button from '../components/atoms/Button';
 import { getIconComponent } from '../utils/iconMap';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 
 export default function RuleDetail() {
   const { id } = useParams();
@@ -21,6 +22,7 @@ export default function RuleDetail() {
   
   const [rule, setRule] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const socket = useSocket();
 
   useEffect(() => {
     const fetchRule = async () => {
@@ -37,7 +39,20 @@ export default function RuleDetail() {
       }
     };
     fetchRule();
-  }, [id]);
+  }, [id, api]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUpdated = (payload) => {
+      if (payload.id === parseInt(id)) {
+        setRule(payload.data);
+      }
+    };
+
+    socket.on('peraturan:updated', handleUpdated);
+    return () => socket.off('peraturan:updated', handleUpdated);
+  }, [socket, id]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Camera, 
@@ -35,6 +35,7 @@ export default function AdminProfile() {
     jabatan: '',
     noHp: '',
     alamat: '',
+    fotoProfil: '',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -55,6 +56,7 @@ export default function AdminProfile() {
             jabatan: data.jabatan || '',
             noHp: data.no_hp || '',
             alamat: data.alamat || '',
+            fotoProfil: data.foto_profil || '',
           });
         }
       } catch (error) {
@@ -78,6 +80,7 @@ export default function AdminProfile() {
             jabatan: data.jabatan || '',
             noHp: data.no_hp || '',
             alamat: data.alamat || '',
+            fotoProfil: data.foto_profil || '',
          }));
       }
     };
@@ -93,6 +96,29 @@ export default function AdminProfile() {
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
     setPasswordData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    try {
+      setStatusModal({ isOpen: true, type: 'success', title: 'Mengunggah', message: 'Sedang mengunggah foto profil...' });
+      const res = await api.post('/user/profile/photo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.success) {
+        setStatusModal({ isOpen: true, type: 'success', title: 'Berhasil', message: 'Foto profil berhasil diperbarui.' });
+        setProfileData(prev => ({ ...prev, fotoProfil: res.data.foto_profil }));
+      }
+    } catch(err) {
+      setStatusModal({ isOpen: true, type: 'error', title: 'Gagal', message: err.response?.data?.message || 'Gagal mengunggah foto profil.' });
+    }
   };
 
   const handleSaveProfile = async (e) => {
@@ -178,9 +204,20 @@ export default function AdminProfile() {
         {/* Left Column: Avatar & Summary */}
         <motion.div variants={itemVariants} className="space-y-6 lg:col-span-1">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col items-center text-center">
-            <div className="relative mb-4 group cursor-pointer">
+            <div className="relative mb-4 group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                accept="image/jpeg, image/png, image/webp" 
+                className="hidden" 
+              />
               <div className="w-32 h-32 rounded-full bg-[#DFEAF4] border-4 border-white shadow-md flex items-center justify-center text-[#004A9C] text-4xl font-bold overflow-hidden transition-transform group-hover:scale-105">
-                {userInitials}
+                {profileData.fotoProfil ? (
+                  <img src={`http://localhost:5000${profileData.fotoProfil}`} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  userInitials
+                )}
               </div>
               <button className="absolute bottom-0 right-0 p-2.5 bg-[#004A9C] text-white rounded-full shadow-lg hover:bg-[#0a3d80] transition-transform group-hover:scale-110">
                 <Camera size={18} />

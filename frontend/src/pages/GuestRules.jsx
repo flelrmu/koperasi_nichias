@@ -12,6 +12,7 @@ import {
 import axios from 'axios';
 import Button from '../components/atoms/Button';
 import { getIconComponent } from '../utils/iconMap';
+import { useSocket } from '../context/SocketContext';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -21,6 +22,7 @@ export default function GuestRules() {
   const [activeCategory, setActiveCategory] = useState('Semua');
   const [peraturanList, setPeraturanList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const socket = useSocket();
 
   const categories = ['Semua', 'Simpanan', 'Pinjaman', 'Keanggotaan'];
 
@@ -39,6 +41,31 @@ export default function GuestRules() {
     };
     fetchPeraturan();
   }, []);
+
+  // WebSocket real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleCreated = (payload) => {
+      setPeraturanList(prev => [payload.data, ...prev]);
+    };
+    const handleUpdated = (payload) => {
+      setPeraturanList(prev => prev.map(p => p.peraturan_id === payload.id ? payload.data : p));
+    };
+    const handleDeleted = (payload) => {
+      setPeraturanList(prev => prev.filter(p => p.peraturan_id !== payload.id));
+    };
+
+    socket.on('peraturan:created', handleCreated);
+    socket.on('peraturan:updated', handleUpdated);
+    socket.on('peraturan:deleted', handleDeleted);
+
+    return () => {
+      socket.off('peraturan:created', handleCreated);
+      socket.off('peraturan:updated', handleUpdated);
+      socket.off('peraturan:deleted', handleDeleted);
+    };
+  }, [socket]);
 
   const filteredRules = useMemo(() => {
     return peraturanList.filter(rule => {

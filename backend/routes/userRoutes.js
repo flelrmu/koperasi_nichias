@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const { verifyToken, authorizeRoles } = require('../middleware/authMiddleware');
+const upload = require('../middleware/upload');
 
 // Semua route di sini memerlukan login (verifyToken)
 router.use(verifyToken);
@@ -10,6 +11,7 @@ router.use(verifyToken);
 router.get('/profile', userController.getProfile);
 router.put('/profile', userController.updateProfile);
 router.put('/profile/password', userController.changePassword);
+router.post('/profile/photo', upload.single('photo'), userController.uploadProfilePhoto);
 
 // Hanya pengurus (Sekretaris, Ketua, Bendahara, dll) yang bisa melihat daftar user
 router.get('/anggota', authorizeRoles('Sekretaris', 'Ketua', 'Wakil_Ketua', 'Bendahara', 'Koordinator_Simpan_Pinjam'), userController.getAnggotaList);

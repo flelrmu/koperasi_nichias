@@ -279,6 +279,9 @@ const approveMember = async (req, res) => {
       data: anggotaPlain 
     });
 
+    // Emit dashboard update for real-time stats
+    req.io.emit('dashboardUpdate');
+
     // Emit member:approved untuk notifikasi ke user yang diterima
     console.log(`📤 Emitting member:approved for user_id: ${anggota.user_id}`);
     req.io.emit('member:approved', {
@@ -420,6 +423,50 @@ const changePassword = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/user/profile/photo
+ * Upload foto profil
+ */
+const uploadProfilePhoto = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'Tidak ada file yang diupload.' });
+  }
+
+  const { user_id, role } = req.user;
+  const photoPath = `/uploads/profiles/${req.file.filename}`;
+
+  try {
+    let result;
+    if (role === 'Anggota') {
+      const anggota = await Anggota.findOne({ where: { user_id } });
+      if (!anggota) return res.status(404).json({ success: false, message: 'Anggota tidak ditemukan.' });
+      
+      await anggota.update({ foto_profil: photoPath });
+      result = await Anggota.findOne({ where: { user_id }, include: [{ model: User, as: 'user' }] });
+      req.io.emit('user:photoUpdated', { type: 'anggota', id: anggota.anggota_id, data: result.get({ plain: true }) });
+      req.io.emit('user:updated', { type: 'anggota', id: anggota.anggota_id, data: result.get({ plain: true }) });
+    } else {
+      const pengurus = await Pengurus.findOne({ where: { user_id } });
+      if (!pengurus) return res.status(404).json({ success: false, message: 'Pengurus tidak ditemukan.' });
+      
+      await pengurus.update({ foto_profil: photoPath });
+      result = await Pengurus.findOne({ where: { user_id }, include: [{ model: User, as: 'user' }] });
+      req.io.emit('user:photoUpdated', { type: 'pengurus', id: pengurus.pengurus_id, data: result.get({ plain: true }) });
+      req.io.emit('user:updated', { type: 'pengurus', id: pengurus.pengurus_id, data: result.get({ plain: true }) });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Foto profil berhasil diupload.',
+      data: result,
+      foto_profil: photoPath
+    });
+  } catch (error) {
+    console.error('❌ Error uploading profile photo:', error);
+    return res.status(500).json({ success: false, message: 'Gagal mengupload foto profil.' });
+  }
+};
+
 module.exports = {
   getAnggotaList,
   getPengurusList,
@@ -429,5 +476,6 @@ module.exports = {
   approveMember,
   getProfile,
   updateProfile,
-  changePassword
+  changePassword,
+  uploadProfilePhoto
 };

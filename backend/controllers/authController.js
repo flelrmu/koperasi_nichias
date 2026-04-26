@@ -201,6 +201,9 @@ const register = async (req, res) => {
     console.log(`📤 Emitting notifikasi:pendaftaran-baru for ${nama_lengkap}`);
     req.io.emit('notifikasi:pendaftaran-baru', notifPayload);
 
+    // Emit dashboard update for real-time stats
+    req.io.emit('dashboardUpdate');
+
     // Emit juga user:created agar UserManagement table auto-update
     console.log(`📤 Emitting user:created for ${nama_lengkap}`);
     req.io.emit('user:created', {
@@ -230,6 +233,7 @@ const register = async (req, res) => {
           role: newUser.role,
           nama_lengkap: newAnggota.nama_lengkap,
           status_keanggotaan: newAnggota.status_keanggotaan,
+          foto_profil: newAnggota.foto_profil || null,
         },
       },
     });
@@ -304,10 +308,12 @@ const login = async (req, res) => {
     let redirectPath = '/dashboard';
     let nama_lengkap = '';
     let status_keanggotaan = null;
+    let foto_profil = null;
 
     if (user.role === 'Anggota') {
       nama_lengkap = user.anggota?.nama_lengkap || '';
       status_keanggotaan = user.anggota?.status_keanggotaan || 'Pending';
+      foto_profil = user.anggota?.foto_profil || null;
 
       switch (status_keanggotaan) {
         case 'Pending':
@@ -327,6 +333,7 @@ const login = async (req, res) => {
     } else {
       // Pengurus (Ketua, Wakil_Ketua, Sekretaris, Bendahara, Koordinator_Simpan_Pinjam)
       nama_lengkap = user.pengurus?.nama_lengkap || '';
+      foto_profil = user.pengurus?.foto_profil || null;
       redirectPath = '/admin/dashboard';
     }
 
@@ -341,6 +348,7 @@ const login = async (req, res) => {
           role: user.role,
           nama_lengkap,
           status_keanggotaan,
+          foto_profil,
         },
         redirectPath,
       },
@@ -452,6 +460,9 @@ const adminCreateUser = async (req, res) => {
 
     // Emit event real-time dengan data lengkap
     req.io.emit('user:created', socketPayload);
+
+    // Emit dashboard update for real-time stats
+    req.io.emit('dashboardUpdate');
 
     return res.status(201).json({
       success: true,

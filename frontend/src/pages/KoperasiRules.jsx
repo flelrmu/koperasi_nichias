@@ -4,9 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
   Info, 
-  HelpCircle,
-  ExternalLink,
   ChevronRight,
+  BookOpen,
   Loader2,
   Clock
 } from 'lucide-react';
@@ -101,51 +100,46 @@ export default function KoperasiRules() {
   };
 
   return (
-    <motion.div 
-      className="space-y-6"
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-    >
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <div>
-          <h2 className="text-2xl font-bold text-[#004A9C]">Peraturan Koperasi</h2>
-          <p className="text-gray-500 mt-1">Informasi lengkap mengenai kebijakan simpan pinjam dan keanggotaan.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex items-center gap-2">
-            <ExternalLink size={18} />
-            <span>Unduh PDF</span>
-          </Button>
-          <Button className="flex items-center gap-2">
-            <HelpCircle size={18} />
-            <span>Pusat Bantuan</span>
-          </Button>
-        </div>
+    <div className="space-y-8">
+      {/* Hero Head */}
+      <div className="text-center space-y-4 max-w-3xl mx-auto pt-4">
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[#DFEAF4] text-[#004A9C] rounded-full text-sm font-bold uppercase tracking-widest mb-2"
+        >
+          <BookOpen size={16} />
+          <span>Panduan Anggota</span>
+        </motion.div>
+        <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
+          Ketentuan & <span className="text-[#004A9C]">Aturan Koperasi</span>
+        </h1>
+        <p className="text-lg text-gray-500 leading-relaxed">
+          Pelajari seluruh kebijakan simpan pinjam dan hak keanggotaan Anda di Koperasi Karyawan Nichias Sunijaya.
+        </p>
       </div>
 
-      {/* Filter & Search Section */}
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+      {/* Filter & Search Bar */}
+      <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
             type="text"
-            placeholder="Cari peraturan..."
-            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#004A9C]/20 focus:border-[#004A9C] transition-all"
+            placeholder="Cari peraturan atau kebijakan..."
+            className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#004A9C]/20 transition-all font-medium"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 p-1 bg-white border border-gray-200 rounded-xl overflow-x-auto no-scrollbar">
+        <div className="flex gap-2 p-1 bg-gray-50 rounded-2xl w-full md:w-auto overflow-x-auto no-scrollbar">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+              className={`px-6 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
                 activeCategory === cat 
-                ? 'bg-[#004A9C] text-white shadow-sm' 
-                : 'text-gray-600 hover:bg-gray-50'
+                ? 'bg-[#004A9C] text-white shadow-lg shadow-blue-900/20' 
+                : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               {cat}
@@ -154,10 +148,12 @@ export default function KoperasiRules() {
         </div>
       </div>
 
-      {/* Rules Grid */}
+      {/* Grid Rules */}
       <motion.div 
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
         variants={containerVariants}
+        initial="hidden"
+        animate="visible"
       >
         {isLoading ? (
           <div className="col-span-full flex items-center justify-center py-20">
@@ -175,11 +171,14 @@ export default function KoperasiRules() {
                   initial="hidden"
                   animate="visible"
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all group flex flex-col"
+                  className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8 hover:shadow-2xl hover:-translate-y-2 transition-all group flex flex-col relative overflow-hidden"
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`w-12 h-12 ${rule.icon_bg_color || 'bg-blue-50'} ${rule.icon_color || 'text-blue-600'} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                      <Icon size={24} />
+                  {/* Decorative background element */}
+                  <div className={`absolute top-0 right-0 w-32 h-32 ${rule.icon_bg_color || 'bg-blue-50'} rounded-full -mr-16 -mt-16 opacity-20 group-hover:scale-150 transition-transform duration-500`}></div>
+                  
+                  <div className="flex items-start justify-between mb-8 relative z-10">
+                    <div className={`w-14 h-14 ${rule.icon_bg_color || 'bg-blue-50'} ${rule.icon_color || 'text-blue-600'} rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform shadow-sm`}>
+                      <Icon size={28} />
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium bg-gray-50 px-2.5 py-1 rounded-full">
                       <Clock size={10} />
@@ -187,19 +186,19 @@ export default function KoperasiRules() {
                     </div>
                   </div>
                   
-                  <h3 className="text-lg font-bold text-gray-800 mb-2">{rule.judul}</h3>
-                  <p className="text-gray-500 text-sm leading-relaxed mb-6 flex-1">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-[#004A9C] transition-colors">{rule.judul}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed mb-8 flex-1">
                     {rule.deskripsi}
                   </p>
 
-                  <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
+                  <div className="mt-auto pt-6 border-t border-gray-50 flex items-center justify-between relative z-10">
                     <div>
-                      <span className="text-xs text-gray-400 block mb-1">Ketentuan Utama</span>
-                      <span className="text-md font-bold text-[#004A9C]">{rule.ketentuan_utama}</span>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1">Ketentuan Utama</span>
+                      <span className="text-lg font-black text-[#004A9C] group-hover:scale-110 origin-left transition-transform block">{rule.ketentuan_utama}</span>
                     </div>
                     <button 
                       onClick={() => navigate(`/koperasi-rules/${rule.peraturan_id}`)}
-                      className="text-[#004A9C] hover:bg-[#DFEAF4] p-2 rounded-lg transition-colors cursor-pointer"
+                      className="bg-[#004A9C] text-white p-3 rounded-xl transition-all hover:scale-110 shadow-lg shadow-blue-900/10 cursor-pointer"
                     >
                       <ChevronRight size={20} />
                     </button>
@@ -216,35 +215,39 @@ export default function KoperasiRules() {
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center"
+          className="bg-white rounded-[2.5rem] border-2 border-dashed border-gray-200 p-20 text-center"
         >
-          <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Search size={32} className="text-gray-300" />
+          <div className="bg-gray-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Search size={40} className="text-gray-200" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-700">Peraturan tidak ditemukan</h3>
-          <p className="text-gray-500 mt-1">Coba gunakan kata kunci lain atau pilih kategori yang berbeda.</p>
+          <h3 className="text-2xl font-black text-gray-800">Tidak ada kebijakan ditemukan</h3>
+          <p className="text-gray-500 mt-2 max-w-sm mx-auto">Kami tidak dapat menemukan apa yang Anda cari. Coba ubah kata kunci atau kategori pencarian.</p>
           <button 
             onClick={() => { setSearchQuery(''); setActiveCategory('Semua'); }}
-            className="mt-4 text-[#004A9C] font-semibold hover:underline"
+            className="mt-8 text-[#004A9C] font-black hover:underline tracking-tight"
           >
-            Bersihkan semua filter
+            RESET SEMUA FILTER
           </button>
         </motion.div>
       )}
 
-      {/* Info Card */}
-      <motion.div variants={itemVariants} className="bg-[#DFEAF4]/30 border border-[#004A9C]/10 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6">
-        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-[#004A9C] shadow-sm shrink-0">
-          <Info size={32} />
+      {/* Help Section */}
+      <motion.div 
+        variants={itemVariants} 
+        className="bg-gradient-to-br from-[#004A9C] to-[#0d4c9e] rounded-[2.5rem] p-10 md:p-12 text-white flex flex-col md:flex-row items-center gap-8 relative overflow-hidden shadow-2xl shadow-blue-900/20"
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl text-gray-800"></div>
+        <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center shadow-xl shrink-0 border border-white/10">
+          <Info size={40} className="text-white" />
         </div>
-        <div className="flex-1 text-center md:text-left">
-          <h4 className="font-bold text-gray-800 mb-1">Butuh bantuan lebih lanjut?</h4>
-          <p className="text-gray-600 text-sm">Jika Anda memiliki pertanyaan khusus mengenai peraturan di atas, silakan hubungi pengurus koperasi melalui WhatsApp atau kunjungi kantor kami.</p>
+        <div className="flex-1 text-center md:text-left relative z-10">
+          <h4 className="text-2xl font-black mb-2">Punya pertanyaan mendalam?</h4>
+          <p className="text-white/80 text-lg font-medium">Tim pengurus kami siap membantu menjelaskan setiap poin kebijakan melalui sesi tanya jawab langsung.</p>
         </div>
-        <Button className="shrink-0 bg-[#004A9C] hover:bg-[#003d82]">
+        <Button className="shrink-0 bg-white text-[#004A9C] hover:bg-gray-50 px-10 py-4 text-lg font-black shadow-xl relative z-10">
           Hubungi Admin
         </Button>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

@@ -29,6 +29,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Static uploads folder
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Socket.io connection logic
 io.on('connection', (socket) => {
   console.log('⚡ Client connected to Socket.io:', socket.id);
@@ -48,11 +52,14 @@ app.use((req, res, next) => {
   next();
 });
 
+const dashboardRoutes = require('./routes/dashboardRoutes');
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/peraturan', peraturanRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Test route
 app.get('/', (req, res) => {

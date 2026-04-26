@@ -65,6 +65,15 @@ export function AuthProvider({ children }) {
     delete api.defaults.headers.common['Authorization'];
   };
 
+  const updateUserData = (newData) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...newData };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const isAuthenticated = !!token && !!user;
 
   const value = {
@@ -75,6 +84,7 @@ export function AuthProvider({ children }) {
     login: loginUser,
     register: registerUser,
     logout,
+    updateUserData,
     api,
   };
 
