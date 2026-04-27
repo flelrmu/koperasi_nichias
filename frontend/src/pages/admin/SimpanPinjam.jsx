@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -20,23 +20,38 @@ import {
   Clock,
   Briefcase,
   FileText,
-  PlusCircle
+  PlusCircle,
+  Settings,
+  ChevronRight,
+  Eye
 } from 'lucide-react';
+import { BiChevronLeft, BiChevronRight } from 'react-icons/bi';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import StatusBadge from '../../components/atoms/StatusBadge';
 import Modal from '../../components/molecules/Modal';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import { isKoordinatorSP } from '../../utils/roles';
 
 export default function SimpanPinjam() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { api, user } = useAuth();
+  const socket = useSocket();
   const canEdit = isKoordinatorSP(user?.role);
+  const highlightRef = useRef(null);
+
   const [activeTab, setActiveTab] = useState('simpanan'); // 'simpanan' or 'pinjaman'
   
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLoanFilter, setActiveLoanFilter] = useState('Semua');
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [highlightedId, setHighlightedId] = useState(null);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   // Modals state
   const [isUpdateSavingsModalOpen, setIsUpdateSavingsModalOpen] = useState(false);
@@ -44,228 +59,529 @@ export default function SimpanPinjam() {
   const [selectedMember, setSelectedMember] = useState(null);
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [loanActionType, setLoanActionType] = useState('review');
+  const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
+  const [hoveredStat, setHoveredStat] = useState(null);
+  const [selectedItems, setSelectedItems] = useState([]);
 
-  // --- SAVINGS DATA & LOGIC ---
-  const [savingsData, setSavingsData] = useState([
-    { id: 1, no_anggota: 'ANG-001', nama_lengkap: 'Budi Santoso', pokok: 1000000, wajib: 2500000, sukarela: 500000, status: 'Aktif' },
-    { id: 2, no_anggota: 'ANG-002', nama_lengkap: 'Siti Aminah', pokok: 1000000, wajib: 1500000, sukarela: 1200000, status: 'Aktif' },
-    { id: 3, no_anggota: 'ANG-003', nama_lengkap: 'Andi Wijaya', pokok: 1000000, wajib: 2000000, sukarela: 0, status: 'Aktif' },
-    { id: 4, no_anggota: 'ANG-004', nama_lengkap: 'Dewi Lestari', pokok: 1000000, wajib: 3000000, sukarela: 4500000, status: 'Aktif' },
-    { id: 5, no_anggota: 'ANG-005', nama_lengkap: 'Eko Prasetyo', pokok: 1000000, wajib: 1200000, sukarela: 150000, status: 'Aktif' },
-  ]);
+  // Update States
+  const [updateSavings, setUpdateSavings] = useState({
+    pokok: 0,
+    wajib: 0,
+    sukarela: 0
+  });
 
+  const [updateLoan, setUpdateLoan] = useState({
+    jumlah_disetujui: 0,
+    tenor: 0,
+    status: 'Pending'
+  });
+
+  // Data states
+  const [savingsData, setSavingsData] = useState([]);
+  const [loansData, setLoansData] = useState([]);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const endpoints = ['/simpan-pinjam/simpanan', '/simpan-pinjam/pinjaman'];
+      const [resSimpanan, resPinjaman] = await Promise.all(endpoints.map(e => api.get(e)));
+      
+      if (resSimpanan.data.success) setSavingsData(resSimpanan.data.data);
+      if (resPinjaman.data.success) setLoansData(resPinjaman.data.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Listen for socket events
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSimpananUpdated = (data) => {
+      console.log('📥 WebSocket Received simpanan:updated:', data);
+      setSavingsData(prev => prev.map(s => s.simpanan_id === data.simpanan_id ? data : s));
+      
+      // Highlight updated row
+      if (activeTab === 'simpanan') {
+        setHighlightedId(data.simpanan_id);
+        setTimeout(() => setHighlightedId(null), 3000);
+      }
+    };
+
+    const handlePinjamanUpdated = (data) => {
+      console.log('📥 WebSocket Received pinjaman:updated:', data);
+      setLoansData(prev => prev.map(l => l.pinjaman_id === data.pinjaman_id ? data : l));
+      
+      // Highlight updated row
+      if (activeTab === 'pinjaman') {
+        setHighlightedId(data.pinjaman_id);
+        setTimeout(() => setHighlightedId(null), 3000);
+      }
+    };
+
+    socket.on('simpanan:updated', handleSimpananUpdated);
+    socket.on('pinjaman:updated', handlePinjamanUpdated);
+
+    return () => {
+      socket.off('simpanan:updated', handleSimpananUpdated);
+      socket.off('pinjaman:updated', handlePinjamanUpdated);
+    };
+  }, [socket, activeTab]);
+
+  // --- LOGIC ---
   const savingsStats = useMemo(() => {
     return savingsData.reduce((acc, curr) => ({
-      pokok: acc.pokok + curr.pokok,
-      wajib: acc.wajib + curr.wajib,
-      sukarela: acc.sukarela + curr.sukarela,
-      total: acc.total + (curr.pokok + curr.wajib + curr.sukarela)
+      pokok: acc.pokok + parseFloat(curr.saldo_pokok || 0),
+      wajib: acc.wajib + parseFloat(curr.saldo_wajib || 0),
+      sukarela: acc.sukarela + parseFloat(curr.saldo_sukarela || 0),
+      total: acc.total + (parseFloat(curr.saldo_pokok || 0) + parseFloat(curr.saldo_wajib || 0) + parseFloat(curr.saldo_sukarela || 0))
     }), { pokok: 0, wajib: 0, sukarela: 0, total: 0 });
   }, [savingsData]);
 
   const filteredSavings = useMemo(() => {
     return savingsData.filter(item => 
-      item.nama_lengkap.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.no_anggota.toLowerCase().includes(searchQuery.toLowerCase())
+      (item.anggota?.nama_lengkap || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.anggota?.no_anggota || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [savingsData, searchQuery]);
 
-  // --- LOANS DATA & LOGIC ---
-  const [loansData, setLoansData] = useState([
-    { id: 1, no_anggota: 'ANG-001', nama_lengkap: 'Budi Santoso', jenis: 'Uang', keperluan: 'Renovasi Rumah', jumlah_diajukan: 15000000, jumlah_disetujui: 15000000, tenor: 20, tgl_pengajuan: '2026-04-10', status: 'Approved', sisa_tagihan: 12500000, angsuran: 750000 },
-    { id: 2, no_anggota: 'ANG-002', nama_lengkap: 'Siti Aminah', jenis: 'Barang', nama_barang: 'Laptop Asus Vivobook', keperluan: 'Pendidikan Anak', jumlah_diajukan: 8500000, jumlah_disetujui: 0, tenor: 15, tgl_pengajuan: '2026-04-15', status: 'Pending', sisa_tagihan: 0, angsuran: 566667 },
-    { id: 3, no_anggota: 'ANG-003', nama_lengkap: 'Andi Wijaya', jenis: 'Uang', keperluan: 'Biaya Rumah Sakit', jumlah_diajukan: 5000000, jumlah_disetujui: 5000000, tenor: 10, tgl_pengajuan: '2026-01-05', status: 'Lunas', sisa_tagihan: 0, angsuran: 500000 },
-    { id: 4, no_anggota: 'ANG-004', nama_lengkap: 'Dewi Lestari', jenis: 'Uang', keperluan: 'Modal Usaha', jumlah_diajukan: 25000000, jumlah_disetujui: 20000000, tenor: 20, tgl_pengajuan: '2026-04-16', status: 'Approved', sisa_tagihan: 20000000, angsuran: 1000000 },
-    { id: 5, no_anggota: 'ANG-005', nama_lengkap: 'Eko Prasetyo', jenis: 'Barang', nama_barang: 'Motor Honda Beat', keperluan: 'Transportasi Kerja', jumlah_diajukan: 18000000, jumlah_disetujui: 0, tenor: 20, tgl_pengajuan: '2026-04-18', status: 'Pending', sisa_tagihan: 0, angsuran: 900000 },
-  ]);
-
   const loanStats = useMemo(() => {
     return {
-      outstanding: loansData.reduce((acc, curr) => acc + curr.sisa_tagihan, 0),
+      outstanding: loansData.reduce((acc, curr) => acc + parseFloat(curr.sisa_tagihan || 0), 0),
       pending: loansData.filter(l => l.status === 'Pending').length,
       active: loansData.filter(l => l.status === 'Approved').length,
-      total_disbursed: loansData.reduce((acc, curr) => acc + curr.jumlah_disetujui, 0)
+      total_disbursed: loansData.reduce((acc, curr) => acc + parseFloat(curr.pinjaman_disetujui || 0), 0)
     };
   }, [loansData]);
 
   const filteredLoans = useMemo(() => {
     return loansData.filter(item => {
-      const matchesSearch = item.nama_lengkap.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.no_anggota.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = (item.anggota?.nama_lengkap || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (item.anggota?.no_anggota || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchesFilter = activeLoanFilter === 'Semua' || item.status === activeLoanFilter;
       return matchesSearch && matchesFilter;
     });
   }, [loansData, searchQuery, activeLoanFilter]);
 
-  // --- COMMON HELPERS ---
-  const formatCurrency = (val) => {
+  // Pagination logic
+  const activeData = activeTab === 'simpanan' ? filteredSavings : filteredLoans;
+  const totalPages = Math.ceil(activeData.length / itemsPerPage);
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return activeData.slice(start, start + itemsPerPage);
+  }, [activeData, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedItems([]);
+  }, [activeTab, searchQuery, activeLoanFilter]);
+
+  const formatCurrency = (val, compact = false) => {
+    if (compact) {
+      if (val >= 1000000000) return `Rp ${(val / 1000000000).toFixed(1).replace('.0', '')} M`;
+      if (val >= 1000000) return `Rp ${(val / 1000000).toFixed(1).replace('.0', '')} Jt`;
+    }
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       maximumFractionDigits: 0
-    }).format(val);
+    }).format(val || 0);
   };
 
-  const handleUpdateSavingsClick = (member) => {
-    setSelectedMember(member);
+  const handleUpdateSavingsClick = (item) => {
+    setSelectedMember(item);
+    setUpdateSavings({
+      pokok: item.saldo_pokok,
+      wajib: item.saldo_wajib,
+      sukarela: item.saldo_sukarela
+    });
     setIsUpdateSavingsModalOpen(true);
+  };
+
+  const submitUpdateSavings = async () => {
+    try {
+      await api.put(`/simpan-pinjam/simpanan/${selectedMember.simpanan_id}`, {
+        saldo_pokok: updateSavings.pokok,
+        saldo_wajib: updateSavings.wajib,
+        saldo_sukarela: updateSavings.sukarela
+      });
+      setIsUpdateSavingsModalOpen(false);
+      setStatusModal({ isOpen: true, type: 'success', title: 'Berhasil', message: 'Data simpanan berhasil diperbarui.' });
+    } catch (error) {
+      console.error(error);
+      setStatusModal({ isOpen: true, type: 'error', title: 'Gagal', message: 'Terjadi kesalahan sistem saat memperbarui data.' });
+    }
   };
 
   const handleLoanActionClick = (loan, type) => {
     setSelectedLoan(loan);
     setLoanActionType(type);
+    setUpdateLoan({
+      jumlah_disetujui: loan.pinjaman_disetujui || loan.jumlah_pinjaman,
+      tenor: loan.tenor,
+      status: loan.status
+    });
     setIsLoanActionModalOpen(true);
   };
 
+  const submitUpdateLoan = async (forcedStatus = null) => {
+    try {
+      const targetStatus = forcedStatus || updateLoan.status;
+      await api.put(`/simpan-pinjam/pinjaman/${selectedLoan.pinjaman_id}`, {
+        pinjaman_disetujui: updateLoan.jumlah_disetujui,
+        tenor: updateLoan.tenor,
+        status: targetStatus
+      });
+      setIsLoanActionModalOpen(false);
+      setStatusModal({ isOpen: true, type: 'success', title: 'Berhasil', message: 'Status pinjaman berhasil diperbarui.' });
+    } catch (error) {
+      console.error(error);
+      setStatusModal({ isOpen: true, type: 'error', title: 'Gagal', message: 'Terjadi kesalahan sistem saat memperbarui data.' });
+    }
+  };
+
   const handleInputBaruClick = (member) => {
-    navigate(`/admin/simpan-pinjam/input-baru/${member.id}`, { state: { member } });
+    navigate(`/admin/simpan-pinjam/input-baru/${member.anggota_id}`, { state: { member: member.anggota } });
+  };
+
+  const handleSelectAll = () => {
+    const idField = activeTab === 'simpanan' ? 'simpanan_id' : 'pinjaman_id';
+    const currentDataIds = paginatedData.map(item => item[idField]);
+    const allSelected = currentDataIds.every(id => selectedItems.includes(id));
+
+    if (allSelected) {
+      setSelectedItems(prev => prev.filter(id => !currentDataIds.includes(id)));
+    } else {
+      setSelectedItems(prev => [...new Set([...prev, ...currentDataIds])]);
+    }
+  };
+
+  const handleSelectItem = (id) => {
+    setSelectedItems(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
   };
 
   const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1, 
+      transition: { 
+        staggerChildren: 0.1,
+        when: "beforeChildren"
+      } 
+    },
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { 
+      y: 0, 
+      opacity: 1, 
+      transition: { duration: 0.5, ease: 'easeOut' } 
+    },
   };
 
   const tabContentVariants = {
     hidden: { opacity: 0, x: 10 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.3 } }
+    visible: { opacity: 1, x: 0, transition: { duration: 0.3 } },
+    exit: { opacity: 0, x: -10, transition: { duration: 0.2 } }
+  };
+
+  const Pagination = () => {
+    if (activeData.length === 0) return null;
+
+    return (
+      <div className="p-8 border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between bg-gray-50/20 gap-4">
+        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest order-2 sm:order-1">
+           Menampilkan <span className="text-[#004A9C]">{Math.min(activeData.length, (currentPage-1)*itemsPerPage + 1)} - {Math.min(activeData.length, currentPage*itemsPerPage)}</span> dari {activeData.length} Data
+        </span>
+        
+        <div className="flex items-center gap-2 order-1 sm:order-2">
+           <button 
+             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+             disabled={currentPage === 1}
+             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-100 text-[11px] font-bold uppercase tracking-wider text-gray-400 hover:text-[#004A9C] hover:bg-white transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+           >
+             <BiChevronLeft size={18} />
+             <span>Sebelumnya</span>
+           </button>
+           
+           <div className="flex gap-1.5 mx-1">
+             {[...Array(totalPages)].map((_, i) => {
+               const page = i + 1;
+               if (totalPages > 5 && Math.abs(page - currentPage) > 1 && page !== 1 && page !== totalPages) {
+                  if (Math.abs(page - currentPage) === 2) return <span key={page} className="px-1 text-gray-300 font-bold">...</span>;
+                  return null;
+               }
+               return (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-10 h-10 rounded-xl text-xs font-bold transition-all ${
+                      currentPage === page 
+                      ? 'bg-[#004A9C] text-white shadow-lg shadow-[#004A9C]/20' 
+                      : 'border border-gray-100 text-gray-400 hover:bg-white hover:text-[#004A9C]'
+                    }`}
+                  >
+                    {page}
+                  </button>
+               );
+             })}
+           </div>
+
+           <button 
+             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+             disabled={currentPage === totalPages}
+             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-100 text-[11px] font-bold uppercase tracking-wider text-gray-400 hover:text-[#004A9C] hover:bg-white transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+           >
+             <span>Selanjutnya</span>
+             <BiChevronRight size={18} />
+           </button>
+        </div>
+      </div>
+    );
   };
 
   return (
     <motion.div 
-      className="space-y-8 pb-10"
+      className="space-y-6 pb-10"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
     >
-      {/* Tab Switcher & Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-2xl font-bold text-[#004A9C]">Manajemen Simpan Pinjam</h2>
-          <p className="text-gray-500 text-sm">Kelola riwayat simpanan dan pengajuan pinjaman anggota.</p>
-        </div>
+      {/* Premium Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#DFEAF4] rounded-full -mr-32 -mt-32 opacity-50 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#004A9C]/5 rounded-full -ml-24 -mb-24 opacity-40 blur-3xl"></div>
         
-        <div className="flex p-1.5 bg-gray-50 rounded-2xl border border-gray-100">
+        <div className="space-y-3 relative z-10">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#DFEAF4] text-[#004A9C] rounded-full text-xs font-bold uppercase tracking-widest"
+          >
+            <PiggyBank size={14} />
+            <span>Manajemen</span>
+          </motion.div>
+          <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">Manajemen <span className="text-[#004A9C]">Simpan Pinjam</span></h2>
+          <p className="text-gray-500 text-lg">Kelola riwayat simpanan dan pengajuan pinjaman anggota.</p>
+        </div>
+      </div>
+
+      {/* Tabs Section */}
+      <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 flex flex-col lg:flex-row gap-6 items-center justify-between">
+        <div className="flex p-1.5 bg-gray-50 rounded-2xl w-full lg:w-auto overflow-x-auto no-scrollbar">
           <button
             onClick={() => { setActiveTab('simpanan'); setSearchQuery(''); }}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'simpanan' 
-              ? 'bg-[#004A9C] text-white shadow-lg shadow-[#004A9C]/20' 
-              : 'text-gray-400 hover:text-gray-600'
+              ? 'bg-[#004A9C] text-white shadow-lg shadow-blue-900/20' 
+              : 'text-gray-400 hover:text-gray-900'
             }`}
           >
-            <PiggyBank size={18} />
-            Simpanan
+            <Wallet size={16} />
+            <span>Data Simpanan</span>
           </button>
           <button
             onClick={() => { setActiveTab('pinjaman'); setSearchQuery(''); }}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'pinjaman' 
-              ? 'bg-[#004A9C] text-white shadow-lg shadow-[#004A9C]/20' 
-              : 'text-gray-400 hover:text-gray-600'
+              ? 'bg-[#004A9C] text-white shadow-lg shadow-blue-900/20' 
+              : 'text-gray-400 hover:text-gray-900'
             }`}
           >
-            <CreditCard size={18} />
-            Pinjaman
+            <CreditCard size={16} />
+            <span>Data Pinjaman</span>
           </button>
+        </div>
+
+        <div className="relative w-full lg:w-96 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#004A9C] transition-colors" size={20} />
+          <input
+            type="text"
+            placeholder="Cari anggota atau ID..."
+            className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#004A9C]/20 transition-all font-medium text-sm placeholder:text-gray-400"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       </div>
 
       <AnimatePresence mode="wait">
         {activeTab === 'simpanan' ? (
-          <motion.div key="simpanan-tab" variants={tabContentVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
+          <motion.div key="simpanan-tab" variants={tabContentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
             {/* Savings Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { label: 'Total S. Pokok', value: savingsStats.pokok, icon: Wallet, color: 'text-[#004A9C]', bg: 'bg-[#004A9C]/10' },
-                { label: 'Total S. Wajib', value: savingsStats.wajib, icon: TrendingUp, color: 'text-[#27AE60]', bg: 'bg-[#27AE60]/10' },
-                { label: 'Total S. Sukarela', value: savingsStats.sukarela, icon: PiggyBank, color: 'text-[#F2994A]', bg: 'bg-[#F2994A]/10' },
-                { label: 'Akumulasi Dana', value: savingsStats.total, icon: Wallet, color: 'text-white', bg: 'bg-[#004A9C]', dark: true },
+                { label: 'Total S. Pokok', value: savingsStats.pokok, icon: Wallet, color: '#004A9C', bg: '#DFEAF4' },
+                { label: 'Total S. Wajib', value: savingsStats.wajib, icon: TrendingUp, color: '#27AE60', bg: '#e8f5e9' },
+                { label: 'Total S. Sukarela', value: savingsStats.sukarela, icon: PiggyBank, color: '#F2994A', bg: '#fff3e0' },
+                { label: 'Akumulasi Dana', value: savingsStats.total, icon: Wallet, color: '#EB5757', bg: '#ffebee', highlighted: true },
               ].map((stat, idx) => (
-                <div key={idx} className={`${stat.dark ? stat.bg : 'bg-white'} p-6 rounded-3xl border ${stat.dark ? 'border-transparent' : 'border-gray-100'} shadow-sm`}>
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-2xl ${stat.dark ? 'bg-white/20 text-white' : stat.bg + ' ' + stat.color}`}>
-                      <stat.icon size={24} />
+                <motion.div
+                  key={idx}
+                  variants={itemVariants}
+                  onMouseEnter={() => setHoveredStat(`savings-${idx}`)}
+                  onMouseLeave={() => setHoveredStat(null)}
+                  className="bg-white rounded-[2.5rem] shadow-sm p-8 border border-gray-100 hover:shadow-2xl hover:shadow-blue-900/10 transition-all group relative aspect-square flex flex-col items-center justify-center text-center"
+                >
+                  {/* Clipping container for decorative background effects */}
+                  <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] pointer-events-none">
+                    <div 
+                      className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-10 transition-transform duration-700 group-hover:scale-150"
+                      style={{ backgroundColor: stat.color }}
+                    />
+                  </div>
+
+                  <div
+                    className="w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-sm transition-all group-hover:scale-110 group-hover:rotate-6 duration-500 mb-6 relative z-10"
+                    style={{ backgroundColor: `${stat.color}15`, color: stat.color }}
+                  >
+                    <stat.icon size={28} />
+                  </div>
+
+                  <div className="space-y-2 relative z-10">
+                    <h3 className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] leading-tight px-2">{stat.label}</h3>
+                    <div className="relative">
+                      <p className={`text-2xl font-black tracking-tighter ${stat.highlighted ? 'text-[#004A9C]' : 'text-gray-900'}`}>
+                        {formatCurrency(stat.value, true)}
+                      </p>
+                      
+                      {/* Hover Tooltip for Full Amount */}
+                      <AnimatePresence>
+                        {hoveredStat === `savings-${idx}` && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 5, scale: 0.9 }}
+                            className="absolute -bottom-14 left-1/2 -translate-x-1/2 z-50 bg-gray-900/95 backdrop-blur-md text-white px-5 py-2.5 rounded-2xl text-[12px] font-black shadow-2xl shadow-black/20 whitespace-nowrap pointer-events-none ring-1 ring-white/10"
+                          >
+                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-gray-900/95 rotate-45"></div>
+                            {formatCurrency(stat.value)}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
-                  <p className={`text-[10px] font-bold uppercase tracking-wider ${stat.dark ? 'text-white/60' : 'text-gray-400'}`}>{stat.label}</p>
-                  <p className={`text-xl font-black mt-1 ${stat.dark ? 'text-white' : 'text-gray-800'}`}>{formatCurrency(stat.value)}</p>
-                </div>
+                </motion.div>
               ))}
             </div>
 
-            {/* Savings Table */}
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-               <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
-                  <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <Input 
-                      placeholder="Cari anggota atau ID..." 
-                      className="pl-10 !py-2.5" 
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex gap-2 w-full md:w-auto">
-                    <Button variant="outline" className="flex-1 md:w-auto flex items-center justify-center gap-2 !py-2.5">
-                      <Download size={18} />
-                      <span className="hidden sm:inline">Export</span>
-                    </Button>
-                  </div>
+            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/20 overflow-hidden min-h-[500px] flex flex-col">
+               <div className="flex-1 overflow-x-auto">
+                 <AnimatePresence mode="wait">
+                   <motion.table 
+                     key="simpanan-table"
+                     initial={{ opacity: 0 }}
+                     animate={{ opacity: 1 }}
+                     exit={{ opacity: 0 }}
+                     className="w-full text-left border-collapse"
+                   >
+                     <thead>
+                       <tr className="bg-gray-50/80 text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-gray-100">
+                         <th className="py-5 px-8 w-10">
+                           <div className="flex items-center justify-center">
+                             <input 
+                               type="checkbox" 
+                               className="w-4 h-4 rounded border-gray-300 text-[#004A9C] focus:ring-[#004A9C]/20 transition-all cursor-pointer"
+                               checked={paginatedData.length > 0 && paginatedData.every(item => selectedItems.includes(item.simpanan_id))}
+                               onChange={handleSelectAll}
+                             />
+                           </div>
+                         </th>
+                         <th className="py-5 px-8">Identitas Anggota</th>
+                         <th className="py-5 px-8 text-right">Simpanan Pokok</th>
+                         <th className="py-5 px-8 text-right">Simpanan Wajib</th>
+                         <th className="py-5 px-8 text-right">Simpanan Sukarela</th>
+                         <th className="py-5 px-8 text-right">Total Saldo</th>
+                         <th className="py-5 px-8 text-right">Manajemen</th>
+                       </tr>
+                     </thead>
+                     <tbody className="divide-y divide-gray-100">
+                       {isLoading ? (
+                         <tr><td colSpan={7} className="py-20 text-center text-gray-400 italic uppercase tracking-widest text-xs font-bold">Loading data...</td></tr>
+                       ) : paginatedData.length > 0 ? (
+                         paginatedData.map((item) => {
+                           const isHighlighted = item.simpanan_id === highlightedId;
+                           const totalSaldo = parseFloat(item.saldo_pokok) + parseFloat(item.saldo_wajib) + parseFloat(item.saldo_sukarela);
+                           return (
+                             <motion.tr 
+                               key={item.simpanan_id} 
+                               ref={isHighlighted ? highlightRef : null}
+                               layout
+                               initial={{ opacity: 0 }}
+                               animate={{ 
+                                 opacity: 1,
+                                 backgroundColor: isHighlighted ? ['rgba(0,74,156,0.15)', 'rgba(0,74,156,0.05)', 'rgba(0,74,156,0.15)'] : 'rgba(0,0,0,0)',
+                               }}
+                               transition={isHighlighted ? { backgroundColor: { repeat: Infinity, duration: 1.5 } } : {}}
+                               className={`hover:bg-[#DFEAF4]/20 transition-all duration-300 group ${isHighlighted ? 'ring-2 ring-[#004A9C]/30 ring-inset rounded-lg' : ''} ${selectedItems.includes(item.simpanan_id) ? 'bg-[#004A9C]/5' : ''}`}
+                             >
+                               <td className="py-5 px-8">
+                                 <div className="flex items-center justify-center">
+                                   <input 
+                                     type="checkbox" 
+                                     className="w-4 h-4 rounded border-gray-300 text-[#004A9C] focus:ring-[#004A9C]/20 transition-all cursor-pointer"
+                                     checked={selectedItems.includes(item.simpanan_id)}
+                                     onChange={() => handleSelectItem(item.simpanan_id)}
+                                   />
+                                 </div>
+                               </td>
+                               <td className="py-5 px-8">
+                                 <div className="flex items-center gap-3">
+                                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#DFEAF4] to-white flex items-center justify-center text-[#004A9C] font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
+                                     {item.anggota?.nama_lengkap?.charAt(0)}
+                                   </div>
+                                   <div className="flex flex-col">
+                                      <span className="text-sm font-bold text-gray-800 tracking-tight">{item.anggota?.nama_lengkap}</span>
+                                      <span className="text-[11px] text-gray-400 font-mono tracking-wider">ID: {item.anggota?.no_anggota}</span>
+                                   </div>
+                                 </div>
+                               </td>
+                               <td className="py-5 px-8 text-right text-xs font-bold text-gray-600">{formatCurrency(item.saldo_pokok)}</td>
+                               <td className="py-5 px-8 text-right text-xs font-bold text-gray-600">{formatCurrency(item.saldo_wajib)}</td>
+                               <td className="py-5 px-8 text-right text-xs font-bold text-[#F2994A]">{formatCurrency(item.saldo_sukarela)}</td>
+                               <td className="py-5 px-8 text-right text-sm font-black text-[#004A9C]">{formatCurrency(totalSaldo)}</td>
+                               <td className="py-5 px-8 text-right">
+                                 {canEdit ? (
+                                   <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                     <button 
+                                       onClick={() => handleInputBaruClick(item)} 
+                                       className="p-2.5 text-gray-400 hover:text-[#27AE60] hover:bg-[#27AE60]/10 rounded-xl transition-all" 
+                                       title="Input Transaksi Baru"
+                                     >
+                                       <PlusCircle size={22} />
+                                     </button>
+                                     <button 
+                                       onClick={() => handleUpdateSavingsClick(item)} 
+                                       className="p-2.5 text-gray-400 hover:text-[#004A9C] hover:bg-[#DFEAF4] rounded-xl transition-all" 
+                                       title="Edit Total Saldo"
+                                     >
+                                       <Edit2 size={22} />
+                                     </button>
+                                   </div>
+                                 ) : (
+                                   <span className="text-[9px] font-bold text-gray-300 uppercase italic">View Only</span>
+                                 )}
+                               </td>
+                             </motion.tr>
+                           );
+                         })
+                       ) : (
+                         <tr><td colSpan={7} className="py-24 text-center text-gray-400 italic">Data simpanan tidak ditemukan.</td></tr>
+                       )}
+                     </tbody>
+                   </motion.table>
+                 </AnimatePresence>
                </div>
-               <div className="overflow-x-auto">
-                 <table className="w-full text-left border-collapse">
-                   <thead>
-                     <tr className="bg-gray-50/50 text-gray-400 text-[10px] font-bold uppercase tracking-[0.1em] border-b border-gray-50">
-                       <th className="py-5 px-6">Anggota</th>
-                       <th className="py-5 px-6 text-right">Pokok</th>
-                       <th className="py-5 px-6 text-right">Wajib</th>
-                       <th className="py-5 px-6 text-right">Sukarela</th>
-                       <th className="py-5 px-6 text-right">Total Simpanan</th>
-                       <th className="py-5 px-6 text-center">Aksi</th>
-                     </tr>
-                   </thead>
-                   <tbody className="divide-y divide-gray-50">
-                     {filteredSavings.length > 0 ? (
-                       filteredSavings.map((item) => (
-                         <tr key={item.id} className="group hover:bg-[#DFEAF4]/20 transition-colors">
-                           <td className="py-4 px-6">
-                             <div className="flex items-center gap-3">
-                               <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-[#004A9C] font-bold text-sm border border-gray-100">
-                                 {item.nama_lengkap.charAt(0)}
-                               </div>
-                               <div className="flex flex-col">
-                                  <span className="text-sm font-bold text-gray-800">{item.nama_lengkap}</span>
-                                  <span className="text-[10px] text-gray-400 font-mono tracking-wider">{item.no_anggota}</span>
-                               </div>
-                             </div>
-                           </td>
-                           <td className="py-4 px-6 text-right text-xs font-bold text-gray-600">{formatCurrency(item.pokok)}</td>
-                           <td className="py-4 px-6 text-right text-xs font-bold text-gray-600">{formatCurrency(item.wajib)}</td>
-                           <td className="py-4 px-6 text-right text-xs font-bold text-[#F2994A]">{formatCurrency(item.sukarela)}</td>
-                           <td className="py-4 px-6 text-right text-sm font-black text-[#004A9C]">{formatCurrency(item.pokok + item.wajib + item.sukarela)}</td>
-                           <td className="py-4 px-6 text-center">
-                             {canEdit ? (
-                               <div className="flex items-center justify-center gap-1">
-                                 <button onClick={() => handleInputBaruClick(item)} className="p-2 text-gray-400 hover:text-[#27AE60] hover:bg-[#27AE60]/10 rounded-xl transition-all" title="Input Transaksi Baru">
-                                   <PlusCircle size={16} />
-                                 </button>
-                                 <button onClick={() => handleUpdateSavingsClick(item)} className="p-2 text-gray-400 hover:text-[#004A9C] hover:bg-[#DFEAF4] rounded-xl transition-all" title="Edit Total Saldo">
-                                   <Edit2 size={16} />
-                                 </button>
-                               </div>
-                             ) : (
-                               <span className="text-[9px] font-bold text-gray-300 uppercase italic">View Only</span>
-                             )}
-                           </td>
-                         </tr>
-                       ))
-                     ) : (
-                       <tr><td colSpan={6} className="py-20 text-center text-gray-400">Data tidak ditemukan</td></tr>
-                     )}
-                   </tbody>
-                 </table>
-               </div>
+               {!isLoading && paginatedData.length > 0 && <Pagination />}
             </div>
             
             <div className="bg-[#DFEAF4]/30 border border-[#004A9C]/10 rounded-3xl p-6 flex items-start gap-4">
@@ -279,119 +595,202 @@ export default function SimpanPinjam() {
             </div>
           </motion.div>
         ) : (
-          <motion.div key="pinjaman-tab" variants={tabContentVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
+          <motion.div key="pinjaman-tab" variants={tabContentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
             {/* Loan Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { label: 'Outstanding Pinjaman', value: loanStats.outstanding, icon: Wallet, color: 'text-[#004A9C]', bg: 'bg-[#004A9C]/10' },
-                { label: 'Menunggu Review', value: loanStats.pending, icon: Clock, color: 'text-[#F2994A]', bg: 'bg-[#F2994A]/10', isCount: true },
-                { label: 'Pinjaman Aktif', value: loanStats.active, icon: Briefcase, color: 'text-[#27AE60]', bg: 'bg-[#27AE60]/10', isCount: true },
-                { label: 'Total Dana Keluar', value: loanStats.total_disbursed, icon: TrendingDown, color: 'text-white', bg: 'bg-[#EB5757]', dark: true },
+                { label: 'Outstanding Pinjaman', value: loanStats.outstanding, icon: Wallet, color: '#004A9C', bg: '#DFEAF4' },
+                { label: 'Menunggu Review', value: loanStats.pending, icon: Clock, color: '#F2994A', bg: '#fff3e0', isCount: true },
+                { label: 'Pinjaman Aktif', value: loanStats.active, icon: Briefcase, color: '#27AE60', bg: '#e8f5e9', isCount: true },
+                { label: 'Total Dana Keluar', value: loanStats.total_disbursed, icon: TrendingDown, color: '#EB5757', bg: '#ffebee' },
               ].map((stat, idx) => (
-                <div key={idx} className={`${stat.dark ? stat.bg : 'bg-white'} p-6 rounded-3xl border ${stat.dark ? 'border-transparent' : 'border-gray-100'} shadow-sm`}>
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-2xl ${stat.dark ? 'bg-white/20 text-white' : stat.bg + ' ' + stat.color}`}>
-                      <stat.icon size={24} />
+                <motion.div
+                  key={idx}
+                  variants={itemVariants}
+                  onMouseEnter={() => setHoveredStat(`loans-${idx}`)}
+                  onMouseLeave={() => setHoveredStat(null)}
+                  className="bg-white rounded-[2.5rem] shadow-sm p-8 border border-gray-100 hover:shadow-2xl hover:shadow-blue-900/10 transition-all group relative aspect-square flex flex-col items-center justify-center text-center"
+                >
+                  {/* Clipping container for decorative background effects */}
+                  <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] pointer-events-none">
+                    <div 
+                      className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-10 transition-transform duration-700 group-hover:scale-150"
+                      style={{ backgroundColor: stat.color }}
+                    />
+                  </div>
+
+                  <div
+                    className="w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-sm transition-all group-hover:scale-110 group-hover:rotate-6 duration-500 mb-6 relative z-10"
+                    style={{ backgroundColor: `${stat.color}15`, color: stat.color }}
+                  >
+                    <stat.icon size={28} />
+                  </div>
+
+                  <div className="space-y-2 relative z-10">
+                    <h3 className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] leading-tight px-2">{stat.label}</h3>
+                    <div className="relative">
+                      <p className="text-2xl font-black text-gray-900 tracking-tighter">
+                        {stat.isCount ? stat.value : formatCurrency(stat.value, true)}
+                        {stat.isCount && <span className="text-[10px] ml-1 opacity-50 font-bold uppercase tracking-widest">Kasus</span>}
+                      </p>
+
+                      {/* Hover Tooltip for Full Amount */}
+                      {!stat.isCount && (
+                        <AnimatePresence>
+                          {hoveredStat === `loans-${idx}` && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 5, scale: 0.9 }}
+                              className="absolute -bottom-14 left-1/2 -translate-x-1/2 z-50 bg-gray-900/95 backdrop-blur-md text-white px-5 py-2.5 rounded-2xl text-[12px] font-black shadow-2xl shadow-black/20 whitespace-nowrap pointer-events-none ring-1 ring-white/10"
+                            >
+                              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-gray-900/95 rotate-45"></div>
+                              {formatCurrency(stat.value)}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      )}
                     </div>
                   </div>
-                  <p className={`text-[10px] font-bold uppercase tracking-wider ${stat.dark ? 'text-white/60' : 'text-gray-400'}`}>{stat.label}</p>
-                  <p className={`text-xl font-black mt-1 ${stat.dark ? 'text-white' : 'text-gray-800'}`}>
-                    {stat.isCount ? stat.value : formatCurrency(stat.value)}
-                    {stat.isCount && <span className="text-[10px] ml-1 opacity-50 font-bold uppercase">Kasus</span>}
-                  </p>
-                </div>
+                </motion.div>
               ))}
             </div>
 
-            {/* Loan Table */}
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/20 overflow-hidden min-h-[500px] flex flex-col">
                <div className="p-6 border-b border-gray-50 flex flex-col lg:flex-row justify-between items-center gap-6">
-                  <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
-                     <div className="relative w-full sm:w-80">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <Input 
-                          placeholder="Cari anggota..." 
-                          className="pl-10 !py-2.5" 
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                     </div>
-                     <div className="flex p-1 bg-gray-50 rounded-xl border border-gray-100 w-full sm:w-auto overflow-x-auto">
-                       {['Semua', 'Pending', 'Approved', 'Lunas'].map((f) => (
-                         <button
-                           key={f}
-                           onClick={() => setActiveLoanFilter(f)}
-                           className={`flex-1 sm:px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all min-w-[70px] ${
-                             activeLoanFilter === f 
-                             ? 'bg-[#004A9C] text-white shadow-sm' 
-                             : 'text-gray-400 hover:text-gray-600'
-                           }`}
-                         >
-                           {f}
-                         </button>
-                       ))}
-                     </div>
+                  <div className="flex p-1 bg-gray-50 rounded-2xl border border-gray-100 w-full lg:w-auto overflow-x-auto no-scrollbar">
+                    {['Semua', 'Pending', 'Approved', 'Rejected', 'Lunas'].map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setActiveLoanFilter(f)}
+                        className={`px-8 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
+                          activeLoanFilter === f 
+                          ? 'bg-[#004A9C] text-white shadow-lg shadow-blue-900/20' 
+                          : 'text-gray-400 hover:text-gray-900'
+                        }`}
+                      >
+                        {f}
+                      </button>
+                    ))}
                   </div>
                </div>
-               <div className="overflow-x-auto">
-                 <table className="w-full text-left border-collapse">
-                   <thead>
-                     <tr className="bg-gray-50/50 text-gray-400 text-[10px] font-bold uppercase tracking-wider border-b border-gray-50">
-                       <th className="py-5 px-6">Identitas</th>
-                       <th className="py-5 px-6">Tipe & Keperluan</th>
-                       <th className="py-5 px-6 text-right">Nominal Diajukan</th>
-                       <th className="py-5 px-6 text-center">Tenor</th>
-                       <th className="py-5 px-6 text-right">Angsuran</th>
-                       <th className="py-5 px-6">Status</th>
-                       <th className="py-5 px-6 text-center">Aksi</th>
-                     </tr>
-                   </thead>
-                   <tbody className="divide-y divide-gray-50">
-                     {filteredLoans.length > 0 ? (
-                       filteredLoans.map((loan) => (
-                         <tr key={loan.id} className="group hover:bg-[#DFEAF4]/20 transition-colors">
-                           <td className="py-4 px-6">
-                             <div className="flex items-center gap-3">
-                               <div className="w-9 h-9 rounded-lg bg-gray-50 flex items-center justify-center text-[#004A9C] font-bold text-xs border border-gray-100">
-                                 {loan.nama_lengkap.charAt(0)}
-                               </div>
-                               <div className="flex flex-col">
-                                  <span className="text-sm font-bold text-gray-800">{loan.nama_lengkap}</span>
-                                  <span className="text-[9px] text-gray-400 font-medium">{loan.tgl_pengajuan}</span>
-                               </div>
-                             </div>
-                           </td>
-                           <td className="py-4 px-6">
-                              <div className="flex flex-col gap-0.5">
-                                 <span className={`text-[9px] w-fit font-bold px-1.5 py-0.5 rounded uppercase ${loan.jenis === 'Barang' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-[#004A9C]'}`}>{loan.jenis}</span>
-                                 <span className="text-[10px] text-gray-500 truncate max-w-[120px]">{loan.keperluan}</span>
-                              </div>
-                           </td>
-                           <td className="py-4 px-6 text-right text-xs font-bold text-gray-600">{formatCurrency(loan.jumlah_diajukan)}</td>
-                           <td className="py-4 px-6 text-center text-xs font-bold text-gray-600">{loan.tenor} <span className="text-[9px] text-gray-400">Bln</span></td>
-                           <td className="py-4 px-6 text-right text-xs font-bold text-[#EB5757]">{formatCurrency(loan.angsuran)}</td>
-                           <td className="py-4 px-6"><StatusBadge status={loan.status} /></td>
-                           <td className="py-4 px-6 text-center">
-                             {canEdit ? (
-                               <div className="flex items-center justify-center gap-1">
-                                 {loan.status === 'Pending' ? (
-                                   <button onClick={() => handleLoanActionClick(loan, 'review')} className="p-1.5 text-[#F2994A] hover:bg-[#F2994A]/10 rounded-lg"><CheckCircle size={18} /></button>
+               
+               <div className="flex-1 overflow-x-auto">
+                 <AnimatePresence mode="wait">
+                   <motion.table 
+                     key="pinjaman-table"
+                     initial={{ opacity: 0 }}
+                     animate={{ opacity: 1 }}
+                     exit={{ opacity: 0 }}
+                     className="w-full text-left border-collapse"
+                   >
+                     <thead>
+                       <tr className="bg-gray-50/80 text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-gray-100">
+                         <th className="py-5 px-8 w-10">
+                           <div className="flex items-center justify-center">
+                             <input 
+                               type="checkbox" 
+                               className="w-4 h-4 rounded border-gray-300 text-[#004A9C] focus:ring-[#004A9C]/20 transition-all cursor-pointer"
+                               checked={paginatedData.length > 0 && paginatedData.every(item => selectedItems.includes(item.pinjaman_id))}
+                               onChange={handleSelectAll}
+                             />
+                           </div>
+                         </th>
+                         <th className="py-5 px-8">Identitas Anggota</th>
+                         <th className="py-5 px-8">Tipe & Keperluan</th>
+                         <th className="py-5 px-8 text-right">Diajukan</th>
+                         <th className="py-5 px-8 text-center">Tenor</th>
+                         <th className="py-5 px-8 text-right">Angsuran</th>
+                         <th className="py-5 px-8">Status</th>
+                         <th className="py-5 px-8 text-right">Manajemen</th>
+                       </tr>
+                     </thead>
+                     <tbody className="divide-y divide-gray-100">
+                       {isLoading ? (
+                         <tr><td colSpan={8} className="py-20 text-center text-gray-400 italic uppercase tracking-widest text-xs font-bold">Loading data...</td></tr>
+                       ) : paginatedData.length > 0 ? (
+                         paginatedData.map((loan) => {
+                           const isHighlighted = loan.pinjaman_id === highlightedId;
+                           return (
+                             <motion.tr 
+                               key={loan.pinjaman_id} 
+                               ref={isHighlighted ? highlightRef : null}
+                               layout
+                               initial={{ opacity: 0 }}
+                               animate={{ 
+                                 opacity: 1,
+                                 backgroundColor: isHighlighted ? ['rgba(0,74,156,0.15)', 'rgba(0,74,156,0.05)', 'rgba(0,74,156,0.15)'] : 'rgba(0,0,0,0)',
+                               }}
+                               transition={isHighlighted ? { backgroundColor: { repeat: Infinity, duration: 1.5 } } : {}}
+                               className={`hover:bg-[#DFEAF4]/20 transition-all duration-300 group ${isHighlighted ? 'ring-2 ring-[#004A9C]/30 ring-inset rounded-lg' : ''} ${selectedItems.includes(loan.pinjaman_id) ? 'bg-[#004A9C]/5' : ''}`}
+                             >
+                               <td className="py-5 px-8">
+                                 <div className="flex items-center justify-center">
+                                   <input 
+                                     type="checkbox" 
+                                     className="w-4 h-4 rounded border-gray-300 text-[#004A9C] focus:ring-[#004A9C]/20 transition-all cursor-pointer"
+                                     checked={selectedItems.includes(loan.pinjaman_id)}
+                                     onChange={() => handleSelectItem(loan.pinjaman_id)}
+                                   />
+                                 </div>
+                               </td>
+                               <td className="py-5 px-8">
+                                 <div className="flex items-center gap-3">
+                                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#DFEAF4] to-white flex items-center justify-center text-[#004A9C] font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
+                                     {loan.anggota?.nama_lengkap?.charAt(0)}
+                                   </div>
+                                   <div className="flex flex-col">
+                                      <span className="text-sm font-bold text-gray-800 tracking-tight">{loan.anggota?.nama_lengkap}</span>
+                                      <span className="text-[10px] text-gray-400 font-medium italic">{loan.tanggal_pengajuan}</span>
+                                   </div>
+                                 </div>
+                               </td>
+                               <td className="py-5 px-8">
+                                  <div className="flex flex-col gap-1">
+                                     <span className={`text-[9px] w-fit font-bold px-2 py-0.5 rounded uppercase ${loan.jenis_pinjaman === 'Barang' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-[#004A9C]'}`}>{loan.jenis_pinjaman}</span>
+                                     <span className="text-[11px] text-gray-500 font-medium truncate max-w-[150px]">{loan.keperluan}</span>
+                                  </div>
+                               </td>
+                               <td className="py-5 px-8 text-right text-xs font-bold text-gray-600">{formatCurrency(loan.jumlah_pinjaman)}</td>
+                               <td className="py-5 px-8 text-center text-xs font-bold text-gray-600">{loan.tenor} <span className="text-[9px] text-gray-400 uppercase">Bln</span></td>
+                               <td className="py-5 px-8 text-right text-xs font-bold text-[#EB5757]">{formatCurrency(loan.angsuran_per_bulan)}</td>
+                               <td className="py-5 px-8"><StatusBadge status={loan.status} /></td>
+                               <td className="py-5 px-8 text-right">
+                                 {canEdit ? (
+                                   <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                     {loan.status === 'Pending' ? (
+                                       <button 
+                                         onClick={() => handleLoanActionClick(loan, 'review')} 
+                                         className="p-2.5 text-[#F2994A] hover:bg-orange-50 rounded-xl transition-all" 
+                                         title="Review Pinjaman"
+                                       >
+                                         <Eye size={22} />
+                                       </button>
+                                     ) : (
+                                       <button 
+                                         onClick={() => handleLoanActionClick(loan, 'edit')} 
+                                         className="p-2.5 text-gray-400 hover:text-[#004A9C] hover:bg-[#DFEAF4] rounded-xl transition-all" 
+                                         title="Edit Pinjaman"
+                                       >
+                                         <Edit2 size={22} />
+                                       </button>
+                                     )}
+                                   </div>
                                  ) : (
-                                   <button onClick={() => handleLoanActionClick(loan, 'edit')} className="p-1.5 text-gray-400 hover:text-[#004A9C] hover:bg-[#DFEAF4] rounded-lg"><Edit2 size={16} /></button>
+                                   <span className="text-[9px] font-bold text-gray-300 uppercase italic">View Only</span>
                                  )}
-                               </div>
-                             ) : (
-                               <span className="text-[9px] font-bold text-gray-300 uppercase italic">View Only</span>
-                             )}
-                           </td>
-                         </tr>
-                       ))
-                     ) : (
-                       <tr><td colSpan={7} className="py-20 text-center text-gray-400">Data tidak ditemukan</td></tr>
-                     )}
-                   </tbody>
-                 </table>
+                               </td>
+                             </motion.tr>
+                           );
+                         })
+                       ) : (
+                         <tr><td colSpan={8} className="py-24 text-center text-gray-400 italic">Data pinjaman tidak ditemukan.</td></tr>
+                       )}
+                     </tbody>
+                   </motion.table>
+                 </AnimatePresence>
                </div>
+               {!isLoading && paginatedData.length > 0 && <Pagination />}
             </div>
           </motion.div>
         )}
@@ -399,41 +798,67 @@ export default function SimpanPinjam() {
 
       {/* --- MODALS --- */}
       {/* Update Savings Modal */}
-      <Modal isOpen={isUpdateSavingsModalOpen} onClose={() => setIsUpdateSavingsModalOpen(false)} title="Update Data Simpanan" confirmText="Simpan Perubahan" onConfirm={() => setIsUpdateSavingsModalOpen(false)}>
+      <Modal isOpen={isUpdateSavingsModalOpen} onClose={() => setIsUpdateSavingsModalOpen(false)} title="Update Data Simpanan" confirmText="Simpan Perubahan" onConfirm={submitUpdateSavings}>
         <div className="space-y-6 pt-2">
            <div className="flex items-center gap-4 p-5 bg-gray-50 rounded-2xl border border-gray-100">
-              <div className="w-12 h-12 bg-[#004A9C] text-white rounded-xl flex items-center justify-center font-bold text-lg">{selectedMember?.nama_lengkap.charAt(0)}</div>
-              <div><h4 className="font-bold text-gray-800">{selectedMember?.nama_lengkap}</h4><p className="text-[10px] text-gray-400 font-mono tracking-widest uppercase">ID: {selectedMember?.no_anggota}</p></div>
+              <div className="w-12 h-12 bg-[#004A9C] text-white rounded-xl flex items-center justify-center font-bold text-lg">{selectedMember?.anggota?.nama_lengkap?.charAt(0)}</div>
+              <div><h4 className="font-bold text-gray-800">{selectedMember?.anggota?.nama_lengkap}</h4><p className="text-[10px] text-gray-400 font-mono tracking-widest uppercase">ID: {selectedMember?.anggota?.no_anggota}</p></div>
            </div>
            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Simpanan Pokok (IDR)</label><Input defaultValue={selectedMember?.pokok} type="number" /></div>
-              <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Simpanan Wajib (IDR)</label><Input defaultValue={selectedMember?.wajib} type="number" /></div>
-              <div className="sm:col-span-2 space-y-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Simpanan Sukarela (IDR)</label><Input defaultValue={selectedMember?.sukarela} type="number" /></div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Simpanan Pokok (IDR)</label>
+                <Input value={updateSavings.pokok} type="number" onChange={(e) => setUpdateSavings({...updateSavings, pokok: e.target.value})} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Simpanan Wajib (IDR)</label>
+                <Input value={updateSavings.wajib} type="number" onChange={(e) => setUpdateSavings({...updateSavings, wajib: e.target.value})} />
+              </div>
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Simpanan Sukarela (IDR)</label>
+                <Input value={updateSavings.sukarela} type="number" onChange={(e) => setUpdateSavings({...updateSavings, sukarela: e.target.value})} />
+              </div>
            </div>
         </div>
       </Modal>
 
       {/* Loan Review Modal */}
-      <Modal isOpen={isLoanActionModalOpen} onClose={() => setIsLoanActionModalOpen(false)} title={loanActionType === 'review' ? 'Review Pinjaman' : 'Edit Pinjaman'} confirmText={loanActionType === 'review' ? 'Setujui' : 'Simpan'} onConfirm={() => setIsLoanActionModalOpen(false)}>
+      <Modal isOpen={isLoanActionModalOpen} onClose={() => setIsLoanActionModalOpen(false)} title={loanActionType === 'review' ? 'Review Pinjaman' : 'Edit Pinjaman'} confirmText={loanActionType === 'review' ? '' : 'Simpan'} onConfirm={() => loanActionType !== 'review' && submitUpdateLoan()}>
         <div className="space-y-6 pt-2 text-left">
            <div className="flex items-center gap-4 p-5 bg-gray-50 rounded-2xl border border-gray-100">
-              <div className="w-12 h-12 bg-[#004A9C] text-white rounded-xl flex items-center justify-center font-bold text-lg">{selectedLoan?.nama_lengkap.charAt(0)}</div>
-              <div><h4 className="font-bold text-gray-800">{selectedLoan?.nama_lengkap}</h4><p className="text-[10px] text-gray-400 uppercase tracking-widest">ID: {selectedLoan?.no_anggota}</p></div>
+              <div className="w-12 h-12 bg-[#004A9C] text-white rounded-xl flex items-center justify-center font-bold text-lg">{selectedLoan?.anggota?.nama_lengkap?.charAt(0)}</div>
+              <div><h4 className="font-bold text-gray-800">{selectedLoan?.anggota?.nama_lengkap}</h4><p className="text-[10px] text-gray-400 uppercase tracking-widest">ID: {selectedLoan?.anggota?.no_anggota}</p></div>
            </div>
            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase">Jumlah Diajukan</label><Input value={selectedLoan?.jumlah_diajukan} disabled /></div>
-              <div className="space-y-1.5"><label className="text-[10px] font-bold text-[#004A9C] uppercase">Jumlah Disetujui</label><Input defaultValue={selectedLoan?.jumlah_disetujui || selectedLoan?.jumlah_diajukan} type="number" /></div>
-              <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase">Tenor (Bulan)</label><Input defaultValue={selectedLoan?.tenor} type="number" /></div>
-              <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase">Status</label><select className="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl bg-white"><option>Pending</option><option>Approved</option><option>Rejected</option><option>Lunas</option></select></div>
+              <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase">Jumlah Diajukan</label><Input value={selectedLoan?.jumlah_pinjaman} disabled /></div>
+              <div className="space-y-1.5"><label className="text-[10px] font-bold text-[#004A9C] uppercase">Jumlah Disetujui</label><Input value={updateLoan.jumlah_disetujui} type="number" onChange={(e) => setUpdateLoan({...updateLoan, jumlah_disetujui: e.target.value})} /></div>
+              <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase">Tenor (Bulan)</label><Input value={updateLoan.tenor} type="number" onChange={(e) => setUpdateLoan({...updateLoan, tenor: e.target.value})} /></div>
+              <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase">Status</label>
+                <select className="w-full px-4 py-3.5 text-sm font-medium text-gray-700 bg-gray-50/50 border border-transparent focus:border-[#004A9C]/20 focus:bg-white rounded-xl outline-none transition-all shadow-sm" value={updateLoan.status} onChange={(e) => setUpdateLoan({...updateLoan, status: e.target.value})}>
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Lunas">Lunas</option>
+                </select>
+              </div>
            </div>
            {loanActionType === 'review' && (
              <div className="flex gap-3 pt-2">
-                <Button className="flex-1 bg-[#27AE60] !py-2.5 text-sm">Review Setuju</Button>
-                <Button className="flex-1 bg-[#EB5757] !py-2.5 text-sm">Review Tolak</Button>
+                <Button className="flex-1 bg-[#27AE60] !py-3.5 text-sm shadow-lg shadow-[#27AE60]/20" onClick={() => submitUpdateLoan('Approved')}>Review Setuju</Button>
+                <Button className="flex-1 bg-[#EB5757] !py-3.5 text-sm shadow-lg shadow-[#EB5757]/20" onClick={() => submitUpdateLoan('Rejected')}>Review Tolak</Button>
              </div>
            )}
         </div>
       </Modal>
+
+      {/* Status Modal (Success/Error) */}
+      <Modal
+        isOpen={statusModal.isOpen}
+        onClose={() => setStatusModal({ ...statusModal, isOpen: false })}
+        title={statusModal.title}
+        message={statusModal.message}
+        type={statusModal.type}
+        confirmText="Tutup"
+      />
     </motion.div>
   );
 }

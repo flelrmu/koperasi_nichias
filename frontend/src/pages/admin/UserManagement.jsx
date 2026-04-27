@@ -4,15 +4,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, 
   Mail, 
-  Phone
+  Phone,
+  Search,
+  Settings
 } from 'lucide-react';
 import { 
   BiChevronLeft, 
   BiChevronRight,
   BiShow,
   BiEditAlt,
-  BiTrashAlt,
-  BiSearchAlt
+  BiTrashAlt
 } from 'react-icons/bi';
 import { FaUserPlus, FaUsers, FaShieldAlt } from 'react-icons/fa';
 
@@ -304,39 +305,47 @@ export default function UserManagement() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-5">
-           <div className="w-14 h-14 bg-[#DFEAF4] rounded-2xl flex items-center justify-center text-[#004A9C] shadow-inner">
-              <FaUsers size={28} />
-           </div>
-           <div>
-              <h2 className="text-2xl font-bold text-[#004A9C]">Manajemen Users</h2>
-              <p className="text-[12px] font-medium text-gray-400 uppercase tracking-widest mt-1 italic">Database Anggota & Pengurus Aktif Koperasi</p>
-           </div>
+      {/* Premium Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 relative overflow-hidden">
+        {/* Decorative background blurs */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#DFEAF4] rounded-full -mr-32 -mt-32 opacity-50 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#004A9C]/5 rounded-full -ml-24 -mb-24 opacity-40 blur-3xl"></div>
+        
+        <div className="space-y-3 relative z-10">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#DFEAF4] text-[#004A9C] rounded-full text-xs font-bold uppercase tracking-widest"
+          >
+            <Users size={14} />
+            <span>Manajemen</span>
+          </motion.div>
+          <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">Manajemen <span className="text-[#004A9C]">Users</span></h2>
+          <p className="text-gray-500 text-lg font-medium">Database anggota & pengurus aktif koperasi.</p>
         </div>
-        <div className="flex gap-3">
-          {canEdit && (
+        
+        {canEdit && (
+          <div className="relative z-10 shrink-0">
             <Button 
               onClick={() => navigate('/admin/users/tambah')}
-              className="px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#004A9C]/20"
+              className="flex items-center gap-2 px-8 py-4 rounded-2xl shadow-lg shadow-[#004A9C]/20 hover:scale-105 transition-all bg-[#004A9C] text-white"
             >
-              <FaUserPlus size={18} />
-              <span className="font-bold">Tambah Akun</span>
+              <FaUserPlus size={22} />
+              <span className="font-bold text-lg">Tambah Akun</span>
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Tabs and Search Section */}
-      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-        <div className="flex p-1.5 bg-white border border-gray-100 rounded-2xl shadow-sm">
+      <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 flex flex-col lg:flex-row gap-6 items-center justify-between">
+        <div className="flex p-1.5 bg-gray-50 rounded-2xl w-full lg:w-auto overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('anggota')}
-            className={`px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'anggota' 
-              ? 'bg-[#004A9C] text-white shadow-lg shadow-[#004A9C]/30' 
-              : 'text-gray-400 hover:text-[#004A9C] hover:bg-[#DFEAF4]/50'
+              ? 'bg-[#004A9C] text-white shadow-lg shadow-blue-900/20' 
+              : 'text-gray-400 hover:text-gray-900'
             }`}
           >
             <FaUsers size={16} />
@@ -344,10 +353,10 @@ export default function UserManagement() {
           </button>
           <button
             onClick={() => setActiveTab('pengurus')}
-            className={`px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'pengurus' 
-              ? 'bg-[#004A9C] text-white shadow-lg shadow-[#004A9C]/30' 
-              : 'text-gray-400 hover:text-[#004A9C] hover:bg-[#DFEAF4]/50'
+              ? 'bg-[#004A9C] text-white shadow-lg shadow-blue-900/20' 
+              : 'text-gray-400 hover:text-gray-900'
             }`}
           >
             <FaShieldAlt size={16} />
@@ -355,16 +364,15 @@ export default function UserManagement() {
           </button>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-          <div className="relative w-full sm:w-80 group">
-            <BiSearchAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#004A9C] transition-colors" size={20} />
-            <Input
-              placeholder={`Cari nama, email, atau ID...`}
-              className="pl-12 !py-3.5 bg-white border-transparent focus:border-[#004A9C]/20 shadow-sm"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+        <div className="relative w-full lg:w-96 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#004A9C] transition-colors" size={20} />
+          <input
+            type="text"
+            placeholder="Cari nama, email, atau ID..."
+            className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#004A9C]/20 transition-all font-medium text-sm placeholder:text-gray-400"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       </div>
 

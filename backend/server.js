@@ -60,6 +60,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/peraturan', peraturanRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/simpan-pinjam', require('./routes/simpanPinjamRoutes'));
 
 // Test route
 app.get('/', (req, res) => {

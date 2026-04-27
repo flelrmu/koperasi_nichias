@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   Clock, 
@@ -10,7 +11,8 @@ import {
   PieChart as PieChartIcon, 
   Activity,
   ArrowUpRight,
-  UserPlus
+  UserPlus,
+  LayoutDashboard
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -18,7 +20,6 @@ import {
   Cell, 
   ResponsiveContainer, 
   Tooltip as RechartsTooltip, 
-  Legend,
   BarChart,
   Bar,
   XAxis,
@@ -29,9 +30,9 @@ import {
 } from 'recharts';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
-import StatusBadge from '../../components/atoms/StatusBadge';
+import Button from '../../components/atoms/Button';
 
-// Mock data for charts
+// Fallback data for charts if DB is empty
 const divisionData = [
   { name: 'Produksi', value: 45, color: '#004A9C' },
   { name: 'Logistik', value: 25, color: '#27AE60' },
@@ -40,15 +41,16 @@ const divisionData = [
 ];
 
 const financeData = [
-  { name: 'Jan', debit: 4000, credit: 2400 },
-  { name: 'Feb', debit: 3000, credit: 1398 },
-  { name: 'Mar', debit: 2000, credit: 9800 },
-  { name: 'Apr', debit: 2780, credit: 3908 },
-  { name: 'Mei', debit: 1890, credit: 4800 },
-  { name: 'Jun', debit: 2390, credit: 3800 },
+  { name: 'Jan', debit: 0, credit: 0 },
+  { name: 'Feb', debit: 0, credit: 0 },
+  { name: 'Mar', debit: 0, credit: 0 },
+  { name: 'Apr', debit: 0, credit: 0 },
+  { name: 'Mei', debit: 0, credit: 0 },
+  { name: 'Jun', debit: 0, credit: 0 },
 ];
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const { user, api } = useAuth();
   const socket = useSocket();
   const roleLabel = user?.role?.replace(/_/g, ' ') || 'Pengurus';
@@ -60,6 +62,7 @@ export default function AdminDashboard() {
     ringkasanSimpanan: { pokok: 0, wajib: 0, sukarela: 0, total: 0 },
     nilaiPinjaman: { berjalan: 0, potensi: 0, total: 0 }
   });
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchDashboardData = async () => {
     try {
@@ -69,6 +72,8 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -85,38 +90,45 @@ export default function AdminDashboard() {
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+    visible: { 
+      opacity: 1, 
+      transition: { 
+        staggerChildren: 0.1,
+        when: "beforeChildren"
+      } 
+    },
   };
 
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { duration: 0.4, ease: 'easeOut' } },
+    visible: { 
+      y: 0, 
+      opacity: 1, 
+      transition: { duration: 0.5, ease: 'easeOut' } 
+    },
   };
-
-  // Stats for Member & Pending
-  const topStats = [
-    { label: 'Total Anggota Aktif', value: dashboardData.topStats.totalAnggotaAktif.toString(), icon: Users, color: '#004A9C', trend: 'Live' },
-    { label: 'Pendaftaran Pending', value: dashboardData.topStats.pendaftaranPending.toString(), icon: UserPlus, color: '#F2994A', trend: 'Perlu review' },
-    { label: 'Pinjaman Pending', value: dashboardData.topStats.pinjamanPending.toString(), icon: Clock, color: '#EB5757', trend: 'Segera proses' },
-    { label: 'Aktivitas Hari Ini', value: dashboardData.topStats.aktifitasHariIni.toString(), icon: Activity, color: '#27AE60', trend: 'Normal' },
-  ];
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       maximumFractionDigits: 0
-    }).format(value);
+    }).format(value || 0);
   };
 
-  // Savings Stats
+  const topStats = [
+    { label: 'Total Anggota Aktif', value: dashboardData.topStats.totalAnggotaAktif, icon: Users, color: '#004A9C', trend: 'Live', path: '/admin/users' },
+    { label: 'Pendaftaran Pending', value: dashboardData.topStats.pendaftaranPending, icon: UserPlus, color: '#F2994A', trend: 'Perlu review', path: '/admin/users' },
+    { label: 'Pinjaman Pending', value: dashboardData.topStats.pinjamanPending, icon: Clock, color: '#EB5757', trend: 'Segera proses', path: '/admin/simpan-pinjam' },
+    { label: 'Aktivitas Hari Ini', value: dashboardData.topStats.aktifitasHariIni, icon: Activity, color: '#27AE60', trend: 'Normal', path: null },
+  ];
+
   const savingsStats = [
     { label: 'Simpanan Pokok', value: formatCurrency(dashboardData.ringkasanSimpanan.pokok), color: '#004A9C' },
     { label: 'Simpanan Wajib', value: formatCurrency(dashboardData.ringkasanSimpanan.wajib), color: '#27AE60' },
     { label: 'Simpanan Sukarela', value: formatCurrency(dashboardData.ringkasanSimpanan.sukarela), color: '#F2994A' },
     { label: 'Total Dana Simpanan', value: formatCurrency(dashboardData.ringkasanSimpanan.total), color: '#1e293b', highlighted: true },
   ];
-
 
   return (
     <motion.div 
@@ -125,132 +137,170 @@ export default function AdminDashboard() {
       variants={containerVariants} 
       className="space-y-8 pb-10"
     >
-      {/* Welcome Section */}
-      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">
-            Dashboard Overview
+      {/* Premium Header Section */}
+      <motion.div 
+        variants={itemVariants}
+        className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 relative overflow-hidden"
+      >
+        {/* Decorative background blurs */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#DFEAF4] rounded-full -mr-32 -mt-32 opacity-40 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#004A9C]/5 rounded-full -ml-24 -mb-24 opacity-40 blur-3xl"></div>
+        
+        <div className="space-y-3 relative z-10">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#DFEAF4] text-[#004A9C] rounded-full text-xs font-bold uppercase tracking-widest"
+          >
+            <LayoutDashboard size={14} />
+            <span>Overview</span>
+          </motion.div>
+          <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
+            Ringkasan <span className="text-[#004A9C]">Dashboard</span>
           </h2>
-          <p className="text-gray-500 mt-1">
-            Selamat datang kembali, <strong>{user?.nama_lengkap || 'Pengurus'}</strong>. Berikut adalah ringkasan hari ini.
+          <p className="text-gray-500 text-lg">
+            Selamat datang kembali, <span className="font-bold text-gray-700">{user?.nama_lengkap || 'Pengurus'}</span>. Berikut performa koperasi hari ini.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <StatusBadge status="Online" />
-          <span className="text-xs font-medium text-gray-400">Role: {roleLabel}</span>
-        </div>
+        
       </motion.div>
 
-      {/* Top Stats Grid */}
+      {/* Stats Grid with entry animation */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {topStats.map((stat, idx) => (
           <motion.div
             key={idx}
             variants={itemVariants}
-            className="bg-white rounded-[20px] shadow-sm p-6 border border-gray-100/50 hover:shadow-md transition-all group"
+            onClick={() => stat.path && navigate(stat.path)}
+            className={`bg-white rounded-[2.5rem] shadow-sm p-8 border border-gray-100 hover:shadow-2xl hover:shadow-blue-900/10 transition-all group relative overflow-hidden aspect-square flex flex-col items-center justify-center text-center ${stat.path ? 'cursor-pointer' : ''}`}
           >
-            <div className="flex items-start justify-between mb-4">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110"
-                style={{ backgroundColor: `${stat.color}15`, color: stat.color }}
-              >
-                <stat.icon size={24} />
+            {/* Decorative background circle */}
+            <div 
+              className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-5 transition-transform duration-700 group-hover:scale-150"
+              style={{ backgroundColor: stat.color }}
+            />
+
+            <div
+              className="w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-sm transition-all group-hover:scale-110 group-hover:rotate-6 duration-500 mb-6 flex-shrink-0"
+              style={{ backgroundColor: `${stat.color}10`, color: stat.color }}
+            >
+              <stat.icon size={28} />
+            </div>
+
+            <div className="space-y-2 relative z-10">
+              <h3 className="text-gray-400 text-[11px] font-bold uppercase tracking-[0.2em] leading-tight px-2">{stat.label}</h3>
+              <p className="text-4xl font-black text-gray-900 tracking-tighter">{stat.value}</p>
+            </div>
+            
+            {stat.path && (
+              <div className="absolute bottom-8 right-8 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                <ArrowUpRight size={20} className="text-[#004A9C]" />
               </div>
-              <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-md uppercase tracking-wider">
-                Live
-              </span>
-            </div>
-            <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-tight">{stat.label}</h3>
-            <div className="flex items-baseline gap-2 mt-1">
-              <p className="text-2xl font-extrabold text-[#111827]">{stat.value}</p>
-            </div>
-            <p className="text-[11px] font-medium text-gray-400 mt-2 flex items-center gap-1">
-              <TrendingUp size={12} className={stat.color === '#EB5757' ? 'text-red-400 rotate-180' : 'text-green-400'} />
-              {stat.trend}
-            </p>
+            )}
           </motion.div>
         ))}
       </div>
 
-      {/* Main Charts Section */}
+      {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Finance Comparison Chart */}
-        <motion.div variants={itemVariants} className="lg:col-span-2 bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-          <div className="p-6 border-b border-gray-50 flex justify-between items-center">
+        <motion.div variants={itemVariants} className="lg:col-span-2 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-500">
+          <div className="p-8 border-b border-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h3 className="text-lg font-bold text-gray-800">Aliran Dana (Debit vs Kredit)</h3>
-              <p className="text-xs text-gray-400">Perbandingan uang masuk dan keluar 6 bulan terakhir</p>
+              <h3 className="text-xl font-black text-gray-800 tracking-tight">Aliran Dana (Debit vs Kredit)</h3>
+              <p className="text-sm text-gray-400">Analisis arus kas masuk dan keluar 6 bulan terakhir</p>
             </div>
-            <div className="flex gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#004A9C]"></div>
-                <span className="text-xs font-semibold text-gray-600">Debit</span>
+            <div className="flex p-1.5 bg-gray-50 rounded-xl gap-1">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg shadow-sm">
+                <div className="w-2 h-2 rounded-full bg-[#004A9C]"></div>
+                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Debit</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#27AE60]"></div>
-                <span className="text-xs font-semibold text-gray-600">Kredit</span>
+              <div className="flex items-center gap-2 px-3 py-1.5">
+                <div className="w-2 h-2 rounded-full bg-[#27AE60]"></div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Kredit</span>
               </div>
             </div>
           </div>
-          <div className="flex-1 p-6 h-[350px]">
+          <div className="flex-1 p-8 h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dashboardData.aliranDana.length > 0 ? dashboardData.aliranDana : financeData}>
                 <defs>
                   <linearGradient id="colorDebit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#004A9C" stopOpacity={0.3}/>
+                    <stop offset="5%" stopColor="#004A9C" stopOpacity={0.2}/>
                     <stop offset="95%" stopColor="#004A9C" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorCredit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#27AE60" stopOpacity={0.3}/>
+                    <stop offset="5%" stopColor="#27AE60" stopOpacity={0.2}/>
                     <stop offset="95%" stopColor="#27AE60" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} 
+                  dy={15} 
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} 
+                  tickFormatter={(val) => `Rp ${val/1000000}jt`}
+                />
                 <RechartsTooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  contentStyle={{ 
+                    borderRadius: '20px', 
+                    border: 'none', 
+                    boxShadow: '0 20px 50px rgba(0,74,156,0.1)',
+                    padding: '16px'
+                  }}
+                  itemStyle={{ fontWeight: 'bold', fontSize: '12px' }}
+                  labelStyle={{ fontWeight: 'black', marginBottom: '8px', color: '#1e293b' }}
                   cursor={{ stroke: '#004A9C', strokeWidth: 1, strokeDasharray: '5 5' }}
                   formatter={(value) => formatCurrency(value)}
                 />
-                <Area type="monotone" dataKey="debit" stroke="#004A9C" strokeWidth={3} fillOpacity={1} fill="url(#colorDebit)" />
-                <Area type="monotone" dataKey="credit" stroke="#27AE60" strokeWidth={3} fillOpacity={1} fill="url(#colorCredit)" />
+                <Area type="monotone" dataKey="debit" stroke="#004A9C" strokeWidth={4} fillOpacity={1} fill="url(#colorDebit)" animationDuration={1500} />
+                <Area type="monotone" dataKey="credit" stroke="#27AE60" strokeWidth={4} fillOpacity={1} fill="url(#colorCredit)" animationDuration={1500} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </motion.div>
 
-        {/* Member Distribution Chart */}
-        <motion.div variants={itemVariants} className="bg-white rounded-[24px] shadow-sm border border-gray-100 flex flex-col">
-          <div className="p-6 border-b border-gray-50 text-center lg:text-left">
-            <h3 className="text-lg font-bold text-gray-800">Distribusi Divisi</h3>
-            <p className="text-xs text-gray-400">Persentase anggota berdasarkan unit kerja</p>
+        <motion.div variants={itemVariants} className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-500">
+          <div className="p-8 border-b border-gray-50 text-center">
+            <h3 className="text-xl font-black text-gray-800 tracking-tight">Distribusi Divisi</h3>
+            <p className="text-sm text-gray-400">Persentase anggota aktif per unit kerja</p>
           </div>
-          <div className="flex-1 p-6 flex flex-col items-center justify-center min-h-[300px]">
+          <div className="flex-1 p-8 flex flex-col items-center justify-center min-h-[350px]">
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
                   data={dashboardData.distribusiDivisi.length > 0 ? dashboardData.distribusiDivisi : divisionData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
+                  innerRadius={70}
+                  outerRadius={95}
+                  paddingAngle={8}
                   dataKey="value"
+                  animationDuration={1500}
                 >
                   {(dashboardData.distribusiDivisi.length > 0 ? dashboardData.distribusiDivisi : divisionData).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />
                   ))}
                 </Pie>
-                <RechartsTooltip />
+                <RechartsTooltip 
+                   contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}
+                />
               </PieChart>
             </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-4 w-full mt-4">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4 w-full mt-6">
               {(dashboardData.distribusiDivisi.length > 0 ? dashboardData.distribusiDivisi : divisionData).map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></div>
-                  <span className="text-[11px] font-bold text-gray-600 truncate">{item.name}</span>
-                  <span className="text-[11px] font-medium text-gray-400 ml-auto">{item.value}%</span>
+                <div key={idx} className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: item.color }}></div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-black text-gray-700 truncate">{item.name}</span>
+                    <span className="text-[10px] font-bold text-gray-400">{item.value}%</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -258,82 +308,125 @@ export default function AdminDashboard() {
         </motion.div>
       </div>
 
-      {/* Savings & Financials Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Savings Summary */}
-        <motion.div variants={itemVariants} className="bg-white rounded-[24px] shadow-sm border border-gray-100 p-8">
+        <motion.div variants={itemVariants} className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-500">
           <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-50 text-[#004A9C] rounded-2xl">
-                <Wallet size={24} />
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 flex items-center justify-center bg-blue-50 text-[#004A9C] rounded-[1.5rem] shadow-inner flex-shrink-0">
+                <Wallet size={28} />
               </div>
-              <h3 className="text-lg font-bold text-gray-800">Ringkasan Simpanan</h3>
+              <div>
+                <h3 className="text-xl font-black text-gray-800 tracking-tight">Ringkasan Simpanan</h3>
+                <p className="text-sm text-gray-400">Total simpanan anggota koperasi</p>
+              </div>
             </div>
-            <button className="text-xs font-bold text-[#004A9C] hover:underline">Detail Keuangan &rarr;</button>
+            <button 
+              onClick={() => navigate('/admin/simpan-pinjam')}
+              className="px-4 py-2 bg-gray-50 text-[#004A9C] text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#DFEAF4] transition-all"
+            >
+              Detail &rarr;
+            </button>
           </div>
 
           <div className="space-y-4">
             {savingsStats.map((stat, idx) => (
-              <div 
+              <motion.div 
                 key={idx} 
-                className={`flex items-center justify-between p-4 rounded-2xl transition-all ${
-                  stat.highlighted ? 'bg-[#004A9C] text-white' : 'bg-gray-50/50 border border-gray-100 hover:bg-white hover:border-blue-100'
+                whileHover={{ x: 5 }}
+                className={`flex items-center justify-between p-5 rounded-2xl transition-all border ${
+                  stat.highlighted 
+                  ? 'bg-[#004A9C] border-[#004A9C] text-white shadow-lg shadow-[#004A9C]/20' 
+                  : 'bg-gray-50/50 border-gray-100 hover:bg-white hover:border-blue-100'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-2 h-8 rounded-full ${stat.highlighted ? 'bg-white/30' : ''}`} style={{ backgroundColor: stat.highlighted ? undefined : stat.color }}></div>
-                  <span className={`text-sm font-bold ${stat.highlighted ? 'text-white' : 'text-gray-600'}`}>{stat.label}</span>
+                <div className="flex items-center gap-4">
+                  <div className={`w-1.5 h-10 rounded-full ${stat.highlighted ? 'bg-white/30' : ''}`} style={{ backgroundColor: stat.highlighted ? undefined : stat.color }}></div>
+                  <span className={`text-[13px] font-bold ${stat.highlighted ? 'text-white/80' : 'text-gray-500'} uppercase tracking-wider`}>{stat.label}</span>
                 </div>
-                <span className={`text-base font-extrabold ${stat.highlighted ? 'text-white' : 'text-gray-800'}`}>{stat.value}</span>
-              </div>
+                <span className={`text-lg font-black ${stat.highlighted ? 'text-white' : 'text-gray-800'}`}>{stat.value}</span>
+              </motion.div>
             ))}
           </div>
         </motion.div>
 
-        {/* Loan Exposure */}
-        <motion.div variants={itemVariants} className="bg-white rounded-[24px] shadow-sm border border-gray-100 p-8 flex flex-col justify-between">
+        <motion.div variants={itemVariants} className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 flex flex-col justify-between hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-500">
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-red-50 text-[#EB5757] rounded-2xl">
-                <CreditCard size={24} />
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 flex items-center justify-center bg-red-50 text-[#EB5757] rounded-[1.5rem] shadow-inner flex-shrink-0">
+                <CreditCard size={28} />
               </div>
-              <h3 className="text-lg font-bold text-gray-800">Nilai Pinjaman (Exposure)</h3>
+              <div>
+                <h3 className="text-xl font-black text-gray-800 tracking-tight">Nilai Pinjaman (Exposure)</h3>
+                <p className="text-sm text-gray-400">Total akumulasi pinjaman berjalan</p>
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col justify-center text-center">
-            <p className="text-5xl font-black text-[#111827] mb-2">{formatCurrency(dashboardData.nilaiPinjaman.total)}</p>
-            <p className="text-sm font-semibold text-gray-400 max-w-xs mx-auto">
-              Total estimasi dana kas yang sedang dipinjam (Aktif) dan potensi dana keluar (Pending).
+          <div className="flex-1 flex flex-col justify-center text-center p-6">
+            <motion.p 
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              className="text-5xl font-black text-gray-900 mb-3 tracking-tighter"
+            >
+              {formatCurrency(dashboardData.nilaiPinjaman.total)}
+            </motion.p>
+            <p className="text-sm font-bold text-gray-400 max-w-xs mx-auto leading-relaxed">
+              Total estimasi dana kas yang sedang dipinjam <span className="text-green-500">(Aktif)</span> dan potensi dana keluar <span className="text-orange-500">(Pending)</span>.
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mt-8 pt-8 border-t border-gray-50">
-            <div className="bg-orange-50/30 p-4 rounded-2xl text-center">
-              <p className="text-[10px] font-bold text-orange-600 uppercase mb-1">Potensi (Pending)</p>
-              <p className="text-lg font-black text-orange-800">{formatCurrency(dashboardData.nilaiPinjaman.potensi)}</p>
+            <div className="bg-orange-50/50 p-5 rounded-[2rem] text-center border border-orange-100 group hover:bg-orange-50 transition-all">
+              <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-2">Potensi (Pending)</p>
+              <p className="text-xl font-black text-orange-700">{formatCurrency(dashboardData.nilaiPinjaman.potensi)}</p>
             </div>
-            <div className="bg-green-50/30 p-4 rounded-2xl text-center">
-              <p className="text-[10px] font-bold text-green-600 uppercase mb-1">Berjalan (Aktif)</p>
-              <p className="text-lg font-black text-green-800">{formatCurrency(dashboardData.nilaiPinjaman.berjalan)}</p>
+            <div className="bg-green-50/50 p-5 rounded-[2rem] text-center border border-green-100 group hover:bg-green-50 transition-all">
+              <p className="text-[10px] font-black text-green-400 uppercase tracking-widest mb-2">Berjalan (Aktif)</p>
+              <p className="text-xl font-black text-green-700">{formatCurrency(dashboardData.nilaiPinjaman.berjalan)}</p>
             </div>
           </div>
         </motion.div>
       </div>
 
-      {/* Quick Action Footer */}
-      <motion.div variants={itemVariants} className="bg-gradient-to-r from-[#004A9C] to-[#0d4c9e] rounded-[24px] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-blue-900/10">
-        <div>
-          <h3 className="text-xl font-bold mb-1 flex items-center gap-2">
-            Punya tugas mendesak? <ArrowUpRight size={20} />
-          </h3>
-          <p className="text-white/70 text-sm">Akses menu manajemen untuk memproses pendaftaran atau pinjaman baru.</p>
+      {/* Modern Quick Action Footer */}
+      <motion.div 
+        variants={itemVariants} 
+        className="bg-gradient-to-br from-[#004A9C] via-[#004A9C] to-[#0a56ad] rounded-[2.5rem] p-10 text-white flex flex-col lg:flex-row items-center justify-between gap-8 shadow-2xl shadow-blue-900/20 relative overflow-hidden group"
+      >
+        {/* Animated pattern background */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <defs>
+              <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+                <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.5"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+          </svg>
         </div>
-        <div className="flex gap-4">
-          <button className="px-6 py-3 bg-white text-[#004A9C] font-bold rounded-xl text-sm transition-transform hover:scale-105 active:scale-95 shadow-lg shadow-black/10">
+        
+        <div className="relative z-10 text-center lg:text-left">
+          <h3 className="text-2xl md:text-3xl font-black mb-3 flex items-center justify-center lg:justify-start gap-3">
+            Punya tugas mendesak? <ArrowUpRight size={28} className="text-blue-300" />
+          </h3>
+          <p className="text-blue-100/80 text-lg font-medium max-w-lg">
+            Akses cepat ke menu manajemen untuk memproses pendaftaran anggota baru atau pengajuan pinjaman.
+          </p>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4 relative z-10 w-full lg:w-auto">
+          <button 
+            onClick={() => navigate('/admin/users')}
+            className="px-10 py-5 bg-white text-[#004A9C] font-black rounded-2xl text-base transition-all hover:scale-105 active:scale-95 shadow-xl shadow-black/10 flex items-center justify-center gap-2 group/btn"
+          >
+            <UserPlus size={20} className="group-hover/btn:scale-110 transition-transform" />
             Manajemen Anggota
           </button>
-          <button className="px-6 py-3 bg-[#ffffff20] text-white border border-white/30 backdrop-blur-sm font-bold rounded-xl text-sm transition-transform hover:scale-105 active:scale-95">
+          <button 
+            onClick={() => navigate('/admin/simpan-pinjam')}
+            className="px-10 py-5 bg-[#ffffff15] text-white border border-white/20 backdrop-blur-md font-black rounded-2xl text-base transition-all hover:bg-[#ffffff25] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 group/btn"
+          >
+            <CreditCard size={20} className="group-hover/btn:scale-110 transition-transform" />
             Laporan Keuangan
           </button>
         </div>

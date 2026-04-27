@@ -23,6 +23,7 @@ export default function StatusBadge({ status, children }) {
     case 'success':
     case 'selesai':
     case 'debit':
+    case 'approved':
       bgColor = 'bg-[#27AE60]/10';
       textColor = 'text-[#27AE60]';
       Icon = s === 'aktif' ? UserCheck : CheckCircle2;
@@ -41,6 +42,7 @@ export default function StatusBadge({ status, children }) {
     case 'gagal':
     case 'kredit':
     case 'keluar':
+    case 'rejected':
       bgColor = 'bg-[#EB5757]/10';
       textColor = 'text-[#EB5757]';
       Icon = s === 'keluar' ? UserX : XCircle;

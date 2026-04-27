@@ -315,7 +315,19 @@ const getProfile = async (req, res) => {
     if (role === 'Anggota') {
       profileData = await Anggota.findOne({
         where: { user_id },
-        include: [{ model: User, as: 'user', attributes: ['email', 'role'] }]
+        include: [
+          { model: User, as: 'user', attributes: ['email', 'role'] },
+          { model: db.Simpanan, as: 'simpanan' },
+          { model: db.Pinjaman, as: 'pinjaman' },
+          { model: db.PembagianShu, as: 'pembagianShu' },
+          { 
+            model: db.TransaksiSimpanan, 
+            as: 'transaksiSimpanan',
+            separate: true,
+            order: [['tanggal', 'DESC']],
+            limit: 10
+          }
+        ]
       });
     } else {
       profileData = await Pengurus.findOne({

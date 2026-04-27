@@ -1,165 +1,310 @@
-import { motion } from 'framer-motion';
-import { Wallet, CreditCard, ArrowUpRight, ArrowDownRight, Clock, Plus } from 'lucide-react';
-import Button from '../../components/atoms/Button';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Wallet, 
+  CreditCard, 
+  TrendingUp, 
+  Clock, 
+  Activity, 
+  LayoutDashboard,
+  ArrowUpRight,
+  ChevronRight,
+  Info,
+  Calendar,
+  UserCheck
+} from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import StatusBadge from '../../components/atoms/StatusBadge';
 
 export default function Dashboard() {
+  const { api, user } = useAuth();
+  const [profileData, setProfileData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchProfile = async () => {
+    try {
+      const response = await api.get('/user/profile');
+      if (response.data.success) {
+        setProfileData(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching profile data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
+    visible: { 
+      opacity: 1, 
+      transition: { 
+        staggerChildren: 0.1,
+        when: "beforeChildren"
+      } 
+    },
   };
 
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: { duration: 0.4, ease: "easeOut" }
-    }
+    visible: { 
+      y: 0, 
+      opacity: 1, 
+      transition: { duration: 0.5, ease: 'easeOut' } 
+    },
   };
 
-  const recentTransactions = [
-    { id: 'TRX-001', type: 'Simpanan Wajib', amount: 50000, date: '12 Apr 2026', status: 'Lunas', income: true },
-    { id: 'TRX-002', type: 'Angsuran Pinjaman', amount: 350000, date: '10 Apr 2026', status: 'Lunas', income: false },
-    { id: 'TRX-003', type: 'Pencairan Pinjaman', amount: 5000000, date: '05 Apr 2026', status: 'Selesai', income: true },
-    { id: 'TRX-004', type: 'Simpanan Pokok', amount: 100000, date: '01 Apr 2026', status: 'Lunas', income: true },
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0
+    }).format(value || 0);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#004A9C]"></div>
+      </div>
+    );
+  }
+
+  const totalSimpanan = (parseFloat(profileData?.simpanan?.saldo_pokok || 0) + 
+                         parseFloat(profileData?.simpanan?.saldo_wajib || 0) + 
+                         parseFloat(profileData?.simpanan?.saldo_sukarela || 0));
+  
+  const sisaPinjaman = profileData?.pinjaman?.reduce((acc, curr) => acc + parseFloat(curr.sisa_tagihan || 0), 0) || 0;
+  const totalSHU = profileData?.pembagianShu?.reduce((acc, curr) => acc + parseFloat(curr.nominal_shu || 0), 0) || 0;
+
+  const stats = [
+    { 
+      label: 'Total Simpanan', 
+      value: formatCurrency(totalSimpanan), 
+      icon: Wallet, 
+      color: '#004A9C', 
+      detail: 'Akumulasi saldo Anda' 
+    },
+    { 
+      label: 'Sisa Pinjaman', 
+      value: formatCurrency(sisaPinjaman), 
+      icon: CreditCard, 
+      color: '#EB5757', 
+      detail: 'Total tagihan berjalan' 
+    },
+    { 
+      label: 'Total SHU Diterima', 
+      value: formatCurrency(totalSHU), 
+      icon: TrendingUp, 
+      color: '#27AE60', 
+      detail: 'Sisa Hasil Usaha' 
+    },
   ];
 
   return (
     <motion.div 
-      className="space-y-6"
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
+      initial="hidden" 
+      animate="visible" 
+      variants={containerVariants} 
+      className="space-y-8 pb-10"
     >
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Ringkasan Keuangan</h2>
-          <p className="text-gray-500 mt-1">Pantau simpanan dan pinjaman Anda di sini.</p>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 relative overflow-hidden group hover:shadow-md transition-shadow">
-          <div className="absolute right-0 top-0 w-24 h-24 bg-[#004A9C]/5 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-[#004A9C]/10 rounded-lg flex items-center justify-center text-[#004A9C]">
-              <Wallet size={24} />
-            </div>
-            <StatusBadge status="Aktif" />
-          </div>
-          <h3 className="text-gray-500 text-sm font-medium">Total Simpanan</h3>
-          <p className="text-2xl font-bold text-gray-800 mt-1">Rp 1.250.000</p>
-          <div className="mt-4 flex items-center gap-2 text-sm">
-            <span className="flex items-center text-[#27AE60] bg-[#27AE60]/10 px-2 py-0.5 rounded-full font-medium">
-              <ArrowUpRight size={14} className="mr-1" /> +Rp 50.000
-            </span>
-            <span className="text-gray-400">Bulan ini</span>
-          </div>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 relative overflow-hidden group hover:shadow-md transition-shadow">
-          <div className="absolute right-0 top-0 w-24 h-24 bg-[#EB5757]/5 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-[#EB5757]/10 rounded-lg flex items-center justify-center text-[#EB5757]">
-              <CreditCard size={24} />
-            </div>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-              <Clock size={12} className="mr-1" /> 12 Bulan
-            </span>
-          </div>
-          <h3 className="text-gray-500 text-sm font-medium">Sisa Pinjaman</h3>
-          <p className="text-2xl font-bold text-gray-800 mt-1">Rp 3.500.000</p>
-          <div className="mt-4 flex items-center gap-2 text-sm">
-            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-              <div className="bg-[#F2994A] h-2 rounded-full" style={{ width: '40%' }}></div>
-            </div>
-            <span className="text-gray-500 whitespace-nowrap">40% lunas</span>
-          </div>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="bg-gradient-to-br from-[#004A9C] to-[#0a3d80] rounded-xl shadow-md p-6 text-white relative overflow-hidden lg:mt-0">
-          <div className="absolute right-[-20%] top-[-20%] w-48 h-48 bg-white/10 rounded-full blur-2xl"></div>
-          <h3 className="text-white/80 text-sm font-medium mb-1">Tanggal Bergabung</h3>
-          <p className="text-lg font-semibold mb-6">10 Jan 2025</p>
-          
-          <div className="space-y-3">
-            <div className="flex justify-between items-center text-sm border-b border-white/20 pb-2">
-              <span className="text-white/80">Lama Keanggotaan</span>
-              <span className="font-medium">400 Hari</span>
-            </div>
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-white/80">SHU Tahun Ini</span>
-              <span className="font-medium">Rp 125.000</span>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Recent Transactions Table */}
-      <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-gray-800">Aktifitas Terakhir</h3>
-        </div>
+      {/* Premium Header Section */}
+      <motion.div 
+        variants={itemVariants}
+        className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 relative overflow-hidden"
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#DFEAF4] rounded-full -mr-32 -mt-32 opacity-40 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#004A9C]/5 rounded-full -ml-24 -mb-24 opacity-40 blur-3xl"></div>
         
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500 text-sm">
-                <th className="py-4 px-6 font-medium">ID Transaksi</th>
-                <th className="py-4 px-6 font-medium">Keterangan</th>
-                <th className="py-4 px-6 font-medium">Tanggal</th>
-                <th className="py-4 px-6 font-medium">Nominal</th>
-                <th className="py-4 px-6 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {recentTransactions.map((trx, index) => (
-                <tr key={trx.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="py-4 px-6 text-sm font-medium text-gray-800">{trx.id}</td>
-                  <td className="py-4 px-6 text-sm text-gray-600">{trx.type}</td>
-                  <td className="py-4 px-6 text-sm text-gray-500">{trx.date}</td>
-                  <td className="py-4 px-6 text-sm font-medium">
-                    <span className={trx.income ? 'text-[#27AE60]' : 'text-gray-800'}>
-                      {trx.income ? '+' : '-'}Rp {trx.amount.toLocaleString('id-ID')}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <StatusBadge status={trx.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {/* Mobile View for Table (Cards instead of rows on very small screens if needed, but table handles scroll with overflow-x-auto) */}
-          {recentTransactions.length === 0 && (
-            <div className="py-12 text-center text-gray-500">
-              Belum ada transaksi.
-            </div>
-          )}
+        <div className="space-y-3 relative z-10">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#DFEAF4] text-[#004A9C] rounded-full text-xs font-bold uppercase tracking-widest"
+          >
+            <LayoutDashboard size={14} />
+            <span>Member Overview</span>
+          </motion.div>
+          <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
+            Selamat Datang, <span className="text-[#004A9C]">{profileData?.nama_lengkap?.split(' ')[0]}</span>!
+          </h2>
+          <p className="text-gray-500 text-lg font-medium">
+            Pantau pertumbuhan simpanan dan status pinjaman Anda secara real-time.
+          </p>
         </div>
 
-        {/* Pagination Footer */}
-        <div className="p-4 sm:p-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500 bg-gray-50/30">
-          <span>Menampilkan 10 dari 100 data</span>
-          <div className="flex gap-1">
-            <button className="px-3 py-1.5 rounded-md border border-gray-200 hover:bg-white bg-gray-50 disabled:opacity-50 transition-colors" disabled>Sebelumnya</button>
-            <button className="px-3 py-1.5 rounded-md bg-[#004A9C] text-white shadow-sm">1</button>
-            <button className="px-3 py-1.5 rounded-md border border-gray-200 hover:bg-white bg-gray-50 transition-colors hidden sm:block">2</button>
-            <button className="px-3 py-1.5 rounded-md border border-gray-200 hover:bg-white bg-gray-50 transition-colors hidden sm:block">3</button>
-            <span className="px-2 py-1.5 hidden sm:block">...</span>
-            <button className="px-3 py-1.5 rounded-md border border-gray-200 hover:bg-white bg-gray-50 transition-colors hidden sm:block">10</button>
-            <button className="px-3 py-1.5 rounded-md border border-gray-200 hover:bg-white bg-gray-50 transition-colors">Selanjutnya</button>
+        <div className="relative z-10 flex items-center gap-4 bg-gray-50 p-4 rounded-3xl border border-gray-100">
+          <div className="w-12 h-12 rounded-2xl bg-[#004A9C] text-white flex items-center justify-center shadow-lg shadow-[#004A9C]/20">
+            <UserCheck size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ID Anggota</p>
+            <p className="text-lg font-black text-[#004A9C]">{profileData?.no_anggota || 'PROSES...'}</p>
           </div>
         </div>
       </motion.div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {stats.map((stat, idx) => (
+          <motion.div
+            key={idx}
+            variants={itemVariants}
+            className="bg-white rounded-[2.5rem] shadow-sm p-8 border border-gray-100 hover:shadow-2xl hover:shadow-blue-900/10 transition-all group relative overflow-hidden flex flex-col items-center justify-center text-center"
+          >
+            <div 
+              className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-5 transition-transform duration-700 group-hover:scale-150"
+              style={{ backgroundColor: stat.color }}
+            />
+
+            <div
+              className="w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-sm transition-all group-hover:scale-110 group-hover:rotate-6 duration-500 mb-6 flex-shrink-0"
+              style={{ backgroundColor: `${stat.color}10`, color: stat.color }}
+            >
+              <stat.icon size={28} />
+            </div>
+
+            <div className="space-y-2 relative z-10">
+              <h3 className="text-gray-400 text-[11px] font-bold uppercase tracking-[0.2em] leading-tight px-2">{stat.label}</h3>
+              <p className="text-3xl font-black text-gray-900 tracking-tighter">{stat.value}</p>
+              <p className="text-[10px] text-gray-400 font-medium italic">{stat.detail}</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Main Content Sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Recent Transactions Table */}
+        <motion.div variants={itemVariants} className="lg:col-span-2 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-500">
+          <div className="p-8 border-b border-gray-50 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-blue-50 text-[#004A9C] rounded-2xl">
+                <Activity size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-gray-800 tracking-tight">Aktifitas Terakhir</h3>
+                <p className="text-sm text-gray-400 font-medium">Riwayat transaksi simpanan terbaru</p>
+              </div>
+            </div>
+            <button className="p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400">
+              <ChevronRight size={20} />
+            </button>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/80 text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-gray-100">
+                  <th className="py-5 px-8">Tanggal</th>
+                  <th className="py-5 px-8">Keterangan</th>
+                  <th className="py-5 px-8 text-right">Nominal</th>
+                  <th className="py-5 px-8">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {profileData?.transaksiSimpanan?.length > 0 ? (
+                  profileData.transaksiSimpanan.map((trx, idx) => (
+                    <motion.tr 
+                      key={idx}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="hover:bg-[#DFEAF4]/20 transition-all duration-300 group"
+                    >
+                      <td className="py-5 px-8">
+                        <div className="flex items-center gap-3">
+                          <Calendar size={14} className="text-gray-300" />
+                          <span className="text-xs font-bold text-gray-600">{formatDate(trx.tanggal)}</span>
+                        </div>
+                      </td>
+                      <td className="py-5 px-8 text-sm font-bold text-gray-700 tracking-tight">
+                        {trx.jenis_transaksi}
+                      </td>
+                      <td className="py-5 px-8 text-right">
+                        <span className={`text-sm font-black ${trx.jenis_transaksi?.toLowerCase().includes('tarik') ? 'text-red-500' : 'text-[#27AE60]'}`}>
+                          {trx.jenis_transaksi?.toLowerCase().includes('tarik') ? '-' : '+'}{formatCurrency(trx.nominal)}
+                        </span>
+                      </td>
+                      <td className="py-5 px-8">
+                        <StatusBadge status="Success" />
+                      </td>
+                    </motion.tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="py-20 text-center text-gray-400 italic font-medium uppercase tracking-widest text-[10px]">
+                      Belum ada transaksi simpanan.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+
+        {/* Member Info / Rules Card */}
+        <motion.div variants={itemVariants} className="space-y-6">
+          <div className="bg-gradient-to-br from-[#004A9C] via-[#004A9C] to-[#0a56ad] rounded-[2.5rem] p-8 text-white relative overflow-hidden group shadow-2xl shadow-blue-900/20">
+             {/* Decorative pattern */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+              <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                  <pattern id="grid-member" width="10" height="10" patternUnits="userSpaceOnUse">
+                    <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.5"/>
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid-member)" />
+              </svg>
+            </div>
+
+            <div className="relative z-10">
+              <h3 className="text-xl font-black mb-4">Informasi Keanggotaan</h3>
+              <div className="space-y-4">
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Divisi / Unit Kerja</p>
+                  <p className="font-black">{profileData?.divisi || '-'}</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Tanggal Bergabung</p>
+                  <p className="font-black">{formatDate(profileData?.tanggal_bergabung)}</p>
+                </div>
+              </div>
+              <button className="mt-8 w-full py-4 bg-white text-[#004A9C] font-black rounded-2xl hover:scale-105 transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/10">
+                Detail Profil <ArrowUpRight size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-orange-50 border border-orange-100 rounded-[2.5rem] p-8 flex flex-col gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-inner">
+              <Info size={24} />
+            </div>
+            <div>
+              <h4 className="font-black text-orange-800 tracking-tight">Butuh Pinjaman?</h4>
+              <p className="text-sm text-orange-600 font-medium leading-relaxed mt-1">
+                Gunakan fasilitas pinjaman koperasi untuk kebutuhan mendesak atau modal usaha Anda.
+              </p>
+            </div>
+            <button className="mt-2 text-orange-700 font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
+              Pelajari Aturan <ChevronRight size={16} />
+            </button>
+          </div>
+        </motion.div>
+      </div>
     </motion.div>
   );
 }
