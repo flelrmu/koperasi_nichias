@@ -63,6 +63,7 @@ export default function AdminDashboard() {
     nilaiPinjaman: { berjalan: 0, potensi: 0, total: 0 }
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [hoveredStat, setHoveredStat] = useState(null);
 
   const fetchDashboardData = async () => {
     try {
@@ -116,6 +117,18 @@ export default function AdminDashboard() {
     }).format(value || 0);
   };
 
+  const formatCompactCurrency = (val) => {
+    if (!val) return 'Rp 0';
+    const num = parseFloat(val);
+    if (num >= 1000000) {
+      return `Rp ${(num / 1000000).toFixed(num % 1000000 === 0 ? 0 : 1)} Jt`;
+    }
+    if (num >= 1000) {
+      return `Rp ${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)} Rb`;
+    }
+    return formatCurrency(num);
+  };
+
   const topStats = [
     { label: 'Total Anggota Aktif', value: dashboardData.topStats.totalAnggotaAktif, icon: Users, color: '#004A9C', trend: 'Live', path: '/admin/users' },
     { label: 'Pendaftaran Pending', value: dashboardData.topStats.pendaftaranPending, icon: UserPlus, color: '#F2994A', trend: 'Perlu review', path: '/admin/users' },
@@ -124,10 +137,10 @@ export default function AdminDashboard() {
   ];
 
   const savingsStats = [
-    { label: 'Simpanan Pokok', value: formatCurrency(dashboardData.ringkasanSimpanan.pokok), color: '#004A9C' },
-    { label: 'Simpanan Wajib', value: formatCurrency(dashboardData.ringkasanSimpanan.wajib), color: '#27AE60' },
-    { label: 'Simpanan Sukarela', value: formatCurrency(dashboardData.ringkasanSimpanan.sukarela), color: '#F2994A' },
-    { label: 'Total Dana Simpanan', value: formatCurrency(dashboardData.ringkasanSimpanan.total), color: '#1e293b', highlighted: true },
+    { label: 'Simpanan Pokok', rawValue: dashboardData.ringkasanSimpanan.pokok, color: '#004A9C' },
+    { label: 'Simpanan Wajib', rawValue: dashboardData.ringkasanSimpanan.wajib, color: '#27AE60' },
+    { label: 'Simpanan Sukarela', rawValue: dashboardData.ringkasanSimpanan.sukarela, color: '#F2994A' },
+    { label: 'Total Dana Simpanan', rawValue: dashboardData.ringkasanSimpanan.total, color: '#1e293b', highlighted: true },
   ];
 
   return (
@@ -225,11 +238,11 @@ export default function AdminDashboard() {
               <AreaChart data={dashboardData.aliranDana.length > 0 ? dashboardData.aliranDana : financeData}>
                 <defs>
                   <linearGradient id="colorDebit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#004A9C" stopOpacity={0.2}/>
+                    <stop offset="5%" stopColor="#004A9C" stopOpacity={0.05}/>
                     <stop offset="95%" stopColor="#004A9C" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorCredit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#27AE60" stopOpacity={0.2}/>
+                    <stop offset="5%" stopColor="#27AE60" stopOpacity={0.05}/>
                     <stop offset="95%" stopColor="#27AE60" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
@@ -333,7 +346,9 @@ export default function AdminDashboard() {
               <motion.div 
                 key={idx} 
                 whileHover={{ x: 5 }}
-                className={`flex items-center justify-between p-5 rounded-2xl transition-all border ${
+                onMouseEnter={() => setHoveredStat(`savings-${idx}`)}
+                onMouseLeave={() => setHoveredStat(null)}
+                className={`flex items-center justify-between p-5 rounded-2xl transition-all border relative ${
                   stat.highlighted 
                   ? 'bg-[#004A9C] border-[#004A9C] text-white shadow-lg shadow-[#004A9C]/20' 
                   : 'bg-gray-50/50 border-gray-100 hover:bg-white hover:border-blue-100'
@@ -343,7 +358,27 @@ export default function AdminDashboard() {
                   <div className={`w-1.5 h-10 rounded-full ${stat.highlighted ? 'bg-white/30' : ''}`} style={{ backgroundColor: stat.highlighted ? undefined : stat.color }}></div>
                   <span className={`text-[13px] font-bold ${stat.highlighted ? 'text-white/80' : 'text-gray-500'} uppercase tracking-wider`}>{stat.label}</span>
                 </div>
-                <span className={`text-lg font-black ${stat.highlighted ? 'text-white' : 'text-gray-800'}`}>{stat.value}</span>
+                
+                <div className="relative">
+                  <span className={`text-lg font-black transition-all duration-300 ${stat.highlighted ? 'text-white' : 'text-gray-800'} ${hoveredStat === `savings-${idx}` ? 'blur-sm opacity-20' : ''}`}>
+                    {formatCompactCurrency(stat.rawValue)}
+                  </span>
+                  
+                  <AnimatePresence>
+                    {hoveredStat === `savings-${idx}` && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8, x: -20, y: 0 }}
+                        animate={{ opacity: 1, scale: 1, x: -10, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, x: -20, y: 0 }}
+                        className={`absolute inset-y-0 right-full mr-4 flex items-center z-50`}
+                      >
+                         <span className={`text-sm font-black whitespace-nowrap px-4 py-1.5 rounded-full border backdrop-blur-sm ${stat.highlighted ? 'bg-white/20 text-white border-white/30 shadow-xl' : 'bg-white/80 text-gray-900 border-gray-100 shadow-sm'}`}>
+                           {formatCurrency(stat.rawValue)}
+                         </span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -362,14 +397,35 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col justify-center text-center p-6">
-            <motion.p 
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              className="text-5xl font-black text-gray-900 mb-3 tracking-tighter"
-            >
-              {formatCurrency(dashboardData.nilaiPinjaman.total)}
-            </motion.p>
+          <div 
+            className="flex-1 flex flex-col justify-center text-center p-6 relative"
+            onMouseEnter={() => setHoveredStat('loan-total')}
+            onMouseLeave={() => setHoveredStat(null)}
+          >
+            <div className="relative inline-block mx-auto">
+              <motion.p 
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                className={`text-5xl font-black text-gray-900 mb-3 tracking-tighter transition-all duration-300 ${hoveredStat === 'loan-total' ? 'blur-md opacity-10' : ''}`}
+              >
+                {formatCompactCurrency(dashboardData.nilaiPinjaman.total)}
+              </motion.p>
+              
+              <AnimatePresence>
+                {hoveredStat === 'loan-total' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                    className="absolute inset-0 flex items-center justify-center z-50"
+                  >
+                     <span className="text-2xl font-black text-gray-900 whitespace-nowrap px-8 py-3 bg-white/80 backdrop-blur-sm rounded-full border border-gray-100 shadow-sm">
+                       {formatCurrency(dashboardData.nilaiPinjaman.total)}
+                     </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             <p className="text-sm font-bold text-gray-400 max-w-xs mx-auto leading-relaxed">
               Total estimasi dana kas yang sedang dipinjam <span className="text-green-500">(Aktif)</span> dan potensi dana keluar <span className="text-orange-500">(Pending)</span>.
             </p>

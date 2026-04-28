@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Wallet, 
@@ -11,15 +12,19 @@ import {
   ChevronRight,
   Info,
   Calendar,
-  UserCheck
+  UserCheck,
+  PiggyBank
 } from 'lucide-react';
+import { BiChevronLeft, BiChevronRight } from 'react-icons/bi';
 import { useAuth } from '../../context/AuthContext';
 import StatusBadge from '../../components/atoms/StatusBadge';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { api, user } = useAuth();
   const [profileData, setProfileData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hoveredCard, setHoveredCard] = useState(null);
 
   const fetchProfile = async () => {
     try {
@@ -66,6 +71,18 @@ export default function Dashboard() {
     }).format(value || 0);
   };
 
+  const formatCompactCurrency = (val) => {
+    if (!val) return 'Rp 0';
+    const num = parseFloat(val);
+    if (num >= 1000000) {
+      return `Rp ${(num / 1000000).toFixed(num % 1000000 === 0 ? 0 : 1)} Jt`;
+    }
+    if (num >= 1000) {
+      return `Rp ${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)} Rb`;
+    }
+    return formatCurrency(num);
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('id-ID', {
@@ -73,6 +90,34 @@ export default function Dashboard() {
       month: 'short',
       year: 'numeric'
     });
+  };
+
+  const calculateMembershipDuration = (dateString) => {
+    if (!dateString) return '-';
+    const joinedDate = new Date(dateString);
+    const now = new Date();
+    
+    let years = now.getFullYear() - joinedDate.getFullYear();
+    let months = now.getMonth() - joinedDate.getMonth();
+    let days = now.getDate() - joinedDate.getDate();
+
+    if (days < 0) {
+      months -= 1;
+      const lastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      days += lastMonth.getDate();
+    }
+
+    if (months < 0) {
+      years -= 1;
+      months += 12;
+    }
+
+    const parts = [];
+    if (years > 0) parts.push(`${years} Thn`);
+    if (months > 0) parts.push(`${months} Bln`);
+    if (days > 0 || parts.length === 0) parts.push(`${days} Hari`);
+
+    return parts.join(' ');
   };
 
   if (isLoading) {
@@ -87,27 +132,55 @@ export default function Dashboard() {
                          parseFloat(profileData?.simpanan?.saldo_wajib || 0) + 
                          parseFloat(profileData?.simpanan?.saldo_sukarela || 0));
   
-  const sisaPinjaman = profileData?.pinjaman?.reduce((acc, curr) => acc + parseFloat(curr.sisa_tagihan || 0), 0) || 0;
   const totalSHU = profileData?.pembagianShu?.reduce((acc, curr) => acc + parseFloat(curr.nominal_shu || 0), 0) || 0;
+  const sisaPinjaman = profileData?.pinjaman?.reduce((acc, curr) => acc + parseFloat(curr.sisa_tagihan || 0), 0) || 0;
+ 
+  // Unified Activity Feed: Merge Savings and Loans
+  const recentActivities = [
+    ...(profileData?.transaksiSimpanan?.map(t => ({
+      id: `trx-${t.id}`,
+      tanggal: t.tanggal,
+      kategori: 'Simpanan',
+      keterangan: t.jenis_transaksi?.replace(/Setoran/g, 'Simpanan'),
+      nominal: t.nominal,
+      type: t.jenis_transaksi?.toLowerCase().includes('tarik') ? 'out' : 'in',
+      status: 'Success',
+      icon: PiggyBank,
+      color: '#27AE60'
+    })) || []),
+    ...(profileData?.pinjaman?.map(p => ({
+      id: `loan-${p.pinjaman_id}`,
+      tanggal: p.tanggal_pengajuan,
+      kategori: 'Pinjaman',
+      keterangan: `Pengajuan ${p.jenis_pinjaman}${p.nama_barang ? ' - ' + p.nama_barang : ''}`,
+      nominal: p.jumlah_pinjaman,
+      type: 'loan',
+      status: p.status,
+      icon: CreditCard,
+      color: '#004A9C'
+    })) || [])
+  ]
+  .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
+  .slice(0, 5);
 
   const stats = [
     { 
       label: 'Total Simpanan', 
-      value: formatCurrency(totalSimpanan), 
+      rawValue: totalSimpanan, 
       icon: Wallet, 
       color: '#004A9C', 
       detail: 'Akumulasi saldo Anda' 
     },
     { 
       label: 'Sisa Pinjaman', 
-      value: formatCurrency(sisaPinjaman), 
+      rawValue: sisaPinjaman, 
       icon: CreditCard, 
       color: '#EB5757', 
       detail: 'Total tagihan berjalan' 
     },
     { 
       label: 'Total SHU Diterima', 
-      value: formatCurrency(totalSHU), 
+      rawValue: totalSHU, 
       icon: TrendingUp, 
       color: '#27AE60', 
       detail: 'Sisa Hasil Usaha' 
@@ -163,23 +236,49 @@ export default function Dashboard() {
           <motion.div
             key={idx}
             variants={itemVariants}
-            className="bg-white rounded-[2.5rem] shadow-sm p-8 border border-gray-100 hover:shadow-2xl hover:shadow-blue-900/10 transition-all group relative overflow-hidden flex flex-col items-center justify-center text-center"
+            onMouseEnter={() => setHoveredCard(idx)}
+            onMouseLeave={() => setHoveredCard(null)}
+            className="bg-white rounded-[2.5rem] shadow-sm p-8 border border-gray-100 hover:shadow-2xl hover:shadow-blue-900/10 transition-all group relative overflow-hidden aspect-square flex flex-col items-center justify-center text-center cursor-help"
           >
-            <div 
-              className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-5 transition-transform duration-700 group-hover:scale-150"
-              style={{ backgroundColor: stat.color }}
-            />
+            {/* Clipping container for decorative background effects */}
+            <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] pointer-events-none">
+              <div 
+                className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-5 transition-transform duration-700 group-hover:scale-150"
+                style={{ backgroundColor: stat.color }}
+              />
+            </div>
 
             <div
-              className="w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-sm transition-all group-hover:scale-110 group-hover:rotate-6 duration-500 mb-6 flex-shrink-0"
+              className="w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-sm transition-all group-hover:scale-110 group-hover:rotate-6 duration-500 mb-6 flex-shrink-0 relative z-10"
               style={{ backgroundColor: `${stat.color}10`, color: stat.color }}
             >
               <stat.icon size={28} />
             </div>
 
-            <div className="space-y-2 relative z-10">
+            <div className="space-y-2 relative z-10 w-full">
               <h3 className="text-gray-400 text-[11px] font-bold uppercase tracking-[0.2em] leading-tight px-2">{stat.label}</h3>
-              <p className="text-3xl font-black text-gray-900 tracking-tighter">{stat.value}</p>
+              
+              <div className="relative inline-block w-full">
+                <p className={`text-3xl font-black transition-all duration-300 text-gray-900 tracking-tighter ${hoveredCard === idx ? 'blur-sm opacity-20' : ''}`}>
+                  {formatCompactCurrency(stat.rawValue)}
+                </p>
+
+                <AnimatePresence>
+                  {hoveredCard === idx && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                      className="absolute inset-0 flex items-center justify-center z-50"
+                    >
+                      <span className="text-sm font-black text-gray-900 whitespace-nowrap bg-white/80 backdrop-blur-sm px-4 py-1.5 rounded-full border border-gray-100 shadow-sm">
+                        {formatCurrency(stat.rawValue)}
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
               <p className="text-[10px] text-gray-400 font-medium italic">{stat.detail}</p>
             </div>
           </motion.div>
@@ -197,11 +296,14 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="text-xl font-black text-gray-800 tracking-tight">Aktifitas Terakhir</h3>
-                <p className="text-sm text-gray-400 font-medium">Riwayat transaksi simpanan terbaru</p>
+                <p className="text-sm text-gray-400 font-medium">simpanan & pinjaman terbaru</p>
               </div>
             </div>
-            <button className="p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400">
-              <ChevronRight size={20} />
+            <button 
+              onClick={() => navigate('/simpan-pinjam')}
+              className="p-2 hover:bg-blue-50 rounded-xl transition-all text-gray-400 hover:text-[#004A9C] group/btn"
+            >
+              <ChevronRight size={20} className="group-hover/btn:translate-x-1 transition-transform" />
             </button>
           </div>
           
@@ -210,44 +312,57 @@ export default function Dashboard() {
               <thead>
                 <tr className="bg-gray-50/80 text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-gray-100">
                   <th className="py-5 px-8">Tanggal</th>
+                  <th className="py-5 px-8">Kategori</th>
                   <th className="py-5 px-8">Keterangan</th>
                   <th className="py-5 px-8 text-right">Nominal</th>
-                  <th className="py-5 px-8">Status</th>
+                  <th className="py-5 px-8 text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {profileData?.transaksiSimpanan?.length > 0 ? (
-                  profileData.transaksiSimpanan.map((trx, idx) => (
+                {recentActivities.length > 0 ? (
+                  recentActivities.map((act, idx) => (
                     <motion.tr 
-                      key={idx}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
+                      key={act.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: idx * 0.05 }}
                       className="hover:bg-[#DFEAF4]/20 transition-all duration-300 group"
                     >
                       <td className="py-5 px-8">
                         <div className="flex items-center gap-3">
                           <Calendar size={14} className="text-gray-300" />
-                          <span className="text-xs font-bold text-gray-600">{formatDate(trx.tanggal)}</span>
+                          <span className="text-xs font-bold text-gray-600">{formatDate(act.tanggal)}</span>
+                        </div>
+                      </td>
+                      <td className="py-5 px-8">
+                        <div className="flex items-center gap-2">
+                           <div className="p-1.5 rounded-lg bg-gray-50 text-gray-400 group-hover:bg-white transition-colors" style={{ color: act.color }}>
+                              <act.icon size={14} />
+                           </div>
+                           <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{act.kategori}</span>
                         </div>
                       </td>
                       <td className="py-5 px-8 text-sm font-bold text-gray-700 tracking-tight">
-                        {trx.jenis_transaksi}
+                        {act.keterangan}
                       </td>
                       <td className="py-5 px-8 text-right">
-                        <span className={`text-sm font-black ${trx.jenis_transaksi?.toLowerCase().includes('tarik') ? 'text-red-500' : 'text-[#27AE60]'}`}>
-                          {trx.jenis_transaksi?.toLowerCase().includes('tarik') ? '-' : '+'}{formatCurrency(trx.nominal)}
+                        <span className={`text-sm font-black ${
+                          act.type === 'out' ? 'text-red-500' : 
+                          act.type === 'loan' ? 'text-[#004A9C]' : 
+                          'text-[#27AE60]'
+                        }`}>
+                          {act.type === 'out' ? '-' : act.type === 'loan' ? '' : '+'}{formatCurrency(act.nominal)}
                         </span>
                       </td>
-                      <td className="py-5 px-8">
-                        <StatusBadge status="Success" />
+                      <td className="py-5 px-8 text-center">
+                        <StatusBadge status={act.status} />
                       </td>
                     </motion.tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="py-20 text-center text-gray-400 italic font-medium uppercase tracking-widest text-[10px]">
-                      Belum ada transaksi simpanan.
+                    <td colSpan={5} className="py-20 text-center text-gray-400 italic font-medium uppercase tracking-widest text-[10px]">
+                      Belum ada aktifitas terbaru.
                     </td>
                   </tr>
                 )}
@@ -275,8 +390,8 @@ export default function Dashboard() {
               <h3 className="text-xl font-black mb-4">Informasi Keanggotaan</h3>
               <div className="space-y-4">
                 <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Divisi / Unit Kerja</p>
-                  <p className="font-black">{profileData?.divisi || '-'}</p>
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Lama Keanggotaan</p>
+                  <p className="font-black">{calculateMembershipDuration(profileData?.tanggal_bergabung)}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
                   <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Tanggal Bergabung</p>

@@ -6,8 +6,7 @@ import Register from './pages/Register';
 import Login from './pages/Login';
 import DashboardLayout from './components/templates/DashboardLayout';
 import Dashboard from './pages/anggota/Dashboard';
-import Simpanan from './pages/anggota/Simpanan';
-import Pinjaman from './pages/anggota/Pinjaman';
+import SimpanPinjamMember from './pages/anggota/SimpanPinjam';
 import Invoice from './pages/anggota/Invoice';
 import Profile from './pages/Profile';
 import KoperasiRules from './pages/KoperasiRules';
@@ -72,8 +71,7 @@ function App() {
                 }
               >
                 <Route path="dashboard" element={<Dashboard />} />
-                <Route path="simpanan" element={<Simpanan />} />
-                <Route path="pinjaman" element={<Pinjaman />} />
+                <Route path="simpan-pinjam" element={<SimpanPinjamMember />} />
                 <Route path="pinjaman/invoice/:id" element={<Invoice />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="koperasi-rules" element={<KoperasiRules />} />

@@ -10,6 +10,7 @@ router.get('/simpanan', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Se
 router.put('/simpanan/:id', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Bendahara'), simpanPinjamController.updateSimpanan);
 
 router.get('/pinjaman', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Sekretaris', 'Bendahara'), simpanPinjamController.getAllPinjaman);
+router.post('/pinjaman', authorizeRoles('Anggota'), simpanPinjamController.createPinjaman);
 router.put('/pinjaman/:id', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Bendahara'), simpanPinjamController.updatePinjamanStatus);
 
 module.exports = router;

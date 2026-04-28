@@ -38,10 +38,10 @@ export default function Invoice() {
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <Link to="/pinjaman" className="inline-flex w-full sm:w-auto">
+        <Link to="/simpan-pinjam" className="inline-flex w-full sm:w-auto">
           <Button className="w-full !bg-white border border-gray-200 !text-gray-700 hover:!bg-gray-50 flex items-center justify-center gap-2 shadow-sm rounded-xl py-2.5">
             <ArrowLeft size={18} />
-            Kembali ke Pinjaman
+            Kembali ke Simpan Pinjam
           </Button>
         </Link>
         <div className="flex items-center gap-3 w-full sm:w-auto">

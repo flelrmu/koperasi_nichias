@@ -190,219 +190,286 @@ export default function RegisterForm() {
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="w-full">
-        <h2 className="text-[18px] font-semibold text-[#3b476e] mb-5 lg:text-left text-center">
-          Register
-        </h2>
+      <motion.div
+        className="w-full flex flex-col"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: {
+            opacity: 1,
+            transition: { staggerChildren: 0.05 }
+          }
+        }}
+      >
+        <div className="mb-10 lg:text-left text-center">
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Register</h2>
+          <p className="text-gray-400 font-medium mt-1">Lengkapi data untuk bergabung menjadi anggota</p>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-7">
-          {/* Baris 1: Email & Password */}
-          <div>
-            <Input
-              id="register-email"
-              name="email"
-              type="email"
-              placeholder="Email (@koperasi-nichias.co.id) *"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-            {formData.email && !/^[^\s@]+@koperasi-nichias\.co\.id$/i.test(formData.email) && (
-              <motion.p 
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-xs text-[#EB5757] mt-1.5 ml-1"
-              >
-                Gunakan email @koperasi-nichias.co.id
-              </motion.p>
-            )}
+        <form onSubmit={handleSubmit} className="w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-8">
+            {/* Row 1: Email & Password */}
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Email Perusahaan</label>
+              <Input
+                id="register-email"
+                name="email"
+                type="email"
+                placeholder="email@koperasi-nichias.co.id"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="!py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+              />
+              {formData.email && !/^[^\s@]+@koperasi-nichias\.co\.id$/i.test(formData.email) && (
+                <motion.p 
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-[10px] text-[#EB5757] mt-1.5 ml-1 font-bold italic"
+                >
+                  * Harus menggunakan domain @koperasi-nichias.co.id
+                </motion.p>
+              )}
+            </motion.div>
+
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Create Password</label>
+              <div className="relative">
+                <Input
+                  id="register-password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={handleChange}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setTimeout(() => setPasswordFocused(false), 200)}
+                  className="pr-12 !py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#004A9C] transition-colors p-1"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+
+              {/* Password Strength Indicator */}
+              <AnimatePresence>
+                {formData.password && (passwordFocused || passwordStrength.passed < passwordStrength.total) && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="mt-3 overflow-hidden bg-white p-3 rounded-xl border border-gray-100 shadow-sm"
+                  >
+                    {/* Strength Bar */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${passwordStrength.percentage}%` }}
+                          transition={{ duration: 0.3 }}
+                          style={{ backgroundColor: strengthColor }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap" style={{ color: strengthColor }}>
+                        {strengthLabel}
+                      </span>
+                    </div>
+
+                    {/* Rules Checklist */}
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {passwordStrength.rules.map((rule, idx) => (
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.03 }}
+                          className="flex items-center gap-2"
+                        >
+                          <div className={`w-3 h-3 rounded-full flex items-center justify-center transition-colors ${rule.passed ? 'bg-[#27AE60]/10' : 'bg-gray-100'}`}>
+                            {rule.passed ? (
+                              <Check size={8} className="text-[#27AE60] shrink-0" />
+                            ) : (
+                              <X size={8} className="text-gray-300 shrink-0" />
+                            )}
+                          </div>
+                          <span className={`text-[10px] font-bold ${rule.passed ? 'text-[#27AE60]' : 'text-gray-400'}`}>
+                            {rule.label}
+                          </span>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+
+            {/* Row 2: Nama & No Identitas */}
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Nama Lengkap</label>
+              <Input
+                id="register-nama"
+                name="nama_lengkap"
+                placeholder="Nama sesuai KTP"
+                value={formData.nama_lengkap}
+                onChange={handleChange}
+                required
+                className="!py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+              />
+            </motion.div>
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">No. Identitas (NIK)</label>
+              <Input
+                id="register-no-identitas"
+                name="no_identitas"
+                placeholder="16 Digit NIK"
+                value={formData.no_identitas}
+                onChange={handleChange}
+                required
+                className="!py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+              />
+            </motion.div>
+
+            {/* Row 3: Tempat & Tanggal Lahir */}
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Tempat Lahir</label>
+              <Input
+                id="register-tempat-lahir"
+                name="tempat_lahir"
+                placeholder="Kota Kelahiran"
+                value={formData.tempat_lahir}
+                onChange={handleChange}
+                required
+                className="!py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+              />
+            </motion.div>
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Tanggal Lahir</label>
+              <Input
+                id="register-tanggal-lahir"
+                name="tanggal_lahir"
+                type="date"
+                value={formData.tanggal_lahir}
+                onChange={handleChange}
+                required
+                className="!py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+              />
+            </motion.div>
+
+            {/* Row 4: Jabatan & Divisi */}
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Jabatan</label>
+              <Select
+                id="register-jabatan"
+                name="jabatan"
+                options={JABATAN_OPTIONS}
+                value={formData.jabatan}
+                onChange={handleChange}
+                required
+                className="!py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+              />
+            </motion.div>
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Unit Kerja / Divisi</label>
+              <Select
+                id="register-divisi"
+                name="divisi"
+                options={DIVISI_OPTIONS}
+                value={formData.divisi}
+                onChange={handleChange}
+                required
+                className="!py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+              />
+            </motion.div>
+
+            {/* Row 5: No HP & No Rekening */}
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Nomor Telepon (WhatsApp)</label>
+              <Input
+                id="register-no-hp"
+                name="no_hp"
+                placeholder="08xxxxxxxx"
+                value={formData.no_hp}
+                onChange={handleChange}
+                required
+                className="!py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+              />
+            </motion.div>
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Nomor Rekening Bank</label>
+              <Input
+                id="register-no-rekening"
+                name="no_rekening_bank"
+                placeholder="Untuk pencairan dana"
+                value={formData.no_rekening_bank}
+                onChange={handleChange}
+                required
+                className="!py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+              />
+            </motion.div>
+
+            {/* Row 6: Alamat (full width) */}
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }} className="md:col-span-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Alamat Lengkap Sesuai KTP</label>
+              <Textarea
+                id="register-alamat"
+                name="alamat"
+                placeholder="Jl. Nama Jalan No. 12, RT/RW..."
+                value={formData.alamat}
+                onChange={handleChange}
+                rows={3}
+                required
+                className="!py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+              />
+            </motion.div>
           </div>
 
-          <div>
-            <div className="relative">
-              <Input
-                id="register-password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Password *"
-                value={formData.password}
-                onChange={handleChange}
-                onFocus={() => setPasswordFocused(true)}
-                onBlur={() => setTimeout(() => setPasswordFocused(false), 200)}
-                className="pr-10"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+          <motion.div 
+            variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}
+            className="w-full flex flex-col items-center justify-center space-y-6"
+          >
+            {/* Email domain info */}
+            <div className="w-full flex items-center gap-3 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+              <ShieldCheck size={20} className="text-[#004A9C] shrink-0" />
+              <p className="text-[11px] text-[#004A9C] font-bold leading-relaxed">
+                Verifikasi keamanan: Akun hanya dapat dibuat menggunakan email perusahaan resmi dengan domain <span className="underline decoration-2">@koperasi-nichias.co.id</span>
+              </p>
             </div>
 
-            {/* Password Strength Indicator */}
-            <AnimatePresence>
-              {formData.password && (passwordFocused || passwordStrength.passed < passwordStrength.total) && (
-                <motion.div 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="mt-2 overflow-hidden"
-                >
-                  {/* Strength Bar */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${passwordStrength.percentage}%` }}
-                        transition={{ duration: 0.3 }}
-                        style={{ backgroundColor: strengthColor }}
-                      />
-                    </div>
-                    <span className="text-[10px] font-semibold whitespace-nowrap" style={{ color: strengthColor }}>
-                      {strengthLabel}
-                    </span>
-                  </div>
-
-                  {/* Rules Checklist */}
-                  <div className="grid grid-cols-1 gap-1">
-                    {passwordStrength.rules.map((rule, idx) => (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.05 }}
-                        className="flex items-center gap-1.5"
-                      >
-                        {rule.passed ? (
-                          <Check size={12} className="text-[#27AE60] shrink-0" />
-                        ) : (
-                          <X size={12} className="text-gray-300 shrink-0" />
-                        )}
-                        <span className={`text-[10px] ${rule.passed ? 'text-[#27AE60]' : 'text-gray-400'}`}>
-                          {rule.label}
-                        </span>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Baris 2: Nama & No Identitas */}
-          <Input
-            id="register-nama"
-            name="nama_lengkap"
-            placeholder="Nama Lengkap *"
-            value={formData.nama_lengkap}
-            onChange={handleChange}
-            required
-          />
-          <Input
-            id="register-no-identitas"
-            name="no_identitas"
-            placeholder="No. Identitas (NIK/KTP) *"
-            value={formData.no_identitas}
-            onChange={handleChange}
-            required
-          />
-
-          {/* Baris 3: Tempat Lahir & Tanggal Lahir */}
-          <Input
-            id="register-tempat-lahir"
-            name="tempat_lahir"
-            placeholder="Tempat Lahir *"
-            value={formData.tempat_lahir}
-            onChange={handleChange}
-            required
-          />
-          <Input
-            id="register-tanggal-lahir"
-            name="tanggal_lahir"
-            type="date"
-            placeholder="Tanggal Lahir *"
-            value={formData.tanggal_lahir}
-            onChange={handleChange}
-            required
-          />
-
-          {/* Baris 4: Jabatan & Divisi */}
-          <Select
-            id="register-jabatan"
-            name="jabatan"
-            options={JABATAN_OPTIONS}
-            value={formData.jabatan}
-            onChange={handleChange}
-            required
-          />
-          <Select
-            id="register-divisi"
-            name="divisi"
-            options={DIVISI_OPTIONS}
-            value={formData.divisi}
-            onChange={handleChange}
-            required
-          />
-
-          {/* Baris 5: No HP & No Rekening */}
-          <Input
-            id="register-no-hp"
-            name="no_hp"
-            placeholder="Nomor Telepon *"
-            value={formData.no_hp}
-            onChange={handleChange}
-            required
-          />
-          <Input
-            id="register-no-rekening"
-            name="no_rekening_bank"
-            placeholder="No Rekening Bank *"
-            value={formData.no_rekening_bank}
-            onChange={handleChange}
-            required
-          />
-
-          {/* Baris 6: Alamat (full width) */}
-          <div className="md:col-span-2">
-            <Textarea
-              id="register-alamat"
-              name="alamat"
-              placeholder="Alamat Lengkap *"
-              value={formData.alamat}
-              onChange={handleChange}
-              rows={3}
-              required
-            />
-          </div>
-        </div>
-
-        {/* Email domain info */}
-        <div className="flex items-center gap-2 mb-5 p-3 bg-[#DFEAF4]/50 rounded-xl border border-[#004A9C]/10">
-          <ShieldCheck size={16} className="text-[#004A9C] shrink-0" />
-          <p className="text-[11px] text-[#004A9C]/80">
-            Gunakan email perusahaan Anda dengan domain <strong>@koperasi-nichias.co.id</strong>
-          </p>
-        </div>
-
-        <div className="w-full flex flex-col items-center justify-center space-y-4">
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Memproses..." : "Register"}
-          </Button>
-          <div className="text-[12px] text-gray-500">
-            <Link
-              to="/login"
-              className="font-semibold text-[#0d4c9e] hover:underline"
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full md:w-auto !px-12 !py-3.5 shadow-2xl shadow-blue-900/20 active:scale-[0.98] transition-all"
             >
-              Login
-            </Link>{" "}
-            jika anda sudah memiliki akun
-          </div>
-        </div>
-      </form>
+              {isLoading ? (
+                <span className="flex items-center gap-2 text-xs">
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Memproses...
+                </span>
+              ) : (
+                <span className="font-black uppercase tracking-[0.2em] text-xs">Register</span>
+              )}
+            </Button>
+            
+            <div className="text-sm text-gray-400 font-medium">
+              Sudah memiliki akun?{" "}
+              <Link
+                to="/login"
+                className="font-black text-[#004A9C] hover:text-blue-700 transition-colors"
+              >
+                Login Di Sini
+              </Link>
+            </div>
+          </motion.div>
+        </form>
+      </motion.div>
 
       <Modal
         isOpen={modalConfig.isOpen}

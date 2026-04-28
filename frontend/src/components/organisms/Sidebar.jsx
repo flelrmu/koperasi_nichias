@@ -33,8 +33,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   // Menu items for Anggota
   const MEMBER_MENU_ITEMS = [
     { name: 'Dashboard', path: '/dashboard', icon: Home },
-    { name: 'Simpanan', path: '/simpanan', icon: Wallet },
-    { name: 'Pinjaman', path: '/pinjaman', icon: CreditCard },
+    { name: 'Simpan Pinjam', path: '/simpan-pinjam', icon: PiggyBank },
   ];
 
   // Menu items for Admin/Pengurus

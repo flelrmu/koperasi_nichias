@@ -435,7 +435,7 @@ export default function SimpanPinjam() {
                   {/* Clipping container for decorative background effects */}
                   <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] pointer-events-none">
                     <div 
-                      className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-10 transition-transform duration-700 group-hover:scale-150"
+                      className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-5 transition-transform duration-700 group-hover:scale-150"
                       style={{ backgroundColor: stat.color }}
                     />
                   </div>
@@ -458,13 +458,14 @@ export default function SimpanPinjam() {
                       <AnimatePresence>
                         {hoveredStat === `savings-${idx}` && (
                           <motion.div
-                            initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 5, scale: 0.9 }}
-                            className="absolute -bottom-14 left-1/2 -translate-x-1/2 z-50 bg-gray-900/95 backdrop-blur-md text-white px-5 py-2.5 rounded-2xl text-[12px] font-black shadow-2xl shadow-black/20 whitespace-nowrap pointer-events-none ring-1 ring-white/10"
+                            initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                            className="absolute inset-0 flex items-center justify-center z-50"
                           >
-                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-gray-900/95 rotate-45"></div>
-                            {formatCurrency(stat.value)}
+                             <span className="text-sm font-black text-gray-900 whitespace-nowrap bg-white/80 backdrop-blur-sm px-4 py-1.5 rounded-full border border-gray-100 shadow-sm">
+                               {formatCurrency(stat.value)}
+                             </span>
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -614,7 +615,7 @@ export default function SimpanPinjam() {
                   {/* Clipping container for decorative background effects */}
                   <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] pointer-events-none">
                     <div 
-                      className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-10 transition-transform duration-700 group-hover:scale-150"
+                      className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-5 transition-transform duration-700 group-hover:scale-150"
                       style={{ backgroundColor: stat.color }}
                     />
                   </div>
@@ -639,13 +640,14 @@ export default function SimpanPinjam() {
                         <AnimatePresence>
                           {hoveredStat === `loans-${idx}` && (
                             <motion.div
-                              initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: 5, scale: 0.9 }}
-                              className="absolute -bottom-14 left-1/2 -translate-x-1/2 z-50 bg-gray-900/95 backdrop-blur-md text-white px-5 py-2.5 rounded-2xl text-[12px] font-black shadow-2xl shadow-black/20 whitespace-nowrap pointer-events-none ring-1 ring-white/10"
+                              initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                              className="absolute inset-0 flex items-center justify-center z-50"
                             >
-                              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-gray-900/95 rotate-45"></div>
-                              {formatCurrency(stat.value)}
+                               <span className="text-sm font-black text-gray-900 whitespace-nowrap bg-white/80 backdrop-blur-sm px-4 py-1.5 rounded-full border border-gray-100 shadow-sm">
+                                 {formatCurrency(stat.value)}
+                               </span>
                             </motion.div>
                           )}
                         </AnimatePresence>

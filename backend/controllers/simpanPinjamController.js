@@ -117,3 +117,43 @@ exports.updatePinjamanStatus = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+exports.createPinjaman = async (req, res) => {
+  try {
+    const { jenis_pinjaman, nama_barang, jumlah_pinjaman, keperluan, tenor, terbilang } = req.body;
+    const { user_id } = req.user;
+
+    const anggota = await Anggota.findOne({ where: { user_id } });
+    if (!anggota) return res.status(404).json({ success: false, message: 'Anggota tidak ditemukan' });
+
+    const newPinjaman = await Pinjaman.create({
+      anggota_id: anggota.anggota_id,
+      jenis_pinjaman,
+      nama_barang: jenis_pinjaman === 'Barang' ? nama_barang : null,
+      jumlah_pinjaman,
+      terbilang,
+      keperluan,
+      tenor,
+      status: 'Pending',
+      tanggal_pengajuan: new Date().toISOString().split('T')[0]
+    });
+
+    const populated = await Pinjaman.findByPk(newPinjaman.pinjaman_id, {
+      include: [
+        {
+          model: Anggota,
+          as: 'anggota',
+          include: [{ model: User, as: 'user', attributes: ['email'] }]
+        }
+      ]
+    });
+
+    if (req.io) {
+      req.io.emit('pinjaman:created', populated);
+    }
+
+    res.status(201).json({ success: true, data: populated, message: 'Pengajuan pinjaman berhasil dikirim' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

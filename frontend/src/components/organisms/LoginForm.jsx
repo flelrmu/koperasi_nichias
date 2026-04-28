@@ -85,69 +85,91 @@ export default function LoginForm() {
 
   return (
     <>
-      <motion.form
-        onSubmit={handleSubmit}
+      <motion.div
         className="w-full flex flex-col"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: {
+            opacity: 1,
+            transition: { staggerChildren: 0.1 }
+          }
+        }}
       >
-        <h2 className="text-[18px] font-semibold text-[#3b476e] mb-5">Login</h2>
-
-        <div className="w-full flex flex-col gap-y-4 mb-6">
-          <Input
-            id="login-email"
-            name="email"
-            type="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={handleChange}
-          />
-          <div className="relative">
-            <Input
-              id="login-password"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-              className="pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
+        <div className="mb-8">
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Login</h2>
+          <p className="text-gray-400 font-medium mt-1">Masuk ke akun anggota koperasi Anda</p>
         </div>
 
-        <div className="w-full flex flex-col items-center space-y-4">
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Memproses...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <LogIn size={16} />
-                Login
-              </span>
-            )}
-          </Button>
-          <div className="text-[12px] text-gray-500">
-            <Link
-              to="/register"
-              className="font-semibold text-[#0d4c9e] hover:underline"
-            >
-              Register
-            </Link>{" "}
-            jika anda belum memiliki akun
+        <form onSubmit={handleSubmit} className="w-full flex flex-col">
+          <div className="w-full flex flex-col gap-y-5 mb-8">
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Email Perusahaan</label>
+              <Input
+                id="login-email"
+                name="email"
+                type="email"
+                placeholder="email@koperasi-nichias.co.id"
+                value={formData.email}
+                onChange={handleChange}
+                className="!py-4 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+              />
+            </motion.div>
+            
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Password</label>
+              <div className="relative">
+                <Input
+                  id="login-password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="pr-12 !py-4 bg-gray-50 border-gray-100 focus:bg-white transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#004A9C] transition-colors p-1"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      </motion.form>
+
+          <motion.div 
+            variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}
+            className="w-full flex flex-col items-center space-y-6"
+          >
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full !py-3.5 shadow-2xl shadow-blue-900/20 active:scale-[0.98] transition-all"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2 text-xs">
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Memproses...
+                </span>
+              ) : (
+                <span className="font-black uppercase tracking-[0.2em] text-xs">Login</span>
+              )}
+            </Button>
+            <div className="text-sm text-gray-400 font-medium">
+              Belum punya akun?{" "}
+              <Link
+                to="/register"
+                className="font-black text-[#004A9C] hover:text-blue-700 transition-colors"
+              >
+                Daftar Sekarang
+              </Link>
+            </div>
+          </motion.div>
+        </form>
+      </motion.div>
 
       <Modal
         isOpen={modalConfig.isOpen}
