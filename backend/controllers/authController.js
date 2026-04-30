@@ -320,13 +320,12 @@ const login = async (req, res) => {
           redirectPath = '/dashboard/pending';
           break;
         case 'Aktif':
+        case 'Pending_Keluar':
           redirectPath = '/dashboard';
           break;
         case 'Keluar':
-          return res.status(403).json({
-            success: false,
-            message: 'Akun Anda sudah tidak aktif. Silakan hubungi pengurus koperasi.',
-          });
+          redirectPath = '/dashboard/keluar';
+          break;
         default:
           redirectPath = '/dashboard';
       }
@@ -349,6 +348,8 @@ const login = async (req, res) => {
           nama_lengkap,
           status_keanggotaan,
           foto_profil,
+          anggota_id: user.anggota?.anggota_id || null,
+          pengurus_id: user.pengurus?.pengurus_id || null,
         },
         redirectPath,
       },
@@ -426,6 +427,30 @@ const adminCreateUser = async (req, res) => {
         status_keanggotaan: 'Aktif',
         tanggal_bergabung: new Date(),
       }, { transaction });
+
+      // --- AUTO-GENERATE SIMPANAN POKOK (SAME AS APPROVE) ---
+      const configPokok = await db.Konfigurasi.findOne({ 
+        where: { nama_config: 'SIMPANAN_POKOK' },
+        transaction 
+      });
+      const nominalPokok = configPokok ? parseFloat(configPokok.nilai) : 100000;
+
+      await db.Simpanan.create({
+        anggota_id: detailInstance.anggota_id,
+        saldo_pokok: nominalPokok,
+        saldo_wajib: 0,
+        saldo_sukarela: 0,
+        last_updated: new Date()
+      }, { transaction });
+
+      await db.TransaksiSimpanan.create({
+        anggota_id: detailInstance.anggota_id,
+        jenis_simpanan: 'Pokok',
+        jenis_transaksi: 'Setor',
+        nominal: nominalPokok,
+        tanggal: new Date().toISOString().split('T')[0],
+        keterangan: 'Setoran Pokok Awal (Dibuat oleh Admin)'
+      }, { transaction });
     } else {
       detailInstance = await Pengurus.create({
         user_id: newUser.user_id,
@@ -463,6 +488,19 @@ const adminCreateUser = async (req, res) => {
 
     // Emit dashboard update for real-time stats
     req.io.emit('dashboardUpdate');
+
+    // Emit simpanan:created if member was created
+    if (type.toLowerCase() === 'anggota') {
+      const newSimpanan = await db.Simpanan.findOne({
+        where: { anggota_id: detailInstance.anggota_id },
+        include: [{ 
+          model: Anggota, 
+          as: 'anggota',
+          include: [{ model: User, as: 'user', attributes: ['email'] }]
+        }]
+      });
+      req.io.emit('simpanan:created', newSimpanan);
+    }
 
     return res.status(201).json({
       success: true,

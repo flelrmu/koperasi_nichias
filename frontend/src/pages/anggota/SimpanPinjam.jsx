@@ -79,11 +79,15 @@ export default function SimpanPinjam() {
     };
 
     socket.on('simpanan:updated', handleUpdate);
+    socket.on('transaksi:created', handleUpdate);
+    socket.on('transaksi:updated', handleUpdate);
     socket.on('pinjaman:updated', handleUpdate);
     socket.on('pinjaman:created', handleUpdate);
 
     return () => {
       socket.off('simpanan:updated', handleUpdate);
+      socket.off('transaksi:created', handleUpdate);
+      socket.off('transaksi:updated', handleUpdate);
       socket.off('pinjaman:updated', handleUpdate);
       socket.off('pinjaman:created', handleUpdate);
     };
@@ -120,18 +124,32 @@ export default function SimpanPinjam() {
 
   const filteredTransactions = useMemo(() => {
     if (!profileData?.transaksiSimpanan) return [];
-    return profileData.transaksiSimpanan.filter(trx => 
-      trx.jenis_transaksi?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trx.keterangan?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return profileData.transaksiSimpanan
+      .filter(trx => 
+        trx.jenis_transaksi?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        trx.keterangan?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .sort((a, b) => {
+        const dateA = new Date(a.tanggal);
+        const dateB = new Date(b.tanggal);
+        if (dateB - dateA !== 0) return dateB - dateA;
+        return (b.transaksi_id || 0) - (a.transaksi_id || 0);
+      });
   }, [profileData, searchQuery]);
 
   const filteredLoans = useMemo(() => {
     if (!profileData?.pinjaman) return [];
-    return profileData.pinjaman.filter(loan => 
-      loan.jenis_pinjaman?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      loan.keperluan?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return profileData.pinjaman
+      .filter(loan => 
+        loan.jenis_pinjaman?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        loan.keperluan?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .sort((a, b) => {
+        const dateA = new Date(a.tanggal_pengajuan);
+        const dateB = new Date(b.tanggal_pengajuan);
+        if (dateB - dateA !== 0) return dateB - dateA;
+        return (b.pinjaman_id || 0) - (a.pinjaman_id || 0);
+      });
   }, [profileData, searchQuery]);
 
   const activeData = activeTab === 'simpanan' ? filteredTransactions : filteredLoans;

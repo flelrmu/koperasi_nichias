@@ -6,7 +6,9 @@ import {
   Mail, 
   Phone,
   Search,
-  Settings
+  Settings,
+  LogOut,
+  Info
 } from 'lucide-react';
 import { 
   BiChevronLeft, 
@@ -51,8 +53,39 @@ export default function UserManagement() {
   // Modal states
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isReviewKeluarModalOpen, setIsReviewKeluarModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
+
+  const handleApproveKeluar = async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.post('/user/anggota/approve-keluar', { anggota_id: selectedUser.anggota_id });
+      if (response.data.success) {
+        setStatusModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Berhasil',
+          message: 'Anggota telah resmi keluar dari koperasi.'
+        });
+        setIsReviewKeluarModalOpen(false);
+        fetchData();
+        if (socket) {
+          socket.emit('user:updated');
+          socket.emit('dashboardUpdate');
+        }
+      }
+    } catch (error) {
+      setStatusModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal',
+        message: error.response?.data?.message || 'Gagal memproses pengajuan keluar.'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -73,13 +106,15 @@ export default function UserManagement() {
     fetchData();
   }, []);
 
-  // Handle highlight from notification link (?highlight=<anggota_id>)
+  // Handle highlight from notification link (?highlight=<anggota_id>) or review_keluar
   useEffect(() => {
     if (isLoading) return;
     
     const highlightId = searchParams.get('highlight');
-    if (highlightId && anggotaData.length > 0) {
-      const targetId = parseInt(highlightId);
+    const reviewKeluarId = searchParams.get('review_keluar');
+    
+    if ((highlightId || reviewKeluarId) && anggotaData.length > 0) {
+      const targetId = parseInt(highlightId || reviewKeluarId);
       
       // Make sure we're on anggota tab
       setActiveTab('anggota');
@@ -93,12 +128,16 @@ export default function UserManagement() {
         setCurrentPage(targetPage);
         setHighlightedId(targetId);
         
-        // Auto-open detail modal after a brief delay
+        // Auto-open detail/review modal after a brief delay
         setTimeout(() => {
           const targetUser = allData[targetIndex];
           if (targetUser) {
             setSelectedUser(targetUser);
-            setIsDetailsModalOpen(true);
+            if (reviewKeluarId && targetUser.status_keanggotaan === 'Pending_Keluar' && canEdit) {
+              setIsReviewKeluarModalOpen(true);
+            } else {
+              setIsDetailsModalOpen(true);
+            }
           }
         }, 800);
         
@@ -111,7 +150,7 @@ export default function UserManagement() {
       // Clean up the URL
       setSearchParams({}, { replace: true });
     }
-  }, [isLoading, searchParams, anggotaData]);
+  }, [isLoading, searchParams, anggotaData, canEdit]);
 
   // Scroll to highlighted row
   useEffect(() => {
@@ -126,7 +165,7 @@ export default function UserManagement() {
 
     const handleCreated = (data) => {
       console.log('📥 WebSocket Received user:created:', data);
-      const normalizedType = data.type?.toLowerCase();
+      const normalizedType = data?.type?.toLowerCase();
       
       if (normalizedType === 'anggota') {
         setAnggotaData(prev => [data.user, ...prev]);
@@ -137,7 +176,7 @@ export default function UserManagement() {
 
     const handleUpdated = (data) => {
       console.log('📥 WebSocket Received user:updated:', data);
-      const normalizedType = data.type?.toLowerCase();
+      const normalizedType = data?.type?.toLowerCase();
 
       if (normalizedType === 'anggota') {
         setAnggotaData(prev => prev.map(u => u.anggota_id == data.id ? { ...u, ...data.data } : u));
@@ -148,7 +187,7 @@ export default function UserManagement() {
 
     const handleDeleted = (data) => {
       console.log('📥 WebSocket Received user:deleted:', data);
-      const normalizedType = data.type?.toLowerCase();
+      const normalizedType = data?.type?.toLowerCase();
 
       if (normalizedType === 'anggota') {
         setAnggotaData(prev => prev.filter(u => u.anggota_id != data.id));
@@ -512,6 +551,20 @@ export default function UserManagement() {
                             >
                               <BiShow size={22} />
                             </button>
+
+                            {activeTab === 'anggota' && item.status_keanggotaan === 'Pending_Keluar' && canEdit && (
+                              <button 
+                                onClick={() => {
+                                  setSelectedUser(item);
+                                  setIsReviewKeluarModalOpen(true);
+                                }}
+                                className="p-2.5 text-[#F2994A] bg-[#F2994A]/10 hover:bg-[#F2994A] hover:text-white rounded-xl transition-all animate-pulse"
+                                title="Review Pengajuan Keluar"
+                              >
+                                <LogOut size={20} />
+                              </button>
+                            )}
+
                             {canEdit && (
                               <>
                                 <button 
@@ -577,6 +630,48 @@ export default function UserManagement() {
         confirmText="Hapus Permanen"
         onConfirm={confirmDelete}
       />
+
+      {/* Review Keluar Modal */}
+      <Modal
+        isOpen={isReviewKeluarModalOpen}
+        onClose={() => setIsReviewKeluarModalOpen(false)}
+        title="Review Pengajuan Keluar"
+        maxWidth="max-w-md"
+      >
+        <div className="space-y-6 pt-2">
+          <div className="flex items-center gap-4 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-amber-600 shadow-sm">
+              <LogOut size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Pengajuan Pengunduran Diri</p>
+              <h4 className="font-bold text-gray-900">{selectedUser?.nama_lengkap}</h4>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Alasan Keluar</label>
+            <div className="p-4 bg-gray-50 rounded-2xl text-sm text-gray-700 italic border border-gray-100">
+              "{selectedUser?.alasan_keluar || 'Tidak ada alasan yang dicantumkan.'}"
+            </div>
+          </div>
+
+          <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex gap-3">
+             <div className="p-2 bg-white rounded-lg text-blue-600 shadow-sm shrink-0 h-fit"><Info size={16} /></div>
+             <p className="text-[11px] text-blue-800 leading-relaxed font-medium">
+               Dengan menyetujui, status anggota akan berubah menjadi "Keluar". Anggota tetap bisa login namun hanya diarahkan ke halaman konfirmasi keluar.
+             </p>
+          </div>
+
+          <Button 
+            onClick={handleApproveKeluar}
+            isLoading={isLoading}
+            className="w-full !py-4 shadow-xl shadow-blue-900/20"
+          >
+            Terima Pengajuan Keluar
+          </Button>
+        </div>
+      </Modal>
 
       {/* Status Modal (Success/Error) */}
       <Modal

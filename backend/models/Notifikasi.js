@@ -21,7 +21,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.TEXT,
     },
     tipe: {
-      type: DataTypes.ENUM('pendaftaran', 'umum', 'sistem'),
+      type: DataTypes.ENUM('pendaftaran', 'umum', 'sistem', 'simpanan'),
       defaultValue: 'umum',
     },
     link: {

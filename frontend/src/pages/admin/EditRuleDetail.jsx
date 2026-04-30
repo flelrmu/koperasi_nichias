@@ -238,6 +238,22 @@ export default function EditRuleDetail() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Settings size={16} /> Kategori
+                </label>
+                <select 
+                  value={rule.kategori}
+                  onChange={(e) => setRule({ ...rule, kategori: e.target.value })}
+                  className={`w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#004A9C]/50 focus:border-[#004A9C] bg-white text-gray-800 ${!canEdit ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+                  disabled={!canEdit}
+                >
+                  <option value="Simpanan">Simpanan</option>
+                  <option value="Pinjaman">Pinjaman</option>
+                  <option value="Keanggotaan">Keanggotaan</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                   <Type size={16} /> Nama Peraturan
                 </label>
                 <Input 
@@ -262,51 +278,64 @@ export default function EditRuleDetail() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <DollarSign size={16} /> Ketentuan Utama (Highlight)
+                  <label className="text-sm font-semibold text-gray-700 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <DollarSign size={16} /> Ketentuan & Nilai Numerik
+                    </div>
+                    {!canEdit && <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded text-gray-400">ReadOnly</span>}
                   </label>
-                  <Input 
-                    value={rule.ketentuan_utama}
-                    onChange={(e) => setRule({ ...rule, ketentuan_utama: e.target.value })}
-                    placeholder="Contoh: Max Rp 10.000.000"
-                    disabled={!canEdit}
-                    className={!canEdit ? 'bg-gray-50' : ''}
-                  />
+                  <div className="relative group">
+                    <Input 
+                      value={rule.ketentuan_utama}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        let numeric = null;
+                        
+                        // Smart parsing: if it's a number or currency format
+                        const cleanVal = val.replace(/[^0-9]/g, '');
+                        if (cleanVal && !isNaN(cleanVal)) {
+                          numeric = parseFloat(cleanVal);
+                          
+                          // Auto-format for Simpanan/Pinjaman (Currency)
+                          if (rule.judul.toLowerCase().includes('simpanan') || rule.judul.toLowerCase().includes('pinjaman')) {
+                            const formatted = new Intl.NumberFormat('id-ID', {
+                              style: 'currency',
+                              currency: 'IDR',
+                              maximumFractionDigits: 0
+                            }).format(numeric);
+                            setRule({ ...rule, ketentuan_utama: formatted, nilai_numerik: numeric });
+                            return;
+                          }
+                          
+                          // Auto-format for Bunga (%)
+                          if (rule.judul.toLowerCase().includes('bunga')) {
+                            setRule({ ...rule, ketentuan_utama: `${numeric}%`, nilai_numerik: numeric });
+                            return;
+                          }
+                        }
+                        
+                        // Fallback to manual text if not purely numeric or other types
+                        setRule({ ...rule, ketentuan_utama: val, nilai_numerik: numeric });
+                      }}
+                      placeholder="Masukkan nominal atau ketentuan (Contoh: 100000)"
+                      disabled={!canEdit}
+                      className={`!text-lg !font-bold ${!canEdit ? 'bg-gray-50' : 'group-hover:border-[#004A9C]/30 focus:border-[#004A9C]'}`}
+                    />
+                    {rule.nilai_numerik !== null && (
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded-lg border border-green-100">
+                        <Hash size={12} className="text-green-600" />
+                        <span className="text-[10px] font-bold text-green-600 uppercase tracking-tighter">System Value: {rule.nilai_numerik}</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-400 italic">
+                    {rule.judul.toLowerCase().includes('simpanan') || rule.judul.toLowerCase().includes('pinjaman') 
+                      ? "Ketik angka saja (misal: 100000) untuk format Rupiah otomatis."
+                      : "Ketik nominal atau teks ketentuan utama."}
+                  </p>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <Settings size={16} /> Kategori
-                  </label>
-                  <select 
-                    value={rule.kategori}
-                    onChange={(e) => setRule({ ...rule, kategori: e.target.value })}
-                    className={`w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#004A9C]/50 focus:border-[#004A9C] bg-white text-gray-800 ${!canEdit ? 'bg-gray-50 cursor-not-allowed' : ''}`}
-                    disabled={!canEdit}
-                  >
-                    <option value="Simpanan">Simpanan</option>
-                    <option value="Pinjaman">Pinjaman</option>
-                    <option value="Keanggotaan">Keanggotaan</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Nilai Numerik */}
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <Hash size={16} /> Nilai Numerik <span className="text-xs text-gray-400 font-normal">(untuk kalkulasi otomatis, opsional)</span>
-                </label>
-                <Input 
-                  type="number"
-                  step="0.01"
-                  value={rule.nilai_numerik || ''}
-                  onChange={(e) => setRule({ ...rule, nilai_numerik: e.target.value ? parseFloat(e.target.value) : null })}
-                  placeholder="Contoh: 1.00 untuk suku bunga 1%"
-                  disabled={!canEdit}
-                  className={!canEdit ? 'bg-gray-50' : ''}
-                />
-                <p className="text-[11px] text-gray-400 italic">Nilai ini digunakan otomatis untuk kalkulasi (contoh: suku bunga pinjaman).</p>
               </div>
             </div>
           </div>

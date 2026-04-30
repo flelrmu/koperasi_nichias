@@ -54,7 +54,6 @@ export default function SimpanPinjam() {
   const itemsPerPage = 8;
 
   // Modals state
-  const [isUpdateSavingsModalOpen, setIsUpdateSavingsModalOpen] = useState(false);
   const [isLoanActionModalOpen, setIsLoanActionModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [selectedLoan, setSelectedLoan] = useState(null);
@@ -62,13 +61,9 @@ export default function SimpanPinjam() {
   const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
   const [hoveredStat, setHoveredStat] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null, type: 'success' });
 
-  // Update States
-  const [updateSavings, setUpdateSavings] = useState({
-    pokok: 0,
-    wajib: 0,
-    sukarela: 0
-  });
+
 
   const [updateLoan, setUpdateLoan] = useState({
     jumlah_disetujui: 0,
@@ -125,11 +120,25 @@ export default function SimpanPinjam() {
       }
     };
 
+    const handleSimpananCreated = (data) => {
+      console.log('📥 WebSocket Received simpanan:created:', data);
+      setSavingsData(prev => [data, ...prev]);
+    };
+
+    const handleSimpananBulkUpdated = () => {
+      console.log('📥 WebSocket Received simpanan:bulkUpdated');
+      fetchData();
+    };
+
     socket.on('simpanan:updated', handleSimpananUpdated);
+    socket.on('simpanan:created', handleSimpananCreated);
+    socket.on('simpanan:bulkUpdated', handleSimpananBulkUpdated);
     socket.on('pinjaman:updated', handlePinjamanUpdated);
 
     return () => {
       socket.off('simpanan:updated', handleSimpananUpdated);
+      socket.off('simpanan:created', handleSimpananCreated);
+      socket.off('simpanan:bulkUpdated', handleSimpananBulkUpdated);
       socket.off('pinjaman:updated', handlePinjamanUpdated);
     };
   }, [socket, activeTab]);
@@ -145,10 +154,12 @@ export default function SimpanPinjam() {
   }, [savingsData]);
 
   const filteredSavings = useMemo(() => {
-    return savingsData.filter(item => 
-      (item.anggota?.nama_lengkap || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.anggota?.no_anggota || '').toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return savingsData
+      .filter(item => 
+        (item.anggota?.nama_lengkap || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.anggota?.no_anggota || '').toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .sort((a, b) => (a.anggota?.no_anggota || '').localeCompare(b.anggota?.no_anggota || '', undefined, { numeric: true, sensitivity: 'base' }));
   }, [savingsData, searchQuery]);
 
   const loanStats = useMemo(() => {
@@ -195,29 +206,19 @@ export default function SimpanPinjam() {
   };
 
   const handleUpdateSavingsClick = (item) => {
-    setSelectedMember(item);
-    setUpdateSavings({
-      pokok: item.saldo_pokok,
-      wajib: item.saldo_wajib,
-      sukarela: item.saldo_sukarela
+    navigate(`/admin/simpan-pinjam/manajemen-saldo/${item.simpanan_id}`, { 
+      state: { 
+        member: item,
+        saldo: {
+          pokok: item.saldo_pokok,
+          wajib: item.saldo_wajib,
+          sukarela: item.saldo_sukarela
+        }
+      } 
     });
-    setIsUpdateSavingsModalOpen(true);
   };
 
-  const submitUpdateSavings = async () => {
-    try {
-      await api.put(`/simpan-pinjam/simpanan/${selectedMember.simpanan_id}`, {
-        saldo_pokok: updateSavings.pokok,
-        saldo_wajib: updateSavings.wajib,
-        saldo_sukarela: updateSavings.sukarela
-      });
-      setIsUpdateSavingsModalOpen(false);
-      setStatusModal({ isOpen: true, type: 'success', title: 'Berhasil', message: 'Data simpanan berhasil diperbarui.' });
-    } catch (error) {
-      console.error(error);
-      setStatusModal({ isOpen: true, type: 'error', title: 'Gagal', message: 'Terjadi kesalahan sistem saat memperbarui data.' });
-    }
-  };
+
 
   const handleLoanActionClick = (loan, type) => {
     setSelectedLoan(loan);
@@ -228,6 +229,48 @@ export default function SimpanPinjam() {
       status: loan.status
     });
     setIsLoanActionModalOpen(true);
+  };
+
+  const handleBulkWajib = async (scope = 'all') => {
+    try {
+      // If scope is 'selected' and nothing is selected, return
+      if (scope === 'selected' && selectedItems.length === 0) {
+        setStatusModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Peringatan',
+          message: 'Pilih anggota terlebih dahulu menggunakan checkbox.'
+        });
+        return;
+      }
+
+      setIsLoading(true);
+      const payload = {
+        selected_anggota_ids: scope === 'selected' ? selectedItems : []
+      };
+      
+      const response = await api.post('/simpan-pinjam/simpanan/transaksi/bulk-wajib', payload);
+      
+      if (response.data.success) {
+        setStatusModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Berhasil',
+          message: response.data.message
+        });
+        setSelectedItems([]);
+        fetchData();
+      }
+    } catch (error) {
+      console.error(error);
+      setStatusModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal',
+        message: error.response?.data?.message || 'Terjadi kesalahan sistem saat memproses simpanan wajib.'
+      });
+      setIsLoading(false);
+    }
   };
 
   const submitUpdateLoan = async (forcedStatus = null) => {
@@ -251,8 +294,8 @@ export default function SimpanPinjam() {
   };
 
   const handleSelectAll = () => {
-    const idField = activeTab === 'simpanan' ? 'simpanan_id' : 'pinjaman_id';
-    const currentDataIds = paginatedData.map(item => item[idField]);
+    const idField = activeTab === 'simpanan' ? 'anggota_id' : 'pinjaman_id';
+    const currentDataIds = paginatedData.map(item => activeTab === 'simpanan' ? item.anggota_id : item[idField]);
     const allSelected = currentDataIds.every(id => selectedItems.includes(id));
 
     if (allSelected) {
@@ -492,7 +535,7 @@ export default function SimpanPinjam() {
                              <input 
                                type="checkbox" 
                                className="w-4 h-4 rounded border-gray-300 text-[#004A9C] focus:ring-[#004A9C]/20 transition-all cursor-pointer"
-                               checked={paginatedData.length > 0 && paginatedData.every(item => selectedItems.includes(item.simpanan_id))}
+                               checked={paginatedData.length > 0 && paginatedData.every(item => selectedItems.includes(activeTab === 'simpanan' ? item.anggota_id : item.pinjaman_id))}
                                onChange={handleSelectAll}
                              />
                            </div>
@@ -510,6 +553,7 @@ export default function SimpanPinjam() {
                          <tr><td colSpan={7} className="py-20 text-center text-gray-400 italic uppercase tracking-widest text-xs font-bold">Loading data...</td></tr>
                        ) : paginatedData.length > 0 ? (
                          paginatedData.map((item) => {
+                           const rowId = activeTab === 'simpanan' ? item.anggota_id : item.pinjaman_id;
                            const isHighlighted = item.simpanan_id === highlightedId;
                            const totalSaldo = parseFloat(item.saldo_pokok) + parseFloat(item.saldo_wajib) + parseFloat(item.saldo_sukarela);
                            return (
@@ -523,15 +567,15 @@ export default function SimpanPinjam() {
                                  backgroundColor: isHighlighted ? ['rgba(0,74,156,0.15)', 'rgba(0,74,156,0.05)', 'rgba(0,74,156,0.15)'] : 'rgba(0,0,0,0)',
                                }}
                                transition={isHighlighted ? { backgroundColor: { repeat: Infinity, duration: 1.5 } } : {}}
-                               className={`hover:bg-[#DFEAF4]/20 transition-all duration-300 group ${isHighlighted ? 'ring-2 ring-[#004A9C]/30 ring-inset rounded-lg' : ''} ${selectedItems.includes(item.simpanan_id) ? 'bg-[#004A9C]/5' : ''}`}
+                               className={`hover:bg-[#DFEAF4]/20 transition-all duration-300 group ${isHighlighted ? 'ring-2 ring-[#004A9C]/30 ring-inset rounded-lg' : ''} ${selectedItems.includes(rowId) ? 'bg-[#004A9C]/5' : ''}`}
                              >
                                <td className="py-5 px-8">
                                  <div className="flex items-center justify-center">
                                    <input 
                                      type="checkbox" 
                                      className="w-4 h-4 rounded border-gray-300 text-[#004A9C] focus:ring-[#004A9C]/20 transition-all cursor-pointer"
-                                     checked={selectedItems.includes(item.simpanan_id)}
-                                     onChange={() => handleSelectItem(item.simpanan_id)}
+                                     checked={selectedItems.includes(rowId)}
+                                     onChange={() => handleSelectItem(rowId)}
                                    />
                                  </div>
                                </td>
@@ -584,6 +628,62 @@ export default function SimpanPinjam() {
                </div>
                {!isLoading && paginatedData.length > 0 && <Pagination />}
             </div>
+
+            {activeTab === 'simpanan' && canEdit && (
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col md:flex-row items-center justify-between gap-4 mt-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[#DFEAF4] text-[#004A9C] rounded-2xl flex items-center justify-center">
+                    <Settings size={24} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-800 text-sm">Proses Setoran Kolektif</h4>
+                    <p className="text-xs text-gray-400">Input simpanan wajib sekaligus untuk efisiensi administrasi.</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 w-full md:w-auto">
+                  <Button 
+                    onClick={() => {
+                      setConfirmModal({
+                        isOpen: true,
+                        title: 'Konfirmasi Kolektif',
+                        message: 'Proses simpanan wajib untuk SELURUH anggota aktif?',
+                        type: 'success',
+                        onConfirm: () => {
+                          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                          handleBulkWajib('all');
+                        }
+                      });
+                    }}
+                    className="flex-1 md:flex-none !bg-white !text-[#004A9C] border border-[#DFEAF4] hover:!bg-[#DFEAF4]"
+                  >
+                    Semua Anggota
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      if (selectedItems.length === 0) {
+                        setStatusModal({ isOpen: true, type: 'error', title: 'Peringatan', message: 'Pilih anggota terlebih dahulu.' });
+                        return;
+                      }
+                      setConfirmModal({
+                        isOpen: true,
+                        title: 'Konfirmasi Terpilih',
+                        message: `Proses simpanan wajib untuk ${selectedItems.length} anggota terpilih?`,
+                        type: 'success',
+                        onConfirm: () => {
+                          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                          handleBulkWajib('selected');
+                        }
+                      });
+                    }}
+                    className="flex-1 md:flex-none shadow-lg shadow-blue-900/10"
+                  >
+                    Terpilih ({selectedItems.length})
+                  </Button>
+                </div>
+              </div>
+            )}
+
             
             <div className="bg-[#DFEAF4]/30 border border-[#004A9C]/10 rounded-3xl p-6 flex items-start gap-4">
               <div className="p-3 bg-white rounded-2xl text-[#004A9C] shadow-sm"><Info size={24} /></div>
@@ -799,30 +899,6 @@ export default function SimpanPinjam() {
       </AnimatePresence>
 
       {/* --- MODALS --- */}
-      {/* Update Savings Modal */}
-      <Modal isOpen={isUpdateSavingsModalOpen} onClose={() => setIsUpdateSavingsModalOpen(false)} title="Update Data Simpanan" confirmText="Simpan Perubahan" onConfirm={submitUpdateSavings}>
-        <div className="space-y-6 pt-2">
-           <div className="flex items-center gap-4 p-5 bg-gray-50 rounded-2xl border border-gray-100">
-              <div className="w-12 h-12 bg-[#004A9C] text-white rounded-xl flex items-center justify-center font-bold text-lg">{selectedMember?.anggota?.nama_lengkap?.charAt(0)}</div>
-              <div><h4 className="font-bold text-gray-800">{selectedMember?.anggota?.nama_lengkap}</h4><p className="text-[10px] text-gray-400 font-mono tracking-widest uppercase">ID: {selectedMember?.anggota?.no_anggota}</p></div>
-           </div>
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Simpanan Pokok (IDR)</label>
-                <Input value={updateSavings.pokok} type="number" onChange={(e) => setUpdateSavings({...updateSavings, pokok: e.target.value})} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Simpanan Wajib (IDR)</label>
-                <Input value={updateSavings.wajib} type="number" onChange={(e) => setUpdateSavings({...updateSavings, wajib: e.target.value})} />
-              </div>
-              <div className="sm:col-span-2 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Simpanan Sukarela (IDR)</label>
-                <Input value={updateSavings.sukarela} type="number" onChange={(e) => setUpdateSavings({...updateSavings, sukarela: e.target.value})} />
-              </div>
-           </div>
-        </div>
-      </Modal>
-
       {/* Loan Review Modal */}
       <Modal isOpen={isLoanActionModalOpen} onClose={() => setIsLoanActionModalOpen(false)} title={loanActionType === 'review' ? 'Review Pinjaman' : 'Edit Pinjaman'} confirmText={loanActionType === 'review' ? '' : 'Simpan'} onConfirm={() => loanActionType !== 'review' && submitUpdateLoan()}>
         <div className="space-y-6 pt-2 text-left">
@@ -851,6 +927,18 @@ export default function SimpanPinjam() {
            )}
         </div>
       </Modal>
+
+      {/* Confirmation Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        confirmText="Lanjutkan"
+        cancelText="Batal"
+      />
 
       {/* Status Modal (Success/Error) */}
       <Modal

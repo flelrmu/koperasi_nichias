@@ -1,20 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, User, Wallet, FileText, Calendar, Info } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Save, 
+  User, 
+  Wallet, 
+  FileText, 
+  Calendar, 
+  Info,
+  AlertCircle
+} from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
+import Modal from '../../components/molecules/Modal';
+import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 
 export default function InputBaruSimpanan() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const { api } = useAuth();
+  const socket = useSocket();
   
-  // Ambil data anggota dari state atau fetch menggunakan ID jika state kosong
-  // Untuk saat ini kita pakai state dari SimpanPinjam.jsx
   const [member, setMember] = useState(location.state?.member || null);
+  const [configs, setConfigs] = useState({
+    SIMPANAN_POKOK: 0,
+    SIMPANAN_WAJIB: 0,
+    SIMPANAN_SUKARELA: 0
+  });
   
-  // State form
   const [formData, setFormData] = useState({
     jenis_simpanan: 'Wajib',
     jenis_transaksi: 'Setor',
@@ -23,26 +39,85 @@ export default function InputBaruSimpanan() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
 
-  // Tanggal otomatis hari ini
+  const fetchConfigs = useCallback(async () => {
+    try {
+      const res = await api.get('/simpan-pinjam/konfigurasi');
+      if (res.data.success) {
+        setConfigs(res.data.data);
+        // Default nominal for Wajib if starting with Wajib
+        setFormData(prev => ({
+          ...prev,
+          nominal: res.data.data.SIMPANAN_WAJIB
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching configs:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api]);
+
+  const fetchMember = useCallback(async () => {
+    if (member || !id) return;
+    try {
+      const res = await api.get(`/user/anggota/${id}`);
+      if (res.data.success) {
+        setMember(res.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching member:', error);
+    }
+  }, [api, id, member]);
+
+  useEffect(() => {
+    fetchConfigs();
+    fetchMember();
+  }, [fetchConfigs, fetchMember]);
+
+  // WebSocket listener for real-time config updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleConfigUpdate = (payload) => {
+      console.log('📥 konfigurasi:updated', payload);
+      setConfigs(prev => ({
+        ...prev,
+        [payload.nama_config]: parseFloat(payload.nilai)
+      }));
+    };
+
+    socket.on('konfigurasi:updated', handleConfigUpdate);
+    return () => socket.off('konfigurasi:updated', handleConfigUpdate);
+  }, [socket]);
+
+  // Handle nominal auto-fill when jenis_simpanan changes
+  useEffect(() => {
+    // If switching to Pokok/Wajib while 'Tarik' is selected, force back to 'Setor'
+    if (formData.jenis_transaksi === 'Tarik' && formData.jenis_simpanan !== 'Sukarela') {
+      setFormData(prev => ({ ...prev, jenis_transaksi: 'Setor' }));
+      return;
+    }
+
+    if (formData.jenis_transaksi === 'Setor') {
+      if (formData.jenis_simpanan === 'Pokok') {
+        setFormData(prev => ({ ...prev, nominal: configs.SIMPANAN_POKOK }));
+      } else if (formData.jenis_simpanan === 'Wajib') {
+        setFormData(prev => ({ ...prev, nominal: configs.SIMPANAN_WAJIB }));
+      } else if (formData.jenis_simpanan === 'Sukarela') {
+        setFormData(prev => ({ ...prev, nominal: '' }));
+      }
+    }
+  }, [formData.jenis_simpanan, formData.jenis_transaksi, configs]);
+
   const today = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
-
-  useEffect(() => {
-    // Jika tidak ada data member (misal direct link), bisa ditambahkan logika fetch by ID di sini
-    if (!member && id) {
-      // Mockup fetch
-      setMember({
-        id: id,
-        no_anggota: `ANG-00${id}`,
-        nama_lengkap: 'Member Tidak Ditemukan (Perlu Fetch)',
-      });
-    }
-  }, [id, member]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -52,16 +127,36 @@ export default function InputBaruSimpanan() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     setIsSubmitting(true);
-    
-    // Simulasi API Call
-    setTimeout(() => {
+    try {
+      const res = await api.post('/simpan-pinjam/simpanan/transaksi', {
+        anggota_id: id,
+        ...formData
+      });
+      
+      if (res.data.success) {
+        setStatusModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Transaksi Berhasil',
+          message: res.data.message || 'Transaksi telah berhasil dicatat.'
+        });
+      }
+    } catch (error) {
+      console.error('Error submitting transaction:', error);
+      setStatusModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal Mencatat',
+        message: error.response?.data?.message || 'Terjadi kesalahan sistem saat menyimpan transaksi.'
+      });
+    } finally {
       setIsSubmitting(false);
-      alert('Transaksi berhasil disimpan!');
-      navigate('/admin/simpan-pinjam'); // Kembali ke halaman utama
-    }, 1000);
+    }
   };
 
   const formatCurrency = (val) => {
@@ -72,6 +167,14 @@ export default function InputBaruSimpanan() {
       maximumFractionDigits: 0
     }).format(val);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#004A9C]"></div>
+      </div>
+    );
+  }
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -145,16 +248,30 @@ export default function InputBaruSimpanan() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setFormData({...formData, jenis_transaksi: 'Tarik'})}
+                  onClick={() => {
+                    if (formData.jenis_simpanan !== 'Sukarela') {
+                      // Do nothing or show alert if user tries to click Tarik for Pokok/Wajib
+                      return;
+                    }
+                    setFormData({...formData, jenis_transaksi: 'Tarik'});
+                  }}
                   className={`py-3 rounded-xl text-sm font-bold transition-all border ${
                     formData.jenis_transaksi === 'Tarik' 
                     ? 'bg-[#EB5757] text-white border-[#EB5757] shadow-md shadow-[#EB5757]/20' 
+                    : formData.jenis_simpanan !== 'Sukarela'
+                    ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed'
                     : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                   }`}
+                  disabled={formData.jenis_simpanan !== 'Sukarela'}
                 >
                   Penarikan
                 </button>
               </div>
+              {formData.jenis_simpanan !== 'Sukarela' && (
+                <p className="text-[10px] text-orange-500 font-bold italic mt-1 flex items-center gap-1">
+                  <AlertCircle size={10} /> Penarikan hanya untuk Simpanan Sukarela.
+                </p>
+              )}
             </div>
 
             {/* Jenis Simpanan */}
@@ -169,7 +286,6 @@ export default function InputBaruSimpanan() {
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#004A9C]/20 focus:border-[#004A9C] transition-all"
                 required
               >
-                <option value="Pokok">Simpanan Pokok</option>
                 <option value="Wajib">Simpanan Wajib</option>
                 <option value="Sukarela">Simpanan Sukarela</option>
               </select>
@@ -188,10 +304,15 @@ export default function InputBaruSimpanan() {
                 name="nominal"
                 value={formData.nominal}
                 onChange={handleInputChange}
-                className="pl-12 !text-lg !font-bold !py-4"
+                className={`pl-12 !text-lg !font-bold !py-4 ${
+                  (formData.jenis_simpanan === 'Pokok' || formData.jenis_simpanan === 'Wajib') && formData.jenis_transaksi === 'Setor'
+                  ? 'bg-gray-100 cursor-not-allowed opacity-80'
+                  : ''
+                }`}
                 placeholder="0"
                 required
                 min="1"
+                readOnly={(formData.jenis_simpanan === 'Pokok' || formData.jenis_simpanan === 'Wajib') && formData.jenis_transaksi === 'Setor'}
               />
             </div>
             {formData.nominal && (
@@ -236,6 +357,21 @@ export default function InputBaruSimpanan() {
           </div>
         </form>
       </div>
+
+      {/* Status Modal */}
+      <Modal
+        isOpen={statusModal.isOpen}
+        onClose={() => {
+          setStatusModal({ ...statusModal, isOpen: false });
+          if (statusModal.type === 'success') {
+            navigate('/admin/simpan-pinjam');
+          }
+        }}
+        title={statusModal.title}
+        message={statusModal.message}
+        type={statusModal.type}
+        confirmText="Tutup"
+      />
     </motion.div>
   );
 }

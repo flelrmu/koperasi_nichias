@@ -1,36 +1,135 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, AlertTriangle, Send, Info, CheckCircle2, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  ArrowLeft, 
+  AlertTriangle, 
+  Send, 
+  Info, 
+  Clock, 
+  AlertCircle 
+} from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import Textarea from '../../components/atoms/Textarea';
 import Modal from '../../components/molecules/Modal';
+import { useAuth } from '../../context/AuthContext';
 
-export default function PengajuanKeluar() {
+function PengajuanKeluar() {
   const navigate = useNavigate();
+  const { user, api } = useAuth();
+  
   const [reason, setReason] = useState('');
   const [isChecked, setIsChecked] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [debtStatus, setDebtStatus] = useState({ hasDebt: false, checked: false, amount: 0 });
+  const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false });
+  const [currentStatus, setCurrentStatus] = useState(user?.status_keanggotaan);
+
+  useEffect(() => {
+    checkDebt();
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const response = await api.get('/user/profile');
+      if (response.data.success) {
+        setCurrentStatus(response.data.data.status_keanggotaan);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
+  const checkDebt = async () => {
+    try {
+      const response = await api.get('/user/profile');
+      if (response.data.success) {
+        const profile = response.data.data;
+        const loans = profile.pinjaman || [];
+        const totalDebt = loans.reduce((sum, loan) => {
+          if (loan.status === 'Approved' || loan.status === 'Berjalan') {
+            return sum + parseFloat(loan.sisa_tagihan || 0);
+          }
+          return sum;
+        }, 0);
+
+        setDebtStatus({ 
+          hasDebt: totalDebt > 0, 
+          checked: true,
+          amount: totalDebt
+        });
+      }
+    } catch (error) {
+      console.error('Error checking debt:', error);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!reason.trim() || reason.length < 20) {
+    if (!reason.trim() || reason.length < 20 || !isChecked) {
       return;
     }
     
-    setIsSubmitting(true);
-    
-    // Simulate API call with delay for better UX
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setShowSuccessModal(true);
-    }, 1500);
+    setConfirmModal({ isOpen: true });
   };
 
+  const executeSubmit = async () => {
+    setConfirmModal({ isOpen: false });
+    setIsSubmitting(true);
+    
+    try {
+      const response = await api.post('/user/anggota/request-keluar', { alasan_keluar: reason });
+      
+      if (response.data.success) {
+        setCurrentStatus('Pending_Keluar');
+      }
+    } catch (error) {
+      setStatusModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal',
+        message: error.response?.data?.message || 'Terjadi kesalahan saat mengirim pengajuan.'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  const handleCancel = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await api.post('/user/anggota/cancel-keluar');
+      if (response.data.success) {
+        setStatusModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Dibatalkan',
+          message: 'Pengajuan pengunduran diri Anda telah dibatalkan.'
+        });
+        setCurrentStatus('Aktif');
+        setReason('');
+        setIsChecked(false);
+      }
+    } catch (error) {
+      setStatusModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal',
+        message: error.response?.data?.message || 'Terjadi kesalahan saat membatalkan pengajuan.'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+
   const handleSuccessClose = () => {
-    setShowSuccessModal(false);
-    navigate('/profile');
+    setStatusModal({ ...statusModal, isOpen: false });
+    if (statusModal.type === 'success') {
+      navigate('/profile');
+    }
   };
 
   const containerVariants = {
@@ -49,12 +148,75 @@ export default function PengajuanKeluar() {
     visible: { 
       y: 0, 
       opacity: 1, 
-      transition: { 
-        duration: 0.5, 
-        ease: [0.22, 1, 0.36, 1] 
-      } 
+      transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } 
     }
   };
+
+  const renderContent = () => {
+    if (currentStatus === 'Pending_Keluar') {
+      return (
+      <motion.div 
+        initial="hidden" 
+        animate="visible" 
+        variants={containerVariants}
+        className="max-w-2xl mx-auto mt-10"
+      >
+        <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl text-center space-y-6">
+          <div className="w-24 h-24 bg-amber-50 text-amber-500 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner">
+            <Clock size={48} className="animate-pulse" />
+          </div>
+          <h2 className="text-3xl font-black text-gray-900">Pengajuan Sedang Diproses</h2>
+          <p className="text-gray-500 leading-relaxed">
+            Pengajuan pengunduran diri Anda telah kami terima dan saat ini sedang dalam tahap review oleh Sekretaris Koperasi. Kami akan memberikan notifikasi setelah status pengajuan Anda diperbarui.
+          </p>
+          <div className="pt-6 border-t border-gray-50">
+            <div className="flex items-center justify-center gap-2 text-amber-600 font-bold text-sm uppercase tracking-widest">
+              <Clock size={16} />
+              <span>Status: Menunggu Persetujuan</span>
+            </div>
+          </div>
+          <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center">
+            <Button onClick={() => navigate('/profile')} className="!bg-white !text-gray-600 border border-gray-200 hover:!bg-gray-50 flex-1 sm:flex-none">
+              Kembali ke Profil
+            </Button>
+            <Button onClick={handleCancel} disabled={isSubmitting} className="!bg-red-50 !text-red-600 border border-red-100 hover:!bg-red-100 flex-1 sm:flex-none">
+              {isSubmitting ? 'Membatalkan...' : 'Batalkan Pengajuan'}
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (debtStatus.hasDebt) {
+    return (
+      <motion.div 
+        initial="hidden" 
+        animate="visible" 
+        variants={containerVariants}
+        className="max-w-2xl mx-auto mt-10"
+      >
+        <div className="bg-white p-10 rounded-[2.5rem] border-2 border-red-100 shadow-xl text-center space-y-6">
+          <div className="w-24 h-24 bg-red-50 text-red-500 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner">
+            <AlertCircle size={48} />
+          </div>
+          <h3 className="text-2xl font-black text-gray-900">Akses Dibatasi</h3>
+          <p className="text-gray-500 leading-relaxed max-w-md mx-auto">
+            Anda masih memiliki sisa tagihan pinjaman sebesar <span className="font-bold text-red-600">Rp {new Intl.NumberFormat('id-ID').format(debtStatus.amount)}</span>. 
+            Sesuai aturan koperasi, anggota harus melunasi seluruh kewajiban keuangan sebelum dapat mengajukan pengunduran diri.
+          </p>
+          <div className="pt-6 flex gap-4 justify-center">
+            <Button onClick={() => navigate('/profile')} className="!bg-white !text-gray-600 border border-gray-200 hover:!bg-gray-50">
+              Kembali
+            </Button>
+            <Button onClick={() => navigate('/simpan-pinjam')} className="!bg-red-600 hover:!bg-red-700 shadow-lg shadow-red-600/20">
+              Lihat Tagihan Pinjaman
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div 
@@ -175,20 +337,40 @@ export default function PengajuanKeluar() {
           <p className="text-sm text-gray-600 mt-0.5">Setelah dikirim, Pengurus akan memverifikasi pengajuan Anda. Proses ini memakan waktu maksimal 3-5 hari kerja.</p>
         </div>
       </motion.div>
+    </motion.div>
+  );
+};
 
-      {/* Success Modal */}
+  return (
+    <>
+      {renderContent()}
+
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false })}
+        title="Konfirmasi Pengajuan"
+        message="Apakah Anda yakin ingin mengirim pengajuan keluar dari koperasi? Keputusan ini memiliki konsekuensi sesuai dengan peraturan yang berlaku."
+        type="warning"
+        maxWidth="max-w-md"
+        onConfirm={executeSubmit}
+        confirmText="Ya, Kirim Pengajuan"
+        cancelText="Batal"
+      />
+
       <AnimatePresence>
-        {showSuccessModal && (
+        {statusModal.isOpen && (
           <Modal
-            isOpen={showSuccessModal}
+            isOpen={statusModal.isOpen}
             onClose={handleSuccessClose}
-            title="Pengajuan Terkirim"
-            message="Permohonan pengunduran diri Anda telah kami terima untuk diproses. Status permohonan dapat dipantau secara berkala melalui menu Dashboard atau Profil."
-            type="success"
-            actionText="Tutup"
+            title={statusModal.title}
+            message={statusModal.message}
+            type={statusModal.type}
+            confirmText="Tutup"
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </>
   );
-}
+};
+
+export default PengajuanKeluar;

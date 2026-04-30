@@ -20,6 +20,11 @@ router.get('/pengurus', authorizeRoles('Sekretaris', 'Ketua', 'Wakil_Ketua', 'Be
 // Route khusus Approval Pendaftaran (Sekretaris & Ketua) — harus sebelum /:type/:id
 router.put('/approve/:id', authorizeRoles('Sekretaris', 'Ketua'), userController.approveMember);
 
+// Route khusus Pengunduran Diri (Keluar Koperasi)
+router.post('/anggota/request-keluar', authorizeRoles('Anggota'), userController.requestKeluar);
+router.post('/anggota/cancel-keluar', authorizeRoles('Anggota'), userController.cancelKeluar);
+router.post('/anggota/approve-keluar', authorizeRoles('Sekretaris', 'Ketua'), userController.approveKeluar);
+
 // Route untuk Update & Delete (Khusus Sekretaris/Role Pimpinan)
 router.get('/:type/:id', authorizeRoles('Sekretaris', 'Ketua', 'Bendahara', 'Wakil_Ketua'), userController.getUserDetail);
 router.put('/:type/:id', authorizeRoles('Sekretaris', 'Ketua', 'Bendahara'), userController.updateUser);

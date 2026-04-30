@@ -1,6 +1,36 @@
 const db = require('../models');
 const Peraturan = db.Peraturan;
 const User = db.User;
+const Konfigurasi = db.Konfigurasi;
+
+/**
+ * Helper to sync Peraturan with Konfigurasi table
+ */
+const syncWithKonfigurasi = async (peraturan, io = null, transaction = null) => {
+  const mapping = {
+    'Simpanan Pokok': 'SIMPANAN_POKOK',
+    'Simpanan Wajib': 'SIMPANAN_WAJIB',
+    'Simpanan Sukarela': 'SIMPANAN_SUKARELA',
+    'Suku Bunga': 'BUNGA_PINJAMAN_PERSEN'
+  };
+
+  const configKey = mapping[peraturan.judul];
+  if (configKey && peraturan.nilai_numerik !== null) {
+    console.log(`🔄 Syncing Peraturan "${peraturan.judul}" to Konfigurasi "${configKey}" with value ${peraturan.nilai_numerik}`);
+    await Konfigurasi.update(
+      { nilai: peraturan.nilai_numerik.toString(), updated_by: peraturan.updated_by },
+      { where: { nama_config: configKey }, transaction }
+    );
+    
+    // Emit config update for real-time frontend refresh
+    if (io) {
+      io.emit('konfigurasi:updated', { 
+        nama_config: configKey, 
+        nilai: peraturan.nilai_numerik 
+      });
+    }
+  }
+};
 
 /**
  * GET /api/peraturan
@@ -126,6 +156,9 @@ const createPeraturan = async (req, res) => {
       updated_by: req.user.user_id,
     });
 
+    // Sync with Konfigurasi
+    await syncWithKonfigurasi(peraturan, req.io);
+
     // Fetch with updater association
     const created = await Peraturan.findByPk(peraturan.peraturan_id, {
       include: [{ model: User, as: 'updater', attributes: ['email'] }],
@@ -171,6 +204,9 @@ const updatePeraturan = async (req, res) => {
     updateData.updated_by = req.user.user_id;
 
     await peraturan.update(updateData);
+
+    // Sync with Konfigurasi if nilai_numerik was updated
+    await syncWithKonfigurasi(peraturan, req.io);
 
     // Fetch updated with updater
     const updated = await Peraturan.findByPk(id, {

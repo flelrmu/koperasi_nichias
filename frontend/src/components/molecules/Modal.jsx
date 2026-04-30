@@ -1,4 +1,4 @@
-import { CheckCircle2, XCircle, X } from 'lucide-react';
+import { CheckCircle2, XCircle, X, AlertTriangle } from 'lucide-react';
 import Button from '../atoms/Button';
 
 export default function Modal({ 
@@ -72,6 +72,10 @@ export default function Modal({
                 <div className="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center mb-5 shadow-inner">
                   <XCircle className="w-10 h-10 text-red-500" />
                 </div>
+              ) : type === 'warning' ? (
+                <div className="w-20 h-20 bg-[#F2994A]/10 rounded-[2rem] flex items-center justify-center mb-5 shadow-inner">
+                  <AlertTriangle className="text-[#F2994A]" size={40} strokeWidth={2.5} />
+                </div>
               ) : null}
               
               <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
@@ -82,7 +86,7 @@ export default function Modal({
                   <Button onClick={onClose} className="flex-1 !bg-white !text-gray-700 border border-gray-200 hover:!bg-gray-50 shadow-sm">
                     {cancelText}
                   </Button>
-                  <Button onClick={onConfirm} className={`flex-1 shadow-md ${type === 'error' ? '!bg-[#EB5757] hover:!bg-[#c24646] shadow-[#EB5757]/20' : 'shadow-[#004A9C]/20'}`}>
+                  <Button onClick={onConfirm} className={`flex-1 shadow-md ${type === 'error' ? '!bg-[#EB5757] hover:!bg-[#c24646] shadow-[#EB5757]/20' : type === 'warning' ? '!bg-[#F2994A] hover:!bg-[#e0893f] shadow-[#F2994A]/20' : 'shadow-[#004A9C]/20'}`}>
                     {confirmText}
                   </Button>
                 </div>

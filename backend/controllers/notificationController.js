@@ -9,11 +9,15 @@ const Notifikasi = db.Notifikasi;
 const getNotifications = async (req, res) => {
   try {
     const { user_id } = req.user;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20; // Default 20 untuk Topbar
+    const offset = (page - 1) * limit;
 
-    const notifications = await Notifikasi.findAll({
+    const { count, rows } = await Notifikasi.findAndCountAll({
       where: { user_id },
       order: [['created_at', 'DESC']],
-      limit: 30,
+      limit: limit,
+      offset: offset,
     });
 
     const unreadCount = await Notifikasi.count({
@@ -22,8 +26,14 @@ const getNotifications = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: notifications,
+      data: rows,
       unreadCount,
+      pagination: {
+        totalItems: count,
+        totalPages: Math.ceil(count / limit),
+        currentPage: page,
+        limit
+      }
     });
   } catch (error) {
     console.error('❌ Error fetching notifications:', error);

@@ -13,6 +13,7 @@ import KoperasiRules from './pages/KoperasiRules';
 import RuleDetail from './pages/RuleDetail';
 import PengajuanKeluar from './pages/anggota/PengajuanKeluar';
 import DashboardPending from './pages/anggota/DashboardPending';
+import DashboardKeluar from './pages/anggota/DashboardKeluar';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ConfigRules from './pages/admin/ConfigRules';
 import EditRuleDetail from './pages/admin/EditRuleDetail';
@@ -20,6 +21,7 @@ import TambahPeraturan from './pages/admin/TambahPeraturan';
 import UserManagement from './pages/admin/UserManagement';
 import SimpanPinjam from './pages/admin/SimpanPinjam';
 import InputBaruSimpanan from './pages/admin/InputBaruSimpanan';
+import ManajemenSaldo from './pages/admin/ManajemenSaldo';
 import FinanceManagement from './pages/admin/FinanceManagement';
 import AdminProfile from './pages/admin/AdminProfile';
 import TambahUser from './pages/admin/TambahUser';
@@ -31,6 +33,7 @@ import { SocketProvider } from './context/SocketContext';
 import { NotificationProvider } from './context/NotificationContext';
 import NotificationToast from './components/molecules/NotificationToast';
 import EditUser from './pages/admin/EditUser';
+import SemuaNotifikasi from './pages/SemuaNotifikasi';
 
 function App() {
   return (
@@ -61,11 +64,21 @@ function App() {
                 }
               />
 
+              {/* Anggota Keluar Dashboard */}
+              <Route
+                path="/dashboard/keluar"
+                element={
+                  <ProtectedRoute allowedRoles={['Anggota']} allowedStatus={['Keluar']}>
+                    <DashboardKeluar />
+                  </ProtectedRoute>
+                }
+              />
+
               {/* Anggota Aktif Dashboard */}
               <Route
                 path="/"
                 element={
-                  <ProtectedRoute allowedRoles={['Anggota']} allowedStatus={['Aktif']}>
+                  <ProtectedRoute allowedRoles={['Anggota']} allowedStatus={['Aktif', 'Pending_Keluar']}>
                     <DashboardLayout />
                   </ProtectedRoute>
                 }
@@ -77,6 +90,7 @@ function App() {
                 <Route path="koperasi-rules" element={<KoperasiRules />} />
                 <Route path="koperasi-rules/:id" element={<RuleDetail />} />
                 <Route path="pengajuan-keluar" element={<PengajuanKeluar />} />
+                <Route path="notifikasi" element={<SemuaNotifikasi />} />
               </Route>
 
               {/* Admin/Pengurus Dashboard */}
@@ -89,6 +103,14 @@ function App() {
                 }
               >
                 <Route path="dashboard" element={<AdminDashboard />} />
+                <Route 
+                  path="notifikasi" 
+                  element={
+                    <ProtectedRoute allowedRoles={MANAGEMENT_ROLES}>
+                      <SemuaNotifikasi />
+                    </ProtectedRoute>
+                  } 
+                />
                 <Route 
                   path="profile" 
                   element={
@@ -134,6 +156,14 @@ function App() {
                   element={
                     <ProtectedRoute allowedRoles={MANAGEMENT_ROLES}>
                       <InputBaruSimpanan />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="simpan-pinjam/manajemen-saldo/:id" 
+                  element={
+                    <ProtectedRoute allowedRoles={MANAGEMENT_ROLES}>
+                      <ManajemenSaldo />
                     </ProtectedRoute>
                   } 
                 />

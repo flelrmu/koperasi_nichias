@@ -17,11 +17,13 @@ import {
 } from 'lucide-react';
 import { BiChevronLeft, BiChevronRight } from 'react-icons/bi';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import StatusBadge from '../../components/atoms/StatusBadge';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { api, user } = useAuth();
+  const socket = useSocket();
   const [profileData, setProfileData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hoveredCard, setHoveredCard] = useState(null);
@@ -42,6 +44,30 @@ export default function Dashboard() {
   useEffect(() => {
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUpdate = (data) => {
+      // Check if update belongs to current user
+      if (data.user_id === user?.user_id || data.anggota_id === profileData?.anggota_id) {
+        console.log('🔄 Dashboard: Refetching profile due to real-time update');
+        fetchProfile();
+      }
+    };
+
+    socket.on('simpanan:updated', (data) => {
+      if (data.anggota_id === profileData?.anggota_id) fetchProfile();
+    });
+    socket.on('transaksi:created', handleUpdate);
+    socket.on('transaksi:updated', handleUpdate);
+
+    return () => {
+      socket.off('simpanan:updated');
+      socket.off('transaksi:created', handleUpdate);
+      socket.off('transaksi:updated', handleUpdate);
+    };
+  }, [socket, user, profileData?.anggota_id]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -138,7 +164,8 @@ export default function Dashboard() {
   // Unified Activity Feed: Merge Savings and Loans
   const recentActivities = [
     ...(profileData?.transaksiSimpanan?.map(t => ({
-      id: `trx-${t.id}`,
+      id: `trx-${t.transaksi_id}`,
+      realId: t.transaksi_id,
       tanggal: t.tanggal,
       kategori: 'Simpanan',
       keterangan: t.jenis_transaksi?.replace(/Setoran/g, 'Simpanan'),
@@ -150,6 +177,7 @@ export default function Dashboard() {
     })) || []),
     ...(profileData?.pinjaman?.map(p => ({
       id: `loan-${p.pinjaman_id}`,
+      realId: p.pinjaman_id,
       tanggal: p.tanggal_pengajuan,
       kategori: 'Pinjaman',
       keterangan: `Pengajuan ${p.jenis_pinjaman}${p.nama_barang ? ' - ' + p.nama_barang : ''}`,
@@ -160,8 +188,14 @@ export default function Dashboard() {
       color: '#004A9C'
     })) || [])
   ]
-  .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
-  .slice(0, 5);
+  .sort((a, b) => {
+    const dateA = new Date(a.tanggal);
+    const dateB = new Date(b.tanggal);
+    if (dateB - dateA !== 0) return dateB - dateA;
+    // Secondary sort by ID if dates are equal
+    return (b.realId || 0) - (a.realId || 0);
+  })
+  .slice(0, 7);
 
   const stats = [
     { 

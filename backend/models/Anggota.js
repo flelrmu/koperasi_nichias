@@ -62,8 +62,13 @@ module.exports = (sequelize, DataTypes) => {
       comment: 'Diisi saat Sekretaris klik Approve',
     },
     status_keanggotaan: {
-      type: DataTypes.ENUM('Pending', 'Aktif', 'Keluar'),
+      type: DataTypes.ENUM('Pending', 'Aktif', 'Keluar', 'Pending_Keluar'),
       defaultValue: 'Pending',
+    },
+    alasan_keluar: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'Alasan pengunduran diri dari keanggotaan',
     },
     foto_profil: {
       type: DataTypes.STRING(255),

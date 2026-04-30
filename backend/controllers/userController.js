@@ -5,6 +5,199 @@ const User = db.User;
 const Anggota = db.Anggota;
 const Pengurus = db.Pengurus;
 const Notifikasi = db.Notifikasi;
+const Simpanan = db.Simpanan;
+const TransaksiSimpanan = db.TransaksiSimpanan;
+const Konfigurasi = db.Konfigurasi;
+const Pinjaman = db.Pinjaman;
+const { Op } = require('sequelize');
+
+/**
+ * POST /api/user/anggota/request-keluar
+ * Anggota mengajukan pengunduran diri
+ */
+const requestKeluar = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
+  try {
+    const { user_id } = req.user;
+    const { alasan_keluar } = req.body;
+
+    const anggota = await Anggota.findOne({ 
+      where: { user_id },
+      transaction
+    });
+
+    if (!anggota) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Data anggota tidak ditemukan.' });
+    }
+
+    // Cek hutang: Pinjaman yang belum lunas
+    const activeLoans = await Pinjaman.findAll({
+      where: {
+        anggota_id: anggota.anggota_id,
+        status: ['Approved', 'Pending'], // Pending juga dicek agar tidak kabur saat ada pengajuan
+        sisa_tagihan: { [Op.gt]: 0 }
+      },
+      transaction
+    });
+
+    if (activeLoans.length > 0) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Anda tidak dapat mengajukan keluar karena masih memiliki pinjaman aktif atau sisa tagihan.' 
+      });
+    }
+
+    await anggota.update({
+      status_keanggotaan: 'Pending_Keluar',
+      alasan_keluar
+    }, { transaction });
+
+    // Buat notifikasi untuk Sekretaris
+    const secretaryUsers = await User.findAll({ where: { role: 'Sekretaris' }, transaction });
+    for (const secretary of secretaryUsers) {
+      await Notifikasi.create({
+        user_id: secretary.user_id,
+        judul: 'Pengajuan Keluar Anggota 🚪',
+        pesan: `${anggota.nama_lengkap} telah mengajukan pengunduran diri dari koperasi.`,
+        tipe: 'anggota',
+        link: `/admin/users?review_keluar=${anggota.anggota_id}`,
+        is_read: false
+      }, { transaction });
+    }
+
+    await transaction.commit();
+
+    if (req.io) {
+      req.io.emit('user:updated', { 
+        type: 'Anggota', 
+        id: anggota.anggota_id, 
+        data: { status_keanggotaan: 'Pending_Keluar', alasan_keluar } 
+      });
+      
+      // Emit real-time notification for management
+      req.io.emit('notifikasi:anggota-keluar', {
+        user_id: user_id, // Pengirim
+        notifikasi: {
+          judul: 'Pengajuan Keluar Anggota 🚪',
+          pesan: `${anggota.nama_lengkap} telah mengajukan pengunduran diri.`,
+          tipe: 'anggota',
+          link: `/admin/users?review_keluar=${anggota.anggota_id}`
+        }
+      });
+
+      req.io.emit('dashboardUpdate');
+    }
+
+    res.status(200).json({ success: true, message: 'Pengajuan pengunduran diri berhasil dikirim.' });
+  } catch (error) {
+    if (transaction) await transaction.rollback();
+    console.error('❌ Error request keluar:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /api/user/anggota/cancel-keluar
+ * Anggota membatalkan pengajuan keluar
+ */
+const cancelKeluar = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
+  try {
+    const { user_id } = req.user;
+
+    const anggota = await Anggota.findOne({ 
+      where: { user_id },
+      transaction
+    });
+
+    if (!anggota) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Data anggota tidak ditemukan.' });
+    }
+
+    if (anggota.status_keanggotaan !== 'Pending_Keluar') {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: 'Anggota tidak sedang dalam status pengajuan keluar.' });
+    }
+
+    await anggota.update({
+      status_keanggotaan: 'Aktif',
+      alasan_keluar: null
+    }, { transaction });
+
+    await transaction.commit();
+
+    if (req.io) {
+      req.io.emit('user:updated', { 
+        type: 'Anggota', 
+        id: anggota.anggota_id, 
+        data: { status_keanggotaan: 'Aktif', alasan_keluar: null } 
+      });
+      req.io.emit('dashboardUpdate');
+    }
+
+    res.status(200).json({ success: true, message: 'Pengajuan pengunduran diri berhasil dibatalkan.' });
+  } catch (error) {
+    if (transaction) await transaction.rollback();
+    console.error('❌ Error cancel keluar:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /api/user/anggota/approve-keluar
+ * Sekretaris menyetujui pengunduran diri anggota
+ */
+const approveKeluar = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
+  try {
+    const { anggota_id } = req.body;
+
+    const anggota = await Anggota.findOne({ 
+      where: { anggota_id },
+      include: [{ model: User, as: 'user' }],
+      transaction
+    });
+
+    if (!anggota) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Data anggota tidak ditemukan.' });
+    }
+
+    await anggota.update({
+      status_keanggotaan: 'Keluar'
+    }, { transaction });
+
+    // Buat notifikasi untuk Anggota
+    await Notifikasi.create({
+      user_id: anggota.user_id,
+      judul: 'Pengajuan Keluar Disetujui ✅',
+      pesan: `Pengajuan pengunduran diri Anda telah disetujui. Terima kasih atas kontribusi Anda di Koperasi Nichias.`,
+      tipe: 'anggota',
+      link: '/dashboard/keluar',
+      is_read: false
+    }, { transaction });
+
+    await transaction.commit();
+
+    if (req.io) {
+      req.io.emit('user:updated', { 
+        type: 'Anggota', 
+        id: anggota.anggota_id, 
+        data: { status_keanggotaan: 'Keluar' } 
+      });
+      req.io.emit('dashboardUpdate');
+    }
+
+    res.status(200).json({ success: true, message: 'Pengajuan pengunduran diri berhasil disetujui.' });
+  } catch (error) {
+    if (transaction) await transaction.rollback();
+    console.error('❌ Error approve keluar:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 /**
  * GET /api/user/anggota
@@ -153,6 +346,23 @@ const deleteUser = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Anggota tidak ditemukan.' });
       }
       userId = anggota.user_id;
+
+      // Hapus data terkait di tabel lain (Cascade manual)
+      await db.TransaksiSimpanan.destroy({ where: { anggota_id: id }, transaction });
+      await db.Simpanan.destroy({ where: { anggota_id: id }, transaction });
+      
+      // Ambil ID pinjaman untuk menghapus angsuran
+      const pinjamanList = await db.Pinjaman.findAll({ where: { anggota_id: id }, attributes: ['pinjaman_id'], transaction });
+      const pinjamanIds = pinjamanList.map(p => p.pinjaman_id);
+      
+      if (pinjamanIds.length > 0) {
+        await db.Angsuran.destroy({ where: { pinjaman_id: pinjamanIds }, transaction });
+        await db.Pinjaman.destroy({ where: { anggota_id: id }, transaction });
+      }
+
+      await db.PembagianShu.destroy({ where: { anggota_id: id }, transaction });
+      await db.Notifikasi.destroy({ where: { user_id: userId }, transaction });
+
       await anggota.destroy({ transaction });
     } else {
       const pengurus = await Pengurus.findByPk(id, { transaction });
@@ -253,13 +463,51 @@ const approveMember = async (req, res) => {
       tanggal_bergabung: new Date()
     }, { transaction });
 
-    // Buat notifikasi untuk anggota yang diterima
+    // --- AUTO-GENERATE SIMPANAN POKOK ---
+    // Ambil nominal simpanan pokok dari konfigurasi
+    const configPokok = await Konfigurasi.findOne({ 
+      where: { nama_config: 'SIMPANAN_POKOK' },
+      transaction 
+    });
+    const nominalPokok = configPokok ? parseFloat(configPokok.nilai) : 100000; // default 100rb jika tidak ada config
+
+    // 1. Buat record Simpanan
+    const newSimpanan = await Simpanan.create({
+      anggota_id: anggota.anggota_id,
+      saldo_pokok: nominalPokok,
+      saldo_wajib: 0,
+      saldo_sukarela: 0,
+      last_updated: new Date()
+    }, { transaction });
+
+    // 2. Buat record TransaksiSimpanan (Setoran Pokok Awal)
+    await TransaksiSimpanan.create({
+      anggota_id: anggota.anggota_id,
+      jenis_simpanan: 'Pokok',
+      jenis_transaksi: 'Setor',
+      nominal: nominalPokok,
+      tanggal: new Date().toISOString().split('T')[0],
+      keterangan: 'Setoran Pokok Awal (Pendaftaran Diterima)'
+    }, { transaction });
+
+    // 3. Buat notifikasi pendaftaran diterima
     await Notifikasi.create({
       user_id: anggota.user_id,
       judul: 'Pendaftaran Diterima! 🎉',
       pesan: 'Selamat! Pendaftaran Anda telah disetujui. Anda sekarang resmi menjadi anggota Koperasi Nichias.',
       tipe: 'sistem',
       link: '/dashboard',
+      is_read: false,
+    }, { transaction });
+
+    // 4. Buat notifikasi kedua khusus simpanan pokok
+    const formatRupiah = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+    await Notifikasi.create({
+      user_id: anggota.user_id,
+      judul: 'Simpanan Pokok Tercatat! 💰',
+      pesan: `Simpanan pokok Anda sebesar ${formatRupiah(nominalPokok)} telah otomatis tercatat. Selamat bergabung!`,
+      tipe: 'simpanan',
+      link: '/simpan-pinjam',
       is_read: false,
     }, { transaction });
 
@@ -324,8 +572,8 @@ const getProfile = async (req, res) => {
             model: db.TransaksiSimpanan, 
             as: 'transaksiSimpanan',
             separate: true,
-            order: [['tanggal', 'DESC']],
-            limit: 10
+            order: [['tanggal', 'DESC'], ['transaksi_id', 'DESC']],
+            limit: 20
           }
         ]
       });
@@ -489,5 +737,8 @@ module.exports = {
   getProfile,
   updateProfile,
   changePassword,
-  uploadProfilePhoto
+  uploadProfilePhoto,
+  requestKeluar,
+  cancelKeluar,
+  approveKeluar
 };

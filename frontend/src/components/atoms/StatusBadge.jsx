@@ -31,10 +31,11 @@ export default function StatusBadge({ status, children }) {
     case 'peringatan':
     case 'progres':
     case 'pending':
+    case 'pending_keluar':
     case 'menunggu':
       bgColor = 'bg-[#F2994A]/10';
       textColor = 'text-[#F2994A]';
-      Icon = Clock;
+      Icon = s === 'pending_keluar' ? AlertTriangle : Clock;
       break;
     case 'bahaya':
     case 'hutang':

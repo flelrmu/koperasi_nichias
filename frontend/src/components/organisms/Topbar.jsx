@@ -176,7 +176,7 @@ export default function Topbar({ toggleSidebar }) {
                 
                 <div className="max-h-[400px] overflow-y-auto w-full no-scrollbar">
                   {notifications.length > 0 ? (
-                    notifications.slice(0, 20).map((notif) => {
+                    notifications.slice(0, 5).map((notif) => {
                       const { Icon, color } = getNotifIconAndColor(notif.tipe, notif.is_read);
                       return (
                         <motion.div 
@@ -219,10 +219,16 @@ export default function Topbar({ toggleSidebar }) {
                 </div>
                 
                 {notifications.length > 0 && (
-                  <div className="p-3 border-t border-gray-100 text-center bg-gray-50/50">
-                    <span className="text-xs text-gray-400 font-medium">
-                      {notifications.length} notifikasi terakhir
-                    </span>
+                  <div className="p-3 border-t border-gray-100 text-center bg-gray-50/50 hover:bg-gray-100 transition-colors">
+                    <button
+                      onClick={() => {
+                        setShowNotifications(false);
+                        navigate(user?.role === 'Anggota' ? '/notifikasi' : '/admin/notifikasi');
+                      }}
+                      className="text-xs text-[#004A9C] font-bold w-full h-full"
+                    >
+                      Lihat Semua Notifikasi &rarr;
+                    </button>
                   </div>
                 )}
               </motion.div>

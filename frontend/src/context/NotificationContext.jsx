@@ -96,6 +96,75 @@ export function NotificationProvider({ children }) {
       }
     };
 
+    const handleSimpananNotif = (data) => {
+      console.log('🔔 Real-time notifikasi:simpanan received:', data);
+      const { isAuthenticated: authed, user: currentUser } = authRef.current;
+      if (!authed || currentUser?.user_id !== data.user_id) return;
+
+      const newNotif = {
+        id: `temp_simpanan_${Date.now()}`,
+        judul: data.notifikasi.judul,
+        pesan: data.notifikasi.pesan,
+        tipe: 'simpanan',
+        link: '/simpan-pinjam',
+        is_read: false,
+        created_at: new Date().toISOString(),
+      };
+
+      setNotifications(prev => [newNotif, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
+      
+      setTimeout(() => fetchNotifications(), 1500);
+    };
+
+    const handleUserUpdated = (data) => {
+      console.log('🔔 Real-time user:updated received:', data);
+      const { isAuthenticated: authed, user: currentUser } = authRef.current;
+      if (!authed || !currentUser) return;
+
+      // Check if current user is the one updated
+      if (data.type === 'Anggota' && data.id === currentUser.anggota_id) {
+        if (data.data?.status_keanggotaan === 'Keluar') {
+          // Update local storage and redirect
+          const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
+          savedUser.status_keanggotaan = 'Keluar';
+          localStorage.setItem('user', JSON.stringify(savedUser));
+          window.location.href = '/dashboard/keluar';
+        } else if (data.data?.status_keanggotaan === 'Aktif') {
+          // If approved from pending_keluar or similar
+          const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
+          savedUser.status_keanggotaan = 'Aktif';
+          localStorage.setItem('user', JSON.stringify(savedUser));
+          // Don't necessarily redirect if they are already on dashboard
+        }
+      }
+    };
+
+    const handleAnggotaKeluarNotif = (data) => {
+      console.log('🔔 Real-time notifikasi:anggota-keluar received:', data);
+      const { isAuthenticated: authed, user: currentUser } = authRef.current;
+      
+      // Only show to management (Sekretaris, Ketua, etc.)
+      if (!authed || !isManagement(currentUser?.role)) return;
+
+      const newNotif = {
+        id: `temp_keluar_${Date.now()}`,
+        judul: data.notifikasi.judul,
+        pesan: data.notifikasi.pesan,
+        tipe: 'anggota',
+        link: data.notifikasi.link,
+        is_read: false,
+        created_at: new Date().toISOString(),
+      };
+
+      setNotifications(prev => [newNotif, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
+      
+      setTimeout(() => fetchNotifications(), 1500);
+    };
+
     const handleReconnect = () => {
       console.log('🔄 Socket reconnected, refetching notifications...');
       const { isAuthenticated: authed } = authRef.current;
@@ -105,12 +174,18 @@ export function NotificationProvider({ children }) {
     };
 
     socket.on('notifikasi:pendaftaran-baru', handleNewRegistration);
+    socket.on('notifikasi:simpanan', handleSimpananNotif);
+    socket.on('notifikasi:anggota-keluar', handleAnggotaKeluarNotif);
     socket.on('member:approved', handleMemberApproved);
+    socket.on('user:updated', handleUserUpdated);
     socket.on('connect', handleReconnect);
 
     return () => {
       socket.off('notifikasi:pendaftaran-baru', handleNewRegistration);
+      socket.off('notifikasi:simpanan', handleSimpananNotif);
+      socket.off('notifikasi:anggota-keluar', handleAnggotaKeluarNotif);
       socket.off('member:approved', handleMemberApproved);
+      socket.off('user:updated', handleUserUpdated);
       socket.off('connect', handleReconnect);
     };
   }, [socket, fetchNotifications]);
