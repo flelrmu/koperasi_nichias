@@ -42,6 +42,12 @@ export default function InputBaruSimpanan() {
   const [isLoading, setIsLoading] = useState(true);
   const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
 
+  const formatToRupiah = (value) => {
+    if (!value && value !== 0) return '';
+    const cleanValue = value.toString().replace(/[^0-9]/g, '');
+    return cleanValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
   const fetchConfigs = useCallback(async () => {
     try {
       const res = await api.get('/simpan-pinjam/konfigurasi');
@@ -50,7 +56,7 @@ export default function InputBaruSimpanan() {
         // Default nominal for Wajib if starting with Wajib
         setFormData(prev => ({
           ...prev,
-          nominal: res.data.data.SIMPANAN_WAJIB
+          nominal: formatToRupiah(res.data.data.SIMPANAN_WAJIB.toString().split('.')[0])
         }));
       }
     } catch (error) {
@@ -103,9 +109,9 @@ export default function InputBaruSimpanan() {
 
     if (formData.jenis_transaksi === 'Setor') {
       if (formData.jenis_simpanan === 'Pokok') {
-        setFormData(prev => ({ ...prev, nominal: configs.SIMPANAN_POKOK }));
+        setFormData(prev => ({ ...prev, nominal: formatToRupiah(configs.SIMPANAN_POKOK.toString().split('.')[0]) }));
       } else if (formData.jenis_simpanan === 'Wajib') {
-        setFormData(prev => ({ ...prev, nominal: configs.SIMPANAN_WAJIB }));
+        setFormData(prev => ({ ...prev, nominal: formatToRupiah(configs.SIMPANAN_WAJIB.toString().split('.')[0]) }));
       } else if (formData.jenis_simpanan === 'Sukarela') {
         setFormData(prev => ({ ...prev, nominal: '' }));
       }
@@ -121,10 +127,11 @@ export default function InputBaruSimpanan() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    if (name === 'nominal') {
+      setFormData(prev => ({ ...prev, [name]: formatToRupiah(value) }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -135,7 +142,8 @@ export default function InputBaruSimpanan() {
     try {
       const res = await api.post('/simpan-pinjam/simpanan/transaksi', {
         anggota_id: id,
-        ...formData
+        ...formData,
+        nominal: formData.nominal.toString().replace(/\./g, '')
       });
       
       if (res.data.success) {
@@ -300,7 +308,6 @@ export default function InputBaruSimpanan() {
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">Rp</span>
               <Input 
-                type="number" 
                 name="nominal"
                 value={formData.nominal}
                 onChange={handleInputChange}
@@ -311,13 +318,12 @@ export default function InputBaruSimpanan() {
                 }`}
                 placeholder="0"
                 required
-                min="1"
                 readOnly={(formData.jenis_simpanan === 'Pokok' || formData.jenis_simpanan === 'Wajib') && formData.jenis_transaksi === 'Setor'}
               />
             </div>
             {formData.nominal && (
               <p className="text-xs text-gray-500 font-medium">
-                Terbilang: <span className="font-bold text-[#004A9C]">{formatCurrency(formData.nominal)}</span>
+                Terbilang: <span className="font-bold text-[#004A9C]">{formatCurrency(formData.nominal.toString().replace(/\./g, ''))}</span>
               </p>
             )}
           </div>

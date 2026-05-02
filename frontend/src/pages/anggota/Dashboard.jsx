@@ -48,24 +48,23 @@ export default function Dashboard() {
   useEffect(() => {
     if (!socket) return;
 
-    const handleUpdate = (data) => {
-      // Check if update belongs to current user
-      if (data.user_id === user?.user_id || data.anggota_id === profileData?.anggota_id) {
-        console.log('🔄 Dashboard: Refetching profile due to real-time update');
-        fetchProfile();
-      }
+    const handleUpdate = () => {
+      console.log('🔄 Dashboard: Refetching profile due to real-time update');
+      fetchProfile();
     };
 
-    socket.on('simpanan:updated', (data) => {
-      if (data.anggota_id === profileData?.anggota_id) fetchProfile();
-    });
+    socket.on('simpanan:updated', handleUpdate);
     socket.on('transaksi:created', handleUpdate);
     socket.on('transaksi:updated', handleUpdate);
+    socket.on('pinjaman:updated', handleUpdate);
+    socket.on('pinjaman:bulkUpdated', handleUpdate);
 
     return () => {
-      socket.off('simpanan:updated');
+      socket.off('simpanan:updated', handleUpdate);
       socket.off('transaksi:created', handleUpdate);
       socket.off('transaksi:updated', handleUpdate);
+      socket.off('pinjaman:updated', handleUpdate);
+      socket.off('pinjaman:bulkUpdated', handleUpdate);
     };
   }, [socket, user, profileData?.anggota_id]);
 

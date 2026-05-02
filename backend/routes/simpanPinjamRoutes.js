@@ -20,7 +20,11 @@ router.get('/transaksi/:anggotaId', authorizeRoles('Koordinator_Simpan_Pinjam', 
 
 // Pinjaman
 router.get('/pinjaman', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Sekretaris', 'Bendahara'), simpanPinjamController.getAllPinjaman);
+router.get('/pinjaman/:id', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Sekretaris', 'Bendahara', 'Anggota'), simpanPinjamController.getPinjamanById);
 router.post('/pinjaman', authorizeRoles('Anggota'), simpanPinjamController.createPinjaman);
 router.put('/pinjaman/:id', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Bendahara'), simpanPinjamController.updatePinjamanStatus);
+router.post('/pinjaman/transaksi/bulk-angsuran', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Bendahara'), simpanPinjamController.bulkProcessAngsuran);
+router.post('/pinjaman/:id/lunaskan', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Bendahara'), simpanPinjamController.lunaskanPinjaman);
+router.delete('/pinjaman/:id', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Bendahara'), simpanPinjamController.deletePinjaman);
 
 module.exports = router;

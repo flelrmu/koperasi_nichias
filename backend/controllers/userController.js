@@ -316,6 +316,7 @@ const updateUser = async (req, res) => {
 
     // Emit event real-time
     req.io.emit('user:updated', { type, id, data: result });
+    req.io.emit('dashboardUpdate');
 
     return res.status(200).json({
       success: true,
@@ -381,6 +382,7 @@ const deleteUser = async (req, res) => {
 
     // Emit event real-time
     req.io.emit('user:deleted', { type, id });
+    req.io.emit('dashboardUpdate');
 
     return res.status(200).json({
       success: true,
@@ -513,22 +515,15 @@ const approveMember = async (req, res) => {
 
     await transaction.commit();
 
-    // Ambil data terbaru untuk emit
     const updatedAnggota = await Anggota.findByPk(id, {
       include: [{ model: User, as: 'user', attributes: ['email', 'role'] }]
     });
     const anggotaPlain = updatedAnggota.get({ plain: true });
 
-    // Emit user:updated untuk update tabel UserManagement
-    console.log(`📤 Emitting user:updated for approved member: ${anggotaPlain.nama_lengkap}`);
-    req.io.emit('user:updated', { 
-      type: 'anggota', 
-      id, 
-      data: anggotaPlain 
-    });
-
-    // Emit dashboard update for real-time stats
-    req.io.emit('dashboardUpdate');
+    if (req.io) {
+        req.io.emit('user:updated', { type: 'anggota', id, data: anggotaPlain });
+        req.io.emit('dashboardUpdate');
+    }
 
     // Emit member:approved untuk notifikasi ke user yang diterima
     console.log(`📤 Emitting member:approved for user_id: ${anggota.user_id}`);
@@ -566,7 +561,16 @@ const getProfile = async (req, res) => {
         include: [
           { model: User, as: 'user', attributes: ['email', 'role'] },
           { model: db.Simpanan, as: 'simpanan' },
-          { model: db.Pinjaman, as: 'pinjaman' },
+          { 
+            model: db.Pinjaman, 
+            as: 'pinjaman',
+            include: [{ 
+              model: db.Angsuran, 
+              as: 'angsuran',
+              separate: true,
+              order: [['tanggal_bayar', 'DESC'], ['angsuran_ke', 'DESC']]
+            }]
+          },
           { model: db.PembagianShu, as: 'pembagianShu' },
           { 
             model: db.TransaksiSimpanan, 

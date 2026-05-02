@@ -17,10 +17,7 @@ module.exports = (sequelize, DataTypes) => {
     jenis_pinjaman: {
       type: DataTypes.ENUM('Uang', 'Barang'),
     },
-    nama_barang: {
-      type: DataTypes.STRING(100),
-      comment: 'Diisi jika jenis=Barang',
-    },
+
     keperluan: {
       type: DataTypes.TEXT,
       comment: 'Alasan atau tujuan pengajuan pinjaman',
@@ -77,6 +74,10 @@ module.exports = (sequelize, DataTypes) => {
     },
     sisa_tagihan: {
       type: DataTypes.DECIMAL(15, 2),
+    },
+    nomor_invoice: {
+      type: DataTypes.STRING,
+      comment: 'Nomor Invoice unik (INV/PNJ/...)',
     },
   }, {
     tableName: 'pinjaman',

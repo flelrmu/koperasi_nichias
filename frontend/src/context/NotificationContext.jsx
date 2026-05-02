@@ -165,6 +165,31 @@ export function NotificationProvider({ children }) {
       setTimeout(() => fetchNotifications(), 1500);
     };
 
+    const handlePinjamanNotif = (data) => {
+      console.log('🔔 Real-time notifikasi:pinjaman received:', data);
+      const { isAuthenticated: authed, user: currentUser } = authRef.current;
+      
+      // Only show if it's meant for the current user
+      if (!authed || currentUser?.user_id !== data.user_id) return;
+
+      const newNotif = {
+        id: data.notifikasi?.id || `temp_pinjaman_${Date.now()}`,
+        judul: data.notifikasi?.judul || 'Pembaruan Pinjaman 📝',
+        pesan: data.notifikasi?.pesan || 'Ada pembaruan pada pengajuan pinjaman Anda.',
+        tipe: 'pinjaman',
+        link: data.notifikasi?.link || (currentUser?.role === 'Koordinator_Simpan_Pinjam' ? '/admin/simpan-pinjam' : '/simpan-pinjam'),
+        is_read: false,
+        created_at: data.notifikasi?.created_at || new Date().toISOString(),
+      };
+
+      setNotifications(prev => [newNotif, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
+      
+      // Still fetch from DB to ensure state consistency (real IDs, etc.)
+      setTimeout(() => fetchNotifications(), 1500);
+    };
+
     const handleReconnect = () => {
       console.log('🔄 Socket reconnected, refetching notifications...');
       const { isAuthenticated: authed } = authRef.current;
@@ -176,6 +201,7 @@ export function NotificationProvider({ children }) {
     socket.on('notifikasi:pendaftaran-baru', handleNewRegistration);
     socket.on('notifikasi:simpanan', handleSimpananNotif);
     socket.on('notifikasi:anggota-keluar', handleAnggotaKeluarNotif);
+    socket.on('notifikasi:pinjaman', handlePinjamanNotif);
     socket.on('member:approved', handleMemberApproved);
     socket.on('user:updated', handleUserUpdated);
     socket.on('connect', handleReconnect);
@@ -184,6 +210,7 @@ export function NotificationProvider({ children }) {
       socket.off('notifikasi:pendaftaran-baru', handleNewRegistration);
       socket.off('notifikasi:simpanan', handleSimpananNotif);
       socket.off('notifikasi:anggota-keluar', handleAnggotaKeluarNotif);
+      socket.off('notifikasi:pinjaman', handlePinjamanNotif);
       socket.off('member:approved', handleMemberApproved);
       socket.off('user:updated', handleUserUpdated);
       socket.off('connect', handleReconnect);

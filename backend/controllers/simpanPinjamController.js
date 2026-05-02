@@ -1,4 +1,5 @@
-const { Simpanan, Pinjaman, Anggota, User, TransaksiSimpanan, Konfigurasi, Notifikasi } = require('../models');
+const { Simpanan, Pinjaman, Anggota, User, TransaksiSimpanan, Konfigurasi, Notifikasi, Pengurus } = require('../models');
+const angkaKeTerbilang = require('../utils/terbilang');
 
 // ==================== SIMPANAN ====================
 
@@ -520,6 +521,34 @@ exports.getAllPinjaman = async (req, res) => {
   }
 };
 
+exports.getPinjamanById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pinjaman = await Pinjaman.findByPk(id, {
+      include: [
+        {
+          model: Anggota,
+          as: 'anggota',
+          include: [{ model: User, as: 'user', attributes: ['email'] }]
+        },
+        {
+          model: User,
+          as: 'koordinator',
+          attributes: ['user_id', 'email'],
+          include: [{ model: Pengurus, as: 'pengurus', attributes: ['nama_lengkap'] }]
+        }
+      ]
+    });
+    
+    if (!pinjaman) return res.status(404).json({ success: false, message: 'Data tidak ditemukan' });
+    
+    res.json({ success: true, data: pinjaman });
+  } catch (error) {
+    console.error('Error getPinjamanById:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.updatePinjamanStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -531,14 +560,41 @@ exports.updatePinjamanStatus = async (req, res) => {
     const updateData = {
       status,
       acc_koordinator_id: req.user.id,
-      tgl_acc_koordinator: new Date()
+      tgl_acc_koordinator: new Date(),
+      catatan_pengurus: req.body.catatan_pengurus
     };
     
     if (pinjaman_disetujui !== undefined) updateData.pinjaman_disetujui = pinjaman_disetujui;
     if (tenor !== undefined) updateData.tenor = tenor;
 
     if (status === 'Approved') {
-        updateData.sisa_tagihan = pinjaman_disetujui || pinjaman.jumlah_pinjaman;
+        const approvedAmount = parseFloat(pinjaman_disetujui || pinjaman.jumlah_pinjaman);
+        const approvedTenor = parseInt(tenor || pinjaman.tenor);
+        
+        let bungaPersen = 0;
+        if (approvedTenor === 10) bungaPersen = 0.10;
+        else if (approvedTenor === 15) bungaPersen = 0.15;
+        else if (approvedTenor === 20) bungaPersen = 0.20;
+
+        const totalBunga = approvedAmount * bungaPersen;
+        const totalAngsuran = approvedAmount + totalBunga;
+        const angsuranPerBulan = totalAngsuran / approvedTenor;
+
+        updateData.pinjaman_disetujui = approvedAmount;
+        updateData.total_bunga = totalBunga;
+        updateData.total_angsuran = totalBunga + approvedAmount;
+        updateData.angsuran_per_bulan = angsuranPerBulan;
+        updateData.sisa_tagihan = totalAngsuran;
+        updateData.terbilang = angkaKeTerbilang(totalAngsuran);
+
+        // Generate invoice number if not already present
+        if (!pinjaman.nomor_invoice) {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+          updateData.nomor_invoice = `INV/PNJ/${year}/${month}/${id}/${random}`;
+        }
     }
 
     await pinjaman.update(updateData);
@@ -553,8 +609,27 @@ exports.updatePinjamanStatus = async (req, res) => {
       ]
     });
 
+    // Create notification for Member
+    const statusMap = {
+      'Approved': 'DISETUJUI',
+      'Rejected': 'DITOLAK',
+      'Lunas': 'LUNAS'
+    };
+    const targetStatusText = statusMap[status] || status;
+    
+    const notifMember = await Notifikasi.create({
+      user_id: updated.anggota.user_id,
+      judul: 'Pembaruan Status Pinjaman',
+      pesan: `Pengajuan pinjaman Anda sebesar Rp ${new Intl.NumberFormat('id-ID').format(updated.jumlah_pinjaman)} telah ${targetStatusText}.${(status === 'Rejected' || status === 'Approved') ? ' Keterangan: ' + (updateData.catatan_pengurus || '-') : ''}`,
+      jenis: 'Pinjaman',
+      link: `/simpan-pinjam?detail_loan=${updated.pinjaman_id}`,
+      is_read: false
+    });
+
     if (req.io) {
       req.io.emit('pinjaman:updated', updated);
+      req.io.emit('notifikasi:pinjaman', { user_id: updated.anggota.user_id, notifikasi: notifMember });
+      req.io.emit('dashboardUpdate');
     }
 
     res.json({ success: true, data: updated, message: 'Status pinjaman berhasil diupdate' });
@@ -565,18 +640,19 @@ exports.updatePinjamanStatus = async (req, res) => {
 
 exports.createPinjaman = async (req, res) => {
   try {
-    const { jenis_pinjaman, nama_barang, jumlah_pinjaman, keperluan, tenor, terbilang } = req.body;
+    const { jenis_pinjaman, jumlah_pinjaman, keperluan, tenor, terbilang } = req.body;
     const { user_id } = req.user;
 
     const anggota = await Anggota.findOne({ where: { user_id } });
     if (!anggota) return res.status(404).json({ success: false, message: 'Anggota tidak ditemukan' });
 
+    const autoTerbilang = angkaKeTerbilang(jumlah_pinjaman);
+
     const newPinjaman = await Pinjaman.create({
       anggota_id: anggota.anggota_id,
       jenis_pinjaman,
-      nama_barang: jenis_pinjaman === 'Barang' ? nama_barang : null,
       jumlah_pinjaman,
-      terbilang,
+      terbilang: autoTerbilang,
       keperluan,
       tenor,
       status: 'Pending',
@@ -593,12 +669,272 @@ exports.createPinjaman = async (req, res) => {
       ]
     });
 
+    // Create notification for Koordinator
+    const formatRupiah = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+    const koordinatorUsers = await User.findAll({ where: { role: 'Koordinator_Simpan_Pinjam' } });
+    
+    for (const koor of koordinatorUsers) {
+      const notifKoor = await Notifikasi.create({
+        user_id: koor.user_id,
+        judul: 'Pengajuan Pinjaman Baru 📝',
+        pesan: `${anggota.nama_lengkap} mengajukan pinjaman ${jenis_pinjaman.toLowerCase()} sebesar ${formatRupiah(jumlah_pinjaman)}.`,
+        tipe: 'pinjaman',
+        link: '/admin/simpan-pinjam?review_loan=' + newPinjaman.pinjaman_id,
+        is_read: false
+      });
+      
+      if (req.io) {
+        req.io.emit('notifikasi:pinjaman', { 
+          user_id: koor.user_id,
+          notifikasi: notifKoor
+        });
+      }
+    }
+
     if (req.io) {
       req.io.emit('pinjaman:created', populated);
+      req.io.emit('dashboardUpdate');
     }
 
     res.status(201).json({ success: true, data: populated, message: 'Pengajuan pinjaman berhasil dikirim' });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.deletePinjaman = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pinjaman = await Pinjaman.findByPk(id);
+    
+    if (!pinjaman) {
+      return res.status(404).json({ success: false, message: 'Data pinjaman tidak ditemukan' });
+    }
+
+    // Only allow deletion if status is Pending, or if requested by admin, maybe allow any status
+    // For now we'll allow deleting any to keep it simple, but typically you might restrict it.
+    await pinjaman.destroy();
+
+    if (req.io) {
+      // Just emit a general update so clients can refetch or remove from array
+      req.io.emit('pinjaman:updated', { pinjaman_id: id, deleted: true });
+    }
+
+    res.status(200).json({ success: true, message: 'Pinjaman berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /simpan-pinjam/pinjaman/transaksi/bulk-angsuran
+ * Koordinator proses angsuran kolektif untuk pinjaman berstatus Approved
+ */
+exports.bulkProcessAngsuran = async (req, res) => {
+  const transaction = await require('../models').sequelize.transaction();
+  
+  try {
+    const { selected_pinjaman_ids } = req.body;
+    const { Anggota, User, Pinjaman, Angsuran, Notifikasi } = require('../models');
+
+    // 1. Determine which loans to process
+    let whereClause = { status: 'Approved' };
+    if (selected_pinjaman_ids && Array.isArray(selected_pinjaman_ids) && selected_pinjaman_ids.length > 0) {
+      whereClause.pinjaman_id = selected_pinjaman_ids;
+    }
+
+    const loanList = await Pinjaman.findAll({ 
+      where: whereClause,
+      include: [{ 
+        model: Anggota, 
+        as: 'anggota',
+        include: [{ model: User, as: 'user' }]
+      }],
+      transaction 
+    });
+
+    if (loanList.length === 0) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Tidak ada pinjaman disetujui yang ditemukan untuk diproses.' });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const formatRupiah = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+    const notificationsToEmit = [];
+
+    // 2. Process each loan
+    for (const loan of loanList) {
+      const installmentAmount = parseFloat(loan.angsuran_per_bulan);
+      const currentSisa = parseFloat(loan.sisa_tagihan);
+      
+      if (currentSisa <= 0) continue;
+
+      const finalInstallment = Math.min(installmentAmount, currentSisa);
+      const newSisa = currentSisa - finalInstallment;
+      
+      // Get current installment count
+      const existingCount = await Angsuran.count({ where: { pinjaman_id: loan.pinjaman_id }, transaction });
+      
+      // Create Angsuran record
+      await Angsuran.create({
+        pinjaman_id: loan.pinjaman_id,
+        angsuran_ke: existingCount + 1,
+        jumlah_bayar: finalInstallment,
+        tanggal_bayar: today,
+        status_bayar: 'Lunas'
+      }, { transaction });
+
+      // Update Pinjaman
+      const updatedStatus = newSisa <= 0 ? 'Lunas' : 'Approved';
+      await loan.update({
+        sisa_tagihan: newSisa,
+        status: updatedStatus
+      }, { transaction });
+
+      // Create notification
+      const judulNotif = 'Angsuran Pinjaman Berhasil ✅';
+      const pesanNotif = `Angsuran ke-${existingCount + 1} sebesar ${formatRupiah(finalInstallment)} telah diproses secara kolektif. Sisa tagihan Anda: ${formatRupiah(newSisa)}.`;
+      
+      await Notifikasi.create({
+        user_id: loan.anggota.user_id,
+        judul: judulNotif,
+        pesan: pesanNotif,
+        tipe: 'pinjaman',
+        link: '/simpan-pinjam',
+        is_read: false,
+      }, { transaction });
+
+      notificationsToEmit.push({
+        user_id: loan.anggota.user_id,
+        judul: judulNotif,
+        pesan: pesanNotif
+      });
+    }
+
+    await transaction.commit();
+
+    // 3. Emit socket updates
+    if (req.io) {
+      req.io.emit('dashboardUpdate');
+      req.io.emit('pinjaman:bulkUpdated'); 
+      
+      notificationsToEmit.forEach(n => {
+        req.io.emit('notifikasi:pinjaman', {
+          user_id: n.user_id,
+          notifikasi: { judul: n.judul, pesan: n.pesan, tipe: 'pinjaman' }
+        });
+      });
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: `${loanList.length} angsuran pinjaman berhasil diproses secara kolektif.`,
+      count: loanList.length
+    });
+
+  } catch (error) {
+    if (transaction) await transaction.rollback();
+    console.error('❌ Error bulk process angsuran:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /simpan-pinjam/pinjaman/:id/lunaskan
+ * Koordinator melunasi pinjaman anggota secara langsung (pelunasan penuh)
+ */
+exports.lunaskanPinjaman = async (req, res) => {
+  const transaction = await require('../models').sequelize.transaction();
+  
+  try {
+    const { id } = req.params;
+    const { Angsuran } = require('../models');
+
+    const pinjaman = await Pinjaman.findByPk(id, {
+      include: [{
+        model: Anggota,
+        as: 'anggota',
+        include: [{ model: User, as: 'user', attributes: ['email', 'user_id'] }]
+      }],
+      transaction
+    });
+
+    if (!pinjaman) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Data pinjaman tidak ditemukan.' });
+    }
+
+    if (pinjaman.status !== 'Approved') {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: 'Hanya pinjaman berstatus Approved yang dapat dilunasi.' });
+    }
+
+    const sisaTagihan = parseFloat(pinjaman.sisa_tagihan);
+    if (sisaTagihan <= 0) {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: 'Pinjaman ini sudah tidak memiliki sisa tagihan.' });
+    }
+
+    // Get current installment count
+    const existingCount = await Angsuran.count({ where: { pinjaman_id: pinjaman.pinjaman_id }, transaction });
+
+    // Create final installment record covering all remaining balance
+    await Angsuran.create({
+      pinjaman_id: pinjaman.pinjaman_id,
+      angsuran_ke: existingCount + 1,
+      jumlah_bayar: sisaTagihan,
+      tanggal_bayar: new Date().toISOString().split('T')[0],
+      status_bayar: 'Lunas'
+    }, { transaction });
+
+    // Update loan status to Lunas
+    await pinjaman.update({
+      sisa_tagihan: 0,
+      status: 'Lunas'
+    }, { transaction });
+
+    // Create notification for member
+    const formatRupiah = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+    
+    const notifMember = await Notifikasi.create({
+      user_id: pinjaman.anggota.user_id,
+      judul: 'Pinjaman Telah Lunas 🎉',
+      pesan: `Pinjaman Anda sebesar ${formatRupiah(pinjaman.pinjaman_disetujui || pinjaman.jumlah_pinjaman)} telah dinyatakan LUNAS. Sisa tagihan ${formatRupiah(sisaTagihan)} telah dilunasi.`,
+      tipe: 'pinjaman',
+      link: `/simpan-pinjam?detail_loan=${pinjaman.pinjaman_id}`,
+      is_read: false
+    }, { transaction });
+
+    await transaction.commit();
+
+    // Re-fetch with full associations for socket emit
+    const updated = await Pinjaman.findByPk(id, {
+      include: [{
+        model: Anggota,
+        as: 'anggota',
+        include: [{ model: User, as: 'user', attributes: ['email'] }]
+      }]
+    });
+
+    // Emit socket events
+    if (req.io) {
+      req.io.emit('pinjaman:updated', updated);
+      req.io.emit('notifikasi:pinjaman', {
+        user_id: pinjaman.anggota.user_id,
+        notifikasi: notifMember
+      });
+      req.io.emit('dashboardUpdate');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updated,
+      message: `Pinjaman ${pinjaman.anggota.nama_lengkap} berhasil dilunasi.`
+    });
+
+  } catch (error) {
+    if (transaction) await transaction.rollback();
+    console.error('❌ Error lunaskan pinjaman:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

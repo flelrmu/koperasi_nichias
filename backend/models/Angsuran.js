@@ -30,10 +30,6 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('Belum', 'Lunas'),
       defaultValue: 'Belum',
     },
-    nomor_invoice: {
-      type: DataTypes.STRING(50),
-      unique: true,
-    },
   }, {
     tableName: 'angsuran',
     timestamps: false,

@@ -85,12 +85,23 @@ function App() {
               >
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="simpan-pinjam" element={<SimpanPinjamMember />} />
-                <Route path="pinjaman/invoice/:id" element={<Invoice />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="koperasi-rules" element={<KoperasiRules />} />
                 <Route path="koperasi-rules/:id" element={<RuleDetail />} />
                 <Route path="pengajuan-keluar" element={<PengajuanKeluar />} />
                 <Route path="notifikasi" element={<SemuaNotifikasi />} />
+              </Route>
+
+              {/* Shared Invoice Route (Accessible by both Member and Admin) */}
+              <Route
+                path="/pinjaman/invoice/:id"
+                element={
+                  <ProtectedRoute allowedRoles={['Anggota', ...MANAGEMENT_ROLES]}>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Invoice />} />
               </Route>
 
               {/* Admin/Pengurus Dashboard */}

@@ -24,11 +24,17 @@ export default function ManajemenSaldo() {
   const { id } = useParams(); // simpanan_id
   const { api } = useAuth();
   
+  const formatToRupiah = (value) => {
+    if (!value && value !== 0) return '';
+    const cleanValue = value.toString().replace(/[^0-9]/g, '');
+    return cleanValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
   const [member, setMember] = useState(location.state?.member || null);
   const [saldo, setSaldo] = useState({
-    pokok: location.state?.saldo?.pokok || 0,
-    wajib: location.state?.saldo?.wajib || 0,
-    sukarela: location.state?.saldo?.sukarela || 0
+    pokok: formatToRupiah((location.state?.saldo?.pokok || 0).toString().split('.')[0]),
+    wajib: formatToRupiah((location.state?.saldo?.wajib || 0).toString().split('.')[0]),
+    sukarela: formatToRupiah((location.state?.saldo?.sukarela || 0).toString().split('.')[0])
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,9 +49,9 @@ export default function ManajemenSaldo() {
         if (found) {
           setMember(found);
           setSaldo({
-            pokok: found.saldo_pokok,
-            wajib: found.saldo_wajib,
-            sukarela: found.saldo_sukarela
+            pokok: formatToRupiah(found.saldo_pokok.toString().split('.')[0]),
+            wajib: formatToRupiah(found.saldo_wajib.toString().split('.')[0]),
+            sukarela: formatToRupiah(found.saldo_sukarela.toString().split('.')[0])
           });
         }
       }
@@ -69,9 +75,9 @@ export default function ManajemenSaldo() {
     setIsSubmitting(true);
     try {
       const res = await api.put(`/simpan-pinjam/simpanan/${id}`, {
-        saldo_pokok: saldo.pokok,
-        saldo_wajib: saldo.wajib,
-        saldo_sukarela: saldo.sukarela
+        saldo_pokok: saldo.pokok.toString().replace(/\./g, ''),
+        saldo_wajib: saldo.wajib.toString().replace(/\./g, ''),
+        saldo_sukarela: saldo.sukarela.toString().replace(/\./g, '')
       });
       
       if (res.data.success) {
@@ -116,7 +122,9 @@ export default function ManajemenSaldo() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
   };
 
-  const totalSaldo = parseFloat(saldo.pokok || 0) + parseFloat(saldo.wajib || 0) + parseFloat(saldo.sukarela || 0);
+  const totalSaldo = parseFloat(saldo.pokok.toString().replace(/\./g, '') || 0) + 
+                     parseFloat(saldo.wajib.toString().replace(/\./g, '') || 0) + 
+                     parseFloat(saldo.sukarela.toString().replace(/\./g, '') || 0);
 
   return (
     <motion.div 
@@ -167,8 +175,7 @@ export default function ManajemenSaldo() {
                         <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-gray-300 text-lg group-focus-within:text-[#004A9C] transition-colors">Rp</span>
                         <Input 
                           value={saldo[item.key]} 
-                          type="number" 
-                          onChange={(e) => setSaldo({...saldo, [item.key]: e.target.value})}
+                          onChange={(e) => setSaldo({...saldo, [item.key]: formatToRupiah(e.target.value)})}
                           className="!pl-14 !py-5 !rounded-2xl !bg-gray-50/50 hover:bg-white focus:bg-white !border-transparent hover:!border-gray-200 focus:!border-[#004A9C]/30 !shadow-sm !font-black !text-xl !text-gray-800 transition-all"
                         />
                       </div>
