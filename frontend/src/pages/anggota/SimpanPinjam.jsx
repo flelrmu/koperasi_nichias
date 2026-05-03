@@ -57,6 +57,7 @@ export default function SimpanPinjam() {
     catatan_pengurus: ''
   });
   const [simulations, setSimulations] = useState([]);
+  const [configs, setConfigs] = useState({});
   const jumlahInputRef = useRef(null);
   const cursorPosRef = useRef(null);
 
@@ -68,9 +69,16 @@ export default function SimpanPinjam() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const response = await api.get('/user/profile');
-      if (response.data.success) {
-        setProfileData(response.data.data);
+      const endpoints = ['/user/profile', '/simpan-pinjam/konfigurasi'];
+      const [resProfile, resConfigs] = await Promise.all(endpoints.map(e => api.get(e)));
+      
+      if (resProfile.data.success) {
+        setProfileData(resProfile.data.data);
+      }
+      if (resConfigs.data.success) {
+        const configMap = {};
+        resConfigs.data.data.forEach(c => { configMap[c.nama_config] = c.nilai; });
+        setConfigs(configMap);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -110,6 +118,12 @@ export default function SimpanPinjam() {
     socket.on('pinjaman:updated', handleUpdate);
     socket.on('pinjaman:created', handleUpdate);
     socket.on('pinjaman:bulkUpdated', handleUpdate);
+    
+    const handleConfigUpdate = (data) => {
+      console.log('📥 WebSocket Received konfigurasi:updated:', data);
+      setConfigs(prev => ({ ...prev, [data.nama_config]: data.nilai }));
+    };
+    socket.on('konfigurasi:updated', handleConfigUpdate);
 
     return () => {
       socket.off('simpanan:updated', handleUpdate);
@@ -118,6 +132,7 @@ export default function SimpanPinjam() {
       socket.off('pinjaman:updated', handleUpdate);
       socket.off('pinjaman:created', handleUpdate);
       socket.off('pinjaman:bulkUpdated', handleUpdate);
+      socket.off('konfigurasi:updated', handleConfigUpdate);
     };
   }, [socket]);
 
@@ -277,10 +292,10 @@ export default function SimpanPinjam() {
 
   const getAngsuranLimit = (jabatan) => {
     switch (jabatan) {
-      case 'Manager': return 5000000;
-      case 'Assistant_Manager': return 3000000;
+      case 'Manager': return parseFloat(configs['LIMIT_ANGSURAN_MGR'] || 5000000);
+      case 'Assistant_Manager': return parseFloat(configs['LIMIT_ANGSURAN_ASST_MGR'] || 3000000);
       case 'Staff':
-      default: return 2000000;
+      default: return parseFloat(configs['LIMIT_ANGSURAN_STAFF'] || 2000000);
     }
   };
 
@@ -292,10 +307,13 @@ export default function SimpanPinjam() {
     const jumlah = parseFloat(formData.jumlah_pinjaman.replace(/\./g, ''));
     if (isNaN(jumlah) || jumlah <= 0) return;
 
-    if (formData.jenis_pinjaman === 'Uang' && jumlah > 15000000) {
-      setStatusModal({ isOpen: true, type: 'error', title: 'Melebihi Limit', message: 'Maksimal pinjaman uang adalah Rp 15.000.000' });
-      setSimulations([]);
-      return;
+    if (formData.jenis_pinjaman === 'Uang') {
+      const maxPinjamanUang = parseFloat(configs['MAX_PINJAMAN_UANG'] || 15000000);
+      if (jumlah > maxPinjamanUang) {
+        setStatusModal({ isOpen: true, type: 'error', title: 'Melebihi Limit', message: `Maksimal pinjaman uang adalah ${formatCurrency(maxPinjamanUang)}` });
+        setSimulations([]);
+        return;
+      }
     }
 
     const tenors = formData.jenis_pinjaman === 'Uang' ? [10] : [10, 15, 20];
@@ -305,9 +323,9 @@ export default function SimpanPinjam() {
 
     const results = tenors.map(t => {
       let bungaPersen = 0;
-      if (t === 10) bungaPersen = 0.10;
-      if (t === 15) bungaPersen = 0.15;
-      if (t === 20) bungaPersen = 0.20;
+      if (t === 10) bungaPersen = parseFloat(configs['BUNGA_10_BULAN'] || 10) / 100;
+      else if (t === 15) bungaPersen = parseFloat(configs['BUNGA_15_BULAN'] || 15) / 100;
+      else if (t === 20) bungaPersen = parseFloat(configs['BUNGA_20_BULAN'] || 20) / 100;
 
       const bunga = jumlah * bungaPersen;
       const totalPembayaran = jumlah + bunga;

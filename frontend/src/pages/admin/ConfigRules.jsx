@@ -224,6 +224,42 @@ export default function ConfigRules() {
         </div>
       </div>
 
+      {/* Loan System Parameters - Grouped Section */}
+      {(activeCategory === 'Pinjaman' || activeCategory === 'Semua') && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 p-8 relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[#004A9C]/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+          
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-8 relative z-10">
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 bg-[#DFEAF4] text-[#004A9C] rounded-[1.5rem] flex items-center justify-center shadow-inner">
+                <Settings size={32} className="animate-spin-slow" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-gray-900 tracking-tight uppercase">Parameter Sistem Pinjaman</h3>
+                <p className="text-gray-500 font-medium text-sm">Konfigurasi otomatis untuk bunga tenor dan limit jabatan.</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full lg:w-auto">
+              {[
+                { label: 'Bunga 10 bln', value: filteredRules.find(r => r.judul === 'Bunga 10 Bulan')?.ketentuan_utama || '10%' },
+                { label: 'Bunga 15 bln', value: filteredRules.find(r => r.judul === 'Bunga 15 Bulan')?.ketentuan_utama || '15%' },
+                { label: 'Bunga 20 bln', value: filteredRules.find(r => r.judul === 'Bunga 20 Bulan')?.ketentuan_utama || '20%' }
+              ].map((stat, i) => (
+                <div key={i} className="bg-gray-50/50 border border-gray-100 p-4 rounded-2xl text-center group/stat hover:bg-white hover:shadow-lg transition-all duration-300">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                  <p className="text-lg font-black text-[#004A9C] group-hover/stat:scale-110 transition-transform">{stat.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Rules Grid */}
       <motion.div 
         className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"

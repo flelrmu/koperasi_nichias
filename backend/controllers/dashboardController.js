@@ -1,4 +1,4 @@
-const { Anggota, Pinjaman, Simpanan, TransaksiSimpanan, ArusKas, sequelize } = require('../models');
+const { Anggota, Pinjaman, Simpanan, TransaksiSimpanan, ArusKas, Angsuran, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const moment = require('moment');
 
@@ -15,13 +15,15 @@ exports.getDashboardStats = async (req, res) => {
     // 3. Pinjaman Pending
     const pinjamanPending = await Pinjaman.count({ where: { status: 'Pending' } });
 
-    // 4. Aktifitas Hari Ini (Anggota baru, Pinjaman baru/update, Transaksi Simpanan, Arus Kas)
+    // 4. Aktifitas Hari Ini (Anggota baru, Pinjaman baru, Transaksi Simpanan, Arus Kas, Angsuran, Persetujuan Pinjaman)
     const anggotaHariIni = await Anggota.count({ where: { tanggal_registrasi: { [Op.gte]: today.toDate() } } });
-    const pinjamanHariIni = await Pinjaman.count({ where: { tanggal_pengajuan: { [Op.gte]: today.format('YYYY-MM-DD') } } });
+    const pinjamanBaruHariIni = await Pinjaman.count({ where: { tanggal_pengajuan: { [Op.gte]: today.format('YYYY-MM-DD') } } });
     const transaksiSimpananHariIni = await TransaksiSimpanan.count({ where: { tanggal: { [Op.gte]: today.format('YYYY-MM-DD') } } });
     const arusKasHariIni = await ArusKas.count({ where: { tanggal: { [Op.gte]: today.format('YYYY-MM-DD') } } });
+    const angsuranHariIni = await Angsuran.count({ where: { tanggal_bayar: { [Op.gte]: today.format('YYYY-MM-DD') } } });
+    const persetujuanPinjamanHariIni = await Pinjaman.count({ where: { tgl_acc_koordinator: { [Op.gte]: today.toDate() } } });
     
-    const aktifitasHariIni = anggotaHariIni + pinjamanHariIni + transaksiSimpananHariIni + arusKasHariIni;
+    const aktifitasHariIni = anggotaHariIni + pinjamanBaruHariIni + transaksiSimpananHariIni + arusKasHariIni + angsuranHariIni + persetujuanPinjamanHariIni;
 
     // 5. Aliran Dana (Debit Kredit 6 bulan terakhir dari Arus Kas)
     const sixMonthsAgo = moment().subtract(5, 'months').startOf('month');

@@ -5,8 +5,8 @@ const { verifyToken, authorizeRoles } = require('../middleware/authMiddleware');
 
 router.use(verifyToken);
 
-// Konfigurasi simpanan (all management roles can read)
-router.get('/konfigurasi', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Sekretaris', 'Bendahara'), simpanPinjamController.getKonfigurasiSimpanan);
+// Konfigurasi simpanan (all roles including Anggota can read for simulation/info)
+router.get('/konfigurasi', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Sekretaris', 'Bendahara', 'Anggota'), simpanPinjamController.getKonfigurasiSimpanan);
 
 // Simpanan
 router.get('/simpanan', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Sekretaris', 'Bendahara'), simpanPinjamController.getAllSimpanan);

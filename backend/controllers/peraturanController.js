@@ -11,7 +11,14 @@ const syncWithKonfigurasi = async (peraturan, io = null, transaction = null) => 
     'Simpanan Pokok': 'SIMPANAN_POKOK',
     'Simpanan Wajib': 'SIMPANAN_WAJIB',
     'Simpanan Sukarela': 'SIMPANAN_SUKARELA',
-    'Suku Bunga': 'BUNGA_PINJAMAN_PERSEN'
+    'Suku Bunga': 'BUNGA_PINJAMAN_PERSEN',
+    'Maksimal Pinjaman Uang': 'MAX_PINJAMAN_UANG',
+    'Limit Angsuran Staff': 'LIMIT_ANGSURAN_STAFF',
+    'Limit Angsuran Asst Manager': 'LIMIT_ANGSURAN_ASST_MGR',
+    'Limit Angsuran Manager': 'LIMIT_ANGSURAN_MGR',
+    'Bunga 10 Bulan': 'BUNGA_10_BULAN',
+    'Bunga 15 Bulan': 'BUNGA_15_BULAN',
+    'Bunga 20 Bulan': 'BUNGA_20_BULAN'
   };
 
   const configKey = mapping[peraturan.judul];

@@ -52,11 +52,20 @@ export default function InputBaruSimpanan() {
     try {
       const res = await api.get('/simpan-pinjam/konfigurasi');
       if (res.data.success) {
-        setConfigs(res.data.data);
+        // Convert array to map: { nama_config: nilai }
+        const configMap = {};
+        const data = res.data.data;
+        if (Array.isArray(data)) {
+          data.forEach(c => { configMap[c.nama_config] = parseFloat(c.nilai); });
+        } else {
+          // Fallback if already a map
+          Object.assign(configMap, data);
+        }
+        setConfigs(configMap);
         // Default nominal for Wajib if starting with Wajib
         setFormData(prev => ({
           ...prev,
-          nominal: formatToRupiah(res.data.data.SIMPANAN_WAJIB.toString().split('.')[0])
+          nominal: formatToRupiah((configMap.SIMPANAN_WAJIB || 0).toString().split('.')[0])
         }));
       }
     } catch (error) {
@@ -109,9 +118,9 @@ export default function InputBaruSimpanan() {
 
     if (formData.jenis_transaksi === 'Setor') {
       if (formData.jenis_simpanan === 'Pokok') {
-        setFormData(prev => ({ ...prev, nominal: formatToRupiah(configs.SIMPANAN_POKOK.toString().split('.')[0]) }));
+        setFormData(prev => ({ ...prev, nominal: formatToRupiah((configs.SIMPANAN_POKOK || 0).toString().split('.')[0]) }));
       } else if (formData.jenis_simpanan === 'Wajib') {
-        setFormData(prev => ({ ...prev, nominal: formatToRupiah(configs.SIMPANAN_WAJIB.toString().split('.')[0]) }));
+        setFormData(prev => ({ ...prev, nominal: formatToRupiah((configs.SIMPANAN_WAJIB || 0).toString().split('.')[0]) }));
       } else if (formData.jenis_simpanan === 'Sukarela') {
         setFormData(prev => ({ ...prev, nominal: '' }));
       }

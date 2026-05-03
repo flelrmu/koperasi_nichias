@@ -291,32 +291,44 @@ export default function EditRuleDetail() {
                       value={rule.ketentuan_utama}
                       onChange={(e) => {
                         const val = e.target.value;
-                        let numeric = null;
+                        const judulLower = rule.judul.toLowerCase();
                         
-                        // Smart parsing: if it's a number or currency format
-                        const cleanVal = val.replace(/[^0-9]/g, '');
-                        if (cleanVal && !isNaN(cleanVal)) {
-                          numeric = parseFloat(cleanVal);
-                          
-                          // Auto-format for Simpanan/Pinjaman (Currency)
-                          if (rule.judul.toLowerCase().includes('simpanan') || rule.judul.toLowerCase().includes('pinjaman')) {
-                            const formatted = new Intl.NumberFormat('id-ID', {
-                              style: 'currency',
-                              currency: 'IDR',
-                              maximumFractionDigits: 0
-                            }).format(numeric);
-                            setRule({ ...rule, ketentuan_utama: formatted, nilai_numerik: numeric });
-                            return;
-                          }
-                          
-                          // Auto-format for Bunga (%)
-                          if (rule.judul.toLowerCase().includes('bunga')) {
-                            setRule({ ...rule, ketentuan_utama: `${numeric}%`, nilai_numerik: numeric });
-                            return;
-                          }
+                        // Strip ALL non-digit characters to get the raw number
+                        // This prevents "Rp 10.000" from being parsed as 10.000 (= 10)
+                        const digitsOnly = val.replace(/[^0-9]/g, '');
+                        
+                        if (!digitsOnly) {
+                          setRule({ ...rule, ketentuan_utama: val, nilai_numerik: null });
+                          return;
+                        }
+
+                        const numeric = parseFloat(digitsOnly);
+                        
+                        // Auto-format for Bunga (percentage-based rules)
+                        if (judulLower.includes('bunga') || judulLower.includes('suku')) {
+                          setRule({ ...rule, ketentuan_utama: `${numeric}% Total`, nilai_numerik: numeric });
+                          return;
                         }
                         
-                        // Fallback to manual text if not purely numeric or other types
+                        // Auto-format for Rupiah-based rules (simpanan, pinjaman, limit, maksimal)
+                        if (judulLower.includes('simpanan') || judulLower.includes('pinjaman') || judulLower.includes('limit') || judulLower.includes('maksimal')) {
+                          const formatted = new Intl.NumberFormat('id-ID', {
+                            style: 'currency',
+                            currency: 'IDR',
+                            maximumFractionDigits: 0
+                          }).format(numeric);
+                          const suffix = judulLower.includes('limit') ? ' / bln' : '';
+                          setRule({ ...rule, ketentuan_utama: formatted + suffix, nilai_numerik: numeric });
+                          return;
+                        }
+
+                        // Auto-format for multiplier rules
+                        if (judulLower.includes('kelipatan')) {
+                          setRule({ ...rule, ketentuan_utama: `${numeric}x Total Simpanan`, nilai_numerik: numeric });
+                          return;
+                        }
+                        
+                        // Fallback: keep text as-is with extracted numeric
                         setRule({ ...rule, ketentuan_utama: val, nilai_numerik: numeric });
                       }}
                       placeholder="Masukkan nominal atau ketentuan (Contoh: 100000)"
@@ -331,9 +343,11 @@ export default function EditRuleDetail() {
                     )}
                   </div>
                   <p className="text-[11px] text-gray-400 italic">
-                    {rule.judul.toLowerCase().includes('simpanan') || rule.judul.toLowerCase().includes('pinjaman') 
-                      ? "Ketik angka saja (misal: 100000) untuk format Rupiah otomatis."
-                      : "Ketik nominal atau teks ketentuan utama."}
+                    {rule.judul.toLowerCase().includes('bunga') 
+                      ? "Ketik angka persentase saja (misal: 10 untuk 10%)."
+                      : rule.judul.toLowerCase().includes('limit') || rule.judul.toLowerCase().includes('pinjaman') || rule.judul.toLowerCase().includes('simpanan')
+                        ? "Ketik angka nominal saja (misal: 2000000 untuk Rp 2.000.000)."
+                        : "Ketik nominal atau teks ketentuan utama."}
                   </p>
                 </div>
               </div>

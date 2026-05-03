@@ -459,18 +459,9 @@ exports.bulkCreateSimpananWajib = async (req, res) => {
  */
 exports.getKonfigurasiSimpanan = async (req, res) => {
   try {
-    const configs = await Konfigurasi.findAll({
-      where: {
-        nama_config: ['SIMPANAN_POKOK', 'SIMPANAN_WAJIB', 'SIMPANAN_SUKARELA']
-      }
-    });
+    const configs = await Konfigurasi.findAll();
     
-    const configMap = {};
-    configs.forEach(c => {
-      configMap[c.nama_config] = parseFloat(c.nilai);
-    });
-
-    res.json({ success: true, data: configMap });
+    res.json({ success: true, data: configs });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -568,17 +559,54 @@ exports.updatePinjamanStatus = async (req, res) => {
     if (tenor !== undefined) updateData.tenor = tenor;
 
     if (status === 'Approved') {
+        // Fetch all configs for validation
+        const configs = await Konfigurasi.findAll();
+        const configMap = {};
+        configs.forEach(c => { configMap[c.nama_config] = c.nilai; });
+
         const approvedAmount = parseFloat(pinjaman_disetujui || pinjaman.jumlah_pinjaman);
         const approvedTenor = parseInt(tenor || pinjaman.tenor);
         
+        // 1. Get Bunga from Config (divide by 100 if stored as percentage, e.g. 10 -> 0.1)
         let bungaPersen = 0;
-        if (approvedTenor === 10) bungaPersen = 0.10;
-        else if (approvedTenor === 15) bungaPersen = 0.15;
-        else if (approvedTenor === 20) bungaPersen = 0.20;
+        if (approvedTenor === 10) bungaPersen = parseFloat(configMap['BUNGA_10_BULAN'] || 10) / 100;
+        else if (approvedTenor === 15) bungaPersen = parseFloat(configMap['BUNGA_15_BULAN'] || 15) / 100;
+        else if (approvedTenor === 20) bungaPersen = parseFloat(configMap['BUNGA_20_BULAN'] || 20) / 100;
 
         const totalBunga = approvedAmount * bungaPersen;
         const totalAngsuran = approvedAmount + totalBunga;
         const angsuranPerBulan = totalAngsuran / approvedTenor;
+
+        // 2. Validate Limit based on Jabatan
+        const anggota = await Anggota.findByPk(pinjaman.anggota_id);
+        const jabatan = anggota?.jabatan || 'Staff';
+        
+        const limitMap = {
+          'Staff': parseFloat(configMap['LIMIT_ANGSURAN_STAFF'] || 2000000),
+          'Assistant_Manager': parseFloat(configMap['LIMIT_ANGSURAN_ASST_MGR'] || 3000000),
+          'Manager': parseFloat(configMap['LIMIT_ANGSURAN_MGR'] || 5000000)
+        };
+        
+        const baseLimit = limitMap[jabatan] || 2000000;
+        
+        // Calculate current total installments for this member (from other approved loans)
+        const otherApprovedLoans = await Pinjaman.findAll({
+          where: {
+            anggota_id: pinjaman.anggota_id,
+            status: 'Approved',
+            pinjaman_id: { [db.Sequelize.Op.ne]: id }
+          }
+        });
+        
+        const currentTotalAngsuran = otherApprovedLoans.reduce((acc, curr) => acc + parseFloat(curr.angsuran_per_bulan || 0), 0);
+        const remainingLimit = baseLimit - currentTotalAngsuran;
+
+        if (angsuranPerBulan > remainingLimit) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `Angsuran (${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(angsuranPerBulan)}/bln) melebihi sisa limit jabatan ${jabatan.replace('_', ' ')} (${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(remainingLimit)}/bln).` 
+          });
+        }
 
         updateData.pinjaman_disetujui = approvedAmount;
         updateData.total_bunga = totalBunga;
@@ -645,6 +673,35 @@ exports.createPinjaman = async (req, res) => {
 
     const anggota = await Anggota.findOne({ where: { user_id } });
     if (!anggota) return res.status(404).json({ success: false, message: 'Anggota tidak ditemukan' });
+
+    // 1. Fetch Config for validation
+    const configs = await Konfigurasi.findAll();
+    const configMap = {};
+    configs.forEach(c => { configMap[c.nama_config] = c.nilai; });
+
+    const loanAmount = parseFloat(jumlah_pinjaman);
+
+    // 2. Validate Cash Loan Limit & Tenor
+    if (jenis_pinjaman === 'Uang') {
+      const maxPinjamanUang = parseFloat(configMap['MAX_PINJAMAN_UANG'] || 15000000);
+      if (loanAmount > maxPinjamanUang) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Maksimal pinjaman uang adalah Rp ${new Intl.NumberFormat('id-ID').format(maxPinjamanUang)}` 
+        });
+      }
+      if (parseInt(tenor) !== 10) {
+        return res.status(400).json({ success: false, message: 'Pinjaman uang hanya bisa dicicil selama 10 bulan.' });
+      }
+    }
+
+    // 3. Validate Goods Tenor
+    if (jenis_pinjaman === 'Barang') {
+      const allowedTenors = [10, 15, 20];
+      if (!allowedTenors.includes(parseInt(tenor))) {
+        return res.status(400).json({ success: false, message: 'Tenor kredit barang hanya diperbolehkan 10, 15, atau 20 bulan.' });
+      }
+    }
 
     const autoTerbilang = angkaKeTerbilang(jumlah_pinjaman);
 

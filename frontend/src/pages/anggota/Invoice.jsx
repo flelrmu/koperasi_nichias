@@ -91,7 +91,17 @@ export default function Invoice() {
   };
 
   const handlePrint = () => {
+    // Simpan judul asli
+    const originalTitle = document.title;
+    // Set judul dokumen sesuai nomor invoice untuk nama file PDF yang bagus
+    const invoiceNo = loan.nomor_invoice || `INV-PNJ-${loan.pinjaman_id}`;
+    const memberName = loan.anggota?.nama_lengkap?.replace(/\s+/g, '_') || 'Member';
+    document.title = `${invoiceNo}_${memberName}`;
+    
     window.print();
+    
+    // Kembalikan judul asli
+    document.title = originalTitle;
   };
 
   const containerVariants = {
@@ -118,7 +128,7 @@ export default function Invoice() {
           <h3 className="text-2xl font-black text-gray-900">{error || 'Pinjaman Tidak Ditemukan'}</h3>
           <p className="text-gray-500 font-medium mt-2">Maaf, data yang Anda cari tidak tersedia atau telah dihapus.</p>
         </div>
-        <Link to={user?.role === 'Koordinator_Simpan_Pinjam' ? "/admin/simpan-pinjam" : "/simpan-pinjam"}>
+        <Link to={user?.role?.includes('Koordinator') || user?.role === 'Ketua' || user?.role === 'Bendahara' ? "/admin/simpan-pinjam" : "/simpan-pinjam"}>
           <Button className="!px-8 !py-4 shadow-xl shadow-[#004A9C]/20">
             Kembali ke Simpan Pinjam
           </Button>
@@ -129,25 +139,40 @@ export default function Invoice() {
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-20 print:p-0 print:max-w-none">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            margin: 10mm;
+            size: auto;
+          }
+          body {
+            background-color: white !important;
+            -webkit-print-color-adjust: exact;
+          }
+          ::-webkit-scrollbar {
+            display: none;
+          }
+        }
+      `}} />
+      
       {/* Header Actions - Hidden on Print */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
-        <Link to={user?.role === 'Koordinator_Simpan_Pinjam' ? "/admin/simpan-pinjam" : "/simpan-pinjam"} className="inline-flex w-full sm:w-auto">
+        <Link to={user?.role?.includes('Koordinator') || user?.role === 'Ketua' || user?.role === 'Bendahara' ? "/admin/simpan-pinjam" : "/simpan-pinjam"} className="inline-flex w-full sm:w-auto">
           <Button className="w-full !bg-white border border-gray-200 !text-gray-700 hover:!bg-gray-50 flex items-center justify-center gap-2 shadow-sm rounded-xl py-3 px-6">
             <ArrowLeft size={18} />
             Kembali
           </Button>
         </Link>
-        {user?.role === 'Anggota' && (
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <Button 
-              onClick={handlePrint}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 shadow-xl shadow-[#004A9C]/20 rounded-xl bg-[#004A9C] text-white hover:bg-[#003B7A] py-3 px-8 font-bold"
-            >
-              <Printer size={18} />
-              <span>Cetak Invoice</span>
-            </Button>
-          </div>
-        )}
+        
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Button 
+            onClick={handlePrint}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 shadow-xl shadow-[#004A9C]/20 rounded-xl bg-[#004A9C] text-white hover:bg-[#003B7A] py-3 px-8 font-bold"
+          >
+            <Download size={18} />
+            <span>Download PDF</span>
+          </Button>
+        </div>
       </div>
 
       {/* Invoice Document */}

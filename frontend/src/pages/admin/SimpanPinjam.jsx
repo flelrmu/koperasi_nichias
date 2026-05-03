@@ -84,15 +84,21 @@ export default function SimpanPinjam() {
   // Data states
   const [savingsData, setSavingsData] = useState([]);
   const [loansData, setLoansData] = useState([]);
+  const [configs, setConfigs] = useState({});
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const endpoints = ['/simpan-pinjam/simpanan', '/simpan-pinjam/pinjaman'];
-      const [resSimpanan, resPinjaman] = await Promise.all(endpoints.map(e => api.get(e)));
+      const endpoints = ['/simpan-pinjam/simpanan', '/simpan-pinjam/pinjaman', '/simpan-pinjam/konfigurasi'];
+      const [resSimpanan, resPinjaman, resConfigs] = await Promise.all(endpoints.map(e => api.get(e)));
       
       if (resSimpanan.data.success) setSavingsData(resSimpanan.data.data);
       if (resPinjaman.data.success) setLoansData(resPinjaman.data.data);
+      if (resConfigs.data.success) {
+        const configMap = {};
+        resConfigs.data.data.forEach(c => { configMap[c.nama_config] = c.nilai; });
+        setConfigs(configMap);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -150,12 +156,18 @@ export default function SimpanPinjam() {
       setLoansData(prev => [data, ...prev]);
     };
 
+    const handleKonfigurasiUpdated = (data) => {
+      console.log('📥 WebSocket Received konfigurasi:updated:', data);
+      setConfigs(prev => ({ ...prev, [data.nama_config]: data.nilai }));
+    };
+
     socket.on('simpanan:updated', handleSimpananUpdated);
     socket.on('simpanan:created', handleSimpananCreated);
     socket.on('simpanan:bulkUpdated', handleSimpananBulkUpdated);
     socket.on('pinjaman:bulkUpdated', handlePinjamanBulkUpdated);
     socket.on('pinjaman:updated', handlePinjamanUpdated);
     socket.on('pinjaman:created', handlePinjamanCreated);
+    socket.on('konfigurasi:updated', handleKonfigurasiUpdated);
 
     return () => {
       socket.off('simpanan:updated', handleSimpananUpdated);
@@ -164,6 +176,7 @@ export default function SimpanPinjam() {
       socket.off('pinjaman:bulkUpdated', handlePinjamanBulkUpdated);
       socket.off('pinjaman:updated', handlePinjamanUpdated);
       socket.off('pinjaman:created', handlePinjamanCreated);
+      socket.off('konfigurasi:updated', handleKonfigurasiUpdated);
     };
   }, [socket, activeTab]);
 
@@ -428,10 +441,10 @@ export default function SimpanPinjam() {
 
   const getAngsuranLimit = (jabatan) => {
     switch (jabatan) {
-      case 'Manager': return 5000000;
-      case 'Assistant_Manager': return 3000000;
+      case 'Manager': return parseFloat(configs['LIMIT_ANGSURAN_MGR'] || 5000000);
+      case 'Assistant_Manager': return parseFloat(configs['LIMIT_ANGSURAN_ASST_MGR'] || 3000000);
       case 'Staff':
-      default: return 2000000;
+      default: return parseFloat(configs['LIMIT_ANGSURAN_STAFF'] || 2000000);
     }
   };
 
@@ -443,7 +456,12 @@ export default function SimpanPinjam() {
       if (targetStatus === 'Approved') {
         const simJumlah = parseFloat(updateLoan.jumlah_disetujui.toString().replace(/\./g, '')) || 0;
         const t = parseInt(updateLoan.tenor) || 10;
-        const simBungaPersen = t === 10 ? 0.10 : (t === 15 ? 0.15 : (t === 20 ? 0.20 : 0));
+        
+        let simBungaPersen = 0;
+        if (t === 10) simBungaPersen = parseFloat(configs['BUNGA_10_BULAN'] || 10) / 100;
+        else if (t === 15) simBungaPersen = parseFloat(configs['BUNGA_15_BULAN'] || 15) / 100;
+        else if (t === 20) simBungaPersen = parseFloat(configs['BUNGA_20_BULAN'] || 20) / 100;
+
         const simBunga = simJumlah * simBungaPersen;
         const simTotal = simJumlah + simBunga;
         const simAngsuran = simTotal / t;
@@ -1192,7 +1210,7 @@ export default function SimpanPinjam() {
                   <div>
                     <h4 className="font-bold text-gray-800 text-sm">Ketentuan Pinjaman</h4>
                     <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      Bunga pinjaman 10% (10 bln), 15% (15 bln), 20% (20 bln). Angsuran per bulan akan memotong saldo tagihan secara otomatis melalui proses kolektif.
+                      Bunga pinjaman {parseFloat(configs['BUNGA_10_BULAN'] || 10)}% (10 bln), {parseFloat(configs['BUNGA_15_BULAN'] || 15)}% (15 bln), {parseFloat(configs['BUNGA_20_BULAN'] || 20)}% (20 bln). Angsuran per bulan akan memotong saldo tagihan secara otomatis melalui proses kolektif.
                     </p>
                   </div>
                 </div>
@@ -1265,9 +1283,9 @@ export default function SimpanPinjam() {
                         onChange={(e) => setUpdateLoan({...updateLoan, tenor: parseInt(e.target.value)})}
                         disabled={selectedLoan.status !== 'Pending'}
                       >
-                        <option value="10">10 Bulan (10% Bunga)</option>
-                        <option value="15">15 Bulan (15% Bunga)</option>
-                        <option value="20">20 Bulan (20% Bunga)</option>
+                        <option value="10">10 Bulan ({parseFloat(configs['BUNGA_10_BULAN'] || 10)}% Bunga)</option>
+                        <option value="15">15 Bulan ({parseFloat(configs['BUNGA_15_BULAN'] || 15)}% Bunga)</option>
+                        <option value="20">20 Bulan ({parseFloat(configs['BUNGA_20_BULAN'] || 20)}% Bunga)</option>
                       </select>
                     </div>
 
@@ -1318,22 +1336,45 @@ export default function SimpanPinjam() {
                       </div>
 
                       {(() => {
-                        const simJumlah = parseFloat(updateLoan.jumlah_disetujui.toString().replace(/\./g, '')) || 0;
-                        const t = parseInt(updateLoan.tenor) || 10;
-                        const simBungaPersen = t === 10 ? 0.10 : (t === 15 ? 0.15 : (t === 20 ? 0.20 : 0));
-                        const simBunga = simJumlah * simBungaPersen;
-                        const simTotal = simJumlah + simBunga;
-                        const simAngsuran = simTotal / t;
+                        // For Approved/Lunas: use STORED values from database (locked at approval time)
+                        // For Pending: calculate dynamically from current configs
+                        const isPending = selectedLoan?.status === 'Pending';
+                        
+                        let simBunga, simTotal, simAngsuran, simBungaPersen;
+                        
+                        if (isPending) {
+                          const simJumlah = parseFloat(updateLoan.jumlah_disetujui.toString().replace(/\./g, '')) || 0;
+                          const t = parseInt(updateLoan.tenor) || 10;
+                          simBungaPersen = 0;
+                          if (t === 10) simBungaPersen = parseFloat(configs['BUNGA_10_BULAN'] || 10) / 100;
+                          else if (t === 15) simBungaPersen = parseFloat(configs['BUNGA_15_BULAN'] || 15) / 100;
+                          else if (t === 20) simBungaPersen = parseFloat(configs['BUNGA_20_BULAN'] || 20) / 100;
+                          simBunga = simJumlah * simBungaPersen;
+                          simTotal = simJumlah + simBunga;
+                          simAngsuran = simTotal / t;
+                        } else {
+                          // Use stored database values
+                          simBunga = parseFloat(selectedLoan?.total_bunga || 0);
+                          simTotal = parseFloat(selectedLoan?.total_angsuran || 0);
+                          simAngsuran = parseFloat(selectedLoan?.angsuran_per_bulan || 0);
+                          const approvedAmt = parseFloat(selectedLoan?.pinjaman_disetujui || selectedLoan?.jumlah_pinjaman || 1);
+                          simBungaPersen = approvedAmt > 0 ? simBunga / approvedAmt : 0;
+                        }
                         
                         const baseLimit = getAngsuranLimit(selectedLoan?.anggota?.jabatan);
                         const usedLimit = loansData
                                  .filter(l => l.anggota_id === selectedLoan?.anggota_id && l.status === 'Approved' && l.pinjaman_id !== selectedLoan?.pinjaman_id)
                                  .reduce((acc, curr) => acc + parseFloat(curr.angsuran_per_bulan || 0), 0);
                         const remainingLimit = Math.max(0, baseLimit - usedLimit);
-                        const isOverLimit = simAngsuran > remainingLimit;
+                        const isOverLimit = isPending && simAngsuran > remainingLimit;
 
                         return (
                           <div className="space-y-6 flex-1">
+                            {!isPending && (
+                              <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-2 text-center">
+                                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Data terkunci saat persetujuan</p>
+                              </div>
+                            )}
                             <div className="space-y-4">
                               <div className="flex justify-between items-center pb-4 border-b border-blue-100">
                                 <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">Bunga ({(simBungaPersen*100).toFixed(0)}%)</span>
@@ -1343,6 +1384,12 @@ export default function SimpanPinjam() {
                                 <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">Total Pengembalian</span>
                                 <span className="text-lg font-black text-[#004A9C]">{formatCurrency(simTotal)}</span>
                               </div>
+                              {!isPending && (
+                                <div className="flex justify-between items-center pb-4 border-b border-blue-100">
+                                  <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">Sisa Tagihan</span>
+                                  <span className="text-lg font-black text-[#EB5757]">{formatCurrency(selectedLoan?.sisa_tagihan)}</span>
+                                </div>
+                              )}
                             </div>
 
                             <div className="mt-auto pt-6">
@@ -1374,7 +1421,10 @@ export default function SimpanPinjam() {
                               {(() => {
                                  const simJumlah = parseFloat(updateLoan.jumlah_disetujui.toString().replace(/\./g, '')) || 0;
                                  const t = parseInt(updateLoan.tenor) || 10;
-                                 const simBungaPersen = t === 10 ? 0.10 : (t === 15 ? 0.15 : (t === 20 ? 0.20 : 0));
+                                 let simBungaPersen = 0;
+                                 if (t === 10) simBungaPersen = parseFloat(configs['BUNGA_10_BULAN'] || 10) / 100;
+                                 else if (t === 15) simBungaPersen = parseFloat(configs['BUNGA_15_BULAN'] || 15) / 100;
+                                 else if (t === 20) simBungaPersen = parseFloat(configs['BUNGA_20_BULAN'] || 20) / 100;
                                  const simAngsuran = (simJumlah + (simJumlah * simBungaPersen)) / t;
                                  
                                  const baseLimit = getAngsuranLimit(selectedLoan?.anggota?.jabatan);
