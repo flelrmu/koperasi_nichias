@@ -20,6 +20,15 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 
+/* Hide Edge/Chrome's native reveal and clear buttons */
+input::-ms-reveal,
+input::-ms-clear,
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+
+
 @keyframes spin-slow {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -27,4 +36,126 @@ input[type=number] {
 
 .animate-spin-slow {
   animation: spin-slow 8s linear infinite;
+}
+
+/* Fix date input placeholder and icon color */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.5); /* Makes it gray */
+  transition: all 0.2s;
+  opacity: 0.6;
+}
+
+input[type="date"]:hover::-webkit-calendar-picker-indicator,
+input[type="date"]:focus::-webkit-calendar-picker-indicator {
+  filter: invert(0.3);
+  opacity: 1;
+}
+
+/* Style the internal text elements for better consistency */
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  color: #9ca3af; /* text-gray-400 */
+}
+
+/* Change text color to dark when input has value or is focused */
+input[type="date"]:focus::-webkit-datetime-edit-text,
+input[type="date"]:focus::-webkit-datetime-edit-month-field,
+input[type="date"]:focus::-webkit-datetime-edit-day-field,
+input[type="date"]:focus::-webkit-datetime-edit-year-field,
+input[type="date"]:not(:invalid)::-webkit-datetime-edit-text,
+input[type="date"]:not(:invalid)::-webkit-datetime-edit-month-field,
+input[type="date"]:not(:invalid)::-webkit-datetime-edit-day-field,
+input[type="date"]:not(:invalid)::-webkit-datetime-edit-year-field {
+  color: #374151; /* text-gray-700 */
+}
+
+/* React Datepicker Custom Styling */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker {
+  font-family: 'Poppins', sans-serif !important;
+  border-radius: 1.5rem !important;
+  border: 1px solid #f1f5f9 !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1) !important;
+  padding: 0.5rem !important;
+}
+
+.react-datepicker__header {
+  background-color: white !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  border-top-left-radius: 1.5rem !important;
+  border-top-right-radius: 1.5rem !important;
+  padding-top: 1rem !important;
+}
+
+.react-datepicker__current-month {
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-size: 0.8rem !important;
+}
+
+.react-datepicker__day-name {
+  color: #94a3b8 !important;
+  font-weight: 700 !important;
+  font-size: 0.65rem !important;
+  text-transform: uppercase !important;
+}
+
+.react-datepicker__day {
+  color: #334155 !important;
+  font-weight: 500 !important;
+  border-radius: 0.75rem !important;
+  transition: all 0.2s !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: #f1f5f9 !important;
+  color: #004A9C !important;
+}
+
+.react-datepicker__day--selected {
+  background-color: #004A9C !important;
+  color: white !important;
+  font-weight: 700 !important;
+}
+
+.react-datepicker__day--keyboard-selected {
+  background-color: #e2e8f0 !important;
+  color: #004A9C !important;
+}
+
+.react-datepicker__navigation {
+  top: 1.2rem !important;
+}
+
+.react-datepicker__header__dropdown {
+  margin-top: 0.5rem !important;
+  display: flex !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+}
+
+.react-datepicker__month-dropdown-container,
+.react-datepicker__year-dropdown-container {
+  background-color: #f8fafc !important;
+  border-radius: 0.5rem !important;
+  padding: 0.2rem 0.5rem !important;
+}
+
+.react-datepicker__month-select,
+.react-datepicker__year-select {
+  border: none !important;
+  background: transparent !important;
+  font-weight: 700 !important;
+  color: #004A9C !important;
+  font-size: 0.75rem !important;
+  cursor: pointer !important;
+  outline: none !important;
 }

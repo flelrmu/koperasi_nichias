@@ -8,7 +8,10 @@ import Button from "../atoms/Button";
 import Modal from "../molecules/Modal";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, Check, X, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Check, X, ShieldCheck, Calendar, Loader2 } from "lucide-react";
+
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 const API_URL = "http://localhost:5000/api";
 
@@ -350,18 +353,23 @@ export default function RegisterForm() {
                 className="!py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
               />
             </motion.div>
-            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+            <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }} className="relative">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 mb-2 block">Tanggal Lahir</label>
-              <Input
-                id="register-tanggal-lahir"
-                name="tanggal_lahir"
-                type="date"
-                value={formData.tanggal_lahir}
-                onChange={handleChange}
+              <DatePicker
+                selected={formData.tanggal_lahir ? new Date(formData.tanggal_lahir) : null}
+                onChange={(date) => setFormData(prev => ({ ...prev, tanggal_lahir: date ? date.toISOString().split('T')[0] : "" }))}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="DD/MM/YYYY"
+                showMonthDropdown
+                showYearDropdown
+                dropdownMode="select"
+                maxDate={new Date()}
+                className="w-full !py-3.5 px-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#004A9C]/20 focus:bg-white transition-all text-gray-700 font-medium lg:text-[12px] text-base"
                 required
-                className="!py-3.5 bg-gray-50 border-gray-100 focus:bg-white transition-all"
               />
+              <Calendar className="absolute right-4 top-[38px] text-gray-400 pointer-events-none" size={18} />
             </motion.div>
+
 
             {/* Row 4: Jabatan & Divisi */}
             <motion.div variants={{ hidden: { y: 10, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
@@ -448,11 +456,14 @@ export default function RegisterForm() {
               disabled={isLoading}
               className="w-full md:w-auto !px-12 !py-3.5 shadow-2xl shadow-blue-900/20 active:scale-[0.98] transition-all"
             >
+
+
               {isLoading ? (
                 <span className="flex items-center gap-2 text-xs">
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <Loader2 size={16} className="animate-spin" />
                   Memproses...
                 </span>
+
               ) : (
                 <span className="font-black uppercase tracking-[0.2em] text-xs">Register</span>
               )}

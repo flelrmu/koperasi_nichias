@@ -12,8 +12,12 @@ import {
   EyeOff,
   ChevronRight,
   Info,
-  Sparkles
+  Sparkles,
+  Calendar
 } from 'lucide-react';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import Select from '../../components/atoms/Select';
@@ -286,7 +290,8 @@ export default function TambahUser() {
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-[#004A9C] transition-colors"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#004A9C] transition-colors"
+
                         >
                           {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
@@ -347,16 +352,23 @@ export default function TambahUser() {
                           </div>
                           <div className="space-y-2">
                             <label className="text-[11px] font-bold text-gray-500 ml-1 uppercase tracking-widest">Tgl Lahir</label>
-                            <Input
-                              id="input-tgl-lahir"
-                              name="tanggal_lahir"
-                              type="date"
-                              className="bg-white border-gray-200"
-                              value={formData.tanggal_lahir}
-                              onChange={handleChange}
-                              required
-                            />
+                            <div className="relative">
+                              <DatePicker
+                                selected={formData.tanggal_lahir ? new Date(formData.tanggal_lahir) : null}
+                                onChange={(date) => setFormData(prev => ({ ...prev, tanggal_lahir: date ? date.toISOString().split('T')[0] : "" }))}
+                                dateFormat="dd/MM/yyyy"
+                                placeholderText="DD/MM/YYYY"
+                                showMonthDropdown
+                                showYearDropdown
+                                dropdownMode="select"
+                                maxDate={new Date()}
+                                className="w-full !py-3 px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#004A9C]/20 transition-all text-gray-700 font-medium lg:text-[12px] text-base"
+                                required
+                              />
+                              <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                            </div>
                           </div>
+
                         </div>
                         
                         <div className="space-y-2">

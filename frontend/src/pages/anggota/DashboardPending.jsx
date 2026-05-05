@@ -23,11 +23,64 @@ const STEPS = [
 
 export default function DashboardPending() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, api } = useAuth();
   const socket = useSocket();
   const [copiedField, setCopiedField] = useState(null);
   const [currentStep, setCurrentStep] = useState(2);
   const [approvalData, setApprovalData] = useState(null);
+  const [secretaryContact, setSecretaryContact] = useState(null);
+  const [configs, setConfigs] = useState({});
+
+  // Fetch configurations
+  useEffect(() => {
+    const fetchConfigs = async () => {
+      try {
+        const res = await api.get('/simpan-pinjam/konfigurasi');
+        if (res.data.success) {
+          const configMap = {};
+          res.data.data.forEach(c => { configMap[c.nama_config] = c.nilai; });
+          setConfigs(configMap);
+        }
+      } catch (error) {
+        console.error('Error fetching configurations:', error);
+      }
+    };
+    fetchConfigs();
+
+    if (socket) {
+      const handleConfigUpdate = (data) => {
+        console.log('📥 WebSocket Received konfigurasi:updated (DashboardPending):', data);
+        setConfigs(prev => ({ ...prev, [data.nama_config]: data.nilai }));
+      };
+      socket.on('konfigurasi:updated', handleConfigUpdate);
+      return () => socket.off('konfigurasi:updated', handleConfigUpdate);
+    }
+  }, [api, socket]);
+
+  const formatCurrency = (val) => {
+    if (!val) return 'Rp 0';
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0,
+    }).format(num);
+  };
+
+  // Fetch secretary contact
+  useEffect(() => {
+    const fetchSecretaryContact = async () => {
+      try {
+        const res = await api.get('/user/contact/sekretaris');
+        if (res.data.success) {
+          setSecretaryContact(res.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching secretary contact:', error);
+      }
+    };
+    fetchSecretaryContact();
+  }, [api]);
 
   // Listen for real-time member:approved event
   useEffect(() => {
@@ -66,7 +119,23 @@ export default function DashboardPending() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleContactAdmin = () => {
+    if (!secretaryContact || !secretaryContact.no_hp) {
+      alert("Maaf, kontak pengurus belum tersedia saat ini.");
+      return;
+    }
+
+    let phoneNumber = secretaryContact.no_hp.replace(/\D/g, '');
+    if (phoneNumber.startsWith('0')) {
+      phoneNumber = '62' + phoneNumber.substring(1);
+    }
+
+    const message = encodeURIComponent(`Halo Pengurus Koperasi Nichias, saya ${user?.nama_lengkap || 'Anggota baru'} ingin mengonfirmasi pembayaran pendaftaran saya...`);
+    window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+  };
+
   const handleGoToDashboard = () => {
+
     // Force reload so AuthContext picks up updated localStorage
     window.location.href = '/dashboard';
   };
@@ -264,7 +333,9 @@ export default function DashboardPending() {
                 <div className="p-6">
                   <div className="text-center mb-6 py-4 bg-[#DFEAF4]/30 rounded-xl">
                     <p className="text-xs text-gray-500 mb-1">Nominal Simpanan Pokok</p>
-                    <p className="text-3xl font-bold text-[#004A9C]">{PAYMENT_INFO.nominal}</p>
+                    <p className="text-3xl font-bold text-[#004A9C]">
+                      {configs.SIMPANAN_POKOK ? formatCurrency(configs.SIMPANAN_POKOK) : PAYMENT_INFO.nominal}
+                    </p>
                   </div>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
@@ -370,10 +441,14 @@ export default function DashboardPending() {
                       </li>
                     </ul>
                   </div>
-                  <button className="flex items-center justify-center gap-2 mx-auto px-6 py-3 bg-[#25D366]/10 text-[#25D366] font-medium rounded-xl hover:bg-[#25D366]/20 transition-colors">
+                  <button 
+                    onClick={handleContactAdmin}
+                    className="flex items-center justify-center gap-2 mx-auto px-6 py-3 bg-[#25D366]/10 text-[#25D366] font-medium rounded-xl hover:bg-[#25D366]/20 transition-colors"
+                  >
                     <MessageCircle size={20} />
                     Hubungi Pengurus Untuk Konfirmasi Pembayaran
                   </button>
+
                 </div>
               </div>
               <div className="text-center">
@@ -454,7 +529,8 @@ export default function DashboardPending() {
                     >
                       <Button
                         onClick={handleGoToDashboard}
-                        className="w-full sm:w-auto min-w-[280px] flex items-center justify-center gap-3 py-4 bg-[#004A9C] hover:bg-[#0a3d80] text-white rounded-xl shadow-lg shadow-[#004A9C]/30 transition-all hover:-translate-y-1 text-base font-bold"
+                        className="w-full sm:w-auto mx-auto min-w-[280px] flex items-center justify-center gap-3 py-4 bg-[#004A9C] hover:bg-[#0a3d80] text-white rounded-xl shadow-lg shadow-[#004A9C]/30 transition-all hover:-translate-y-1 text-base font-bold"
+
                       >
                         <Home size={20} />
                         <span>Masuk ke Dashboard Anggota</span>

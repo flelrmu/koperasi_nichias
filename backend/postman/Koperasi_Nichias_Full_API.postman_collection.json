@@ -1,0 +1,575 @@
+{
+	"info": {
+		"_postman_id": "koperasi-nichias-complete-v1",
+		"name": "Koperasi Nichias - Complete API",
+		"description": "Koleksi API Lengkap untuk Koperasi Karyawan Nichias Sunijaya.\n\n## Persiapan\n1. Pastikan server backend berjalan di `http://localhost:5000`.\n2. Jalankan request **Login** terlebih dahulu untuk mendapatkan token.\n3. Token akan otomatis tersimpan di variabel koleksi `{{token}}`.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Auth & Profile",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": ["{{base_url}}"],
+							"path": [""]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Admin (Sekretaris)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.data.token) {",
+									"    pm.collectionVariables.set(\"token\", jsonData.data.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"sekretaris@koperasi-nichias.co.id\",\n    \"password\": \"Koperasi@2026\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Anggota (Agus)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.data.token) {",
+									"    pm.collectionVariables.set(\"token\", jsonData.data.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"agus.pratama@koperasi-nichias.co.id\",\n    \"password\": \"Koperasi@2026\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Register Anggota Baru",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test.user@koperasi-nichias.co.id\",\n    \"password\": \"User@123!\",\n    \"nama_lengkap\": \"Test User Postman\",\n    \"no_identitas\": \"1234567890123456\",\n    \"tempat_lahir\": \"Jakarta\",\n    \"tanggal_lahir\": \"1990-01-01\",\n    \"jabatan\": \"Staff\",\n    \"divisi\": \"Produksi\",\n    \"no_hp\": \"081299998888\",\n    \"no_rekening_bank\": \"BCA - 12345678\",\n    \"alamat\": \"Jl. Test No. 1\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/user/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "profile"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update My Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"no_hp\": \"089988776655\",\n    \"alamat\": \"Alamat Baru User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "profile"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"oldPassword\": \"Koperasi@2026\",\n    \"newPassword\": \"Koperasi@2026!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/profile/password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "profile", "password"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. User Management (Admin)",
+			"item": [
+				{
+					"name": "Get All Anggota",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/user/anggota",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "anggota"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Pendaftaran Member",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"terima\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/approve/8",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "approve", "8"],
+							"description": "Ganti '8' dengan ID anggota yang statusnya Pending"
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin Create User (Anggota)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"type\": \"Anggota\",\n    \"email\": \"admin.created@koperasi-nichias.co.id\",\n    \"password\": \"Admin@123!\",\n    \"nama_lengkap\": \"User Buatan Admin\",\n    \"jabatan\": \"Staff\",\n    \"divisi\": \"HRD\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/admin/create-user",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "admin", "create-user"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Request Keluar (Anggota)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"alasan_keluar\": \"Pindah kerja\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/anggota/request-keluar",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "anggota", "request-keluar"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Simpanan",
+			"item": [
+				{
+					"name": "Get All Simpanan",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/simpan-pinjam/simpanan",
+							"host": ["{{base_url}}"],
+							"path": ["api", "simpan-pinjam", "simpanan"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Tambah Transaksi Simpanan",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"anggota_id\": 5,\n    \"jenis_simpanan\": \"Sukarela\",\n    \"jenis_transaksi\": \"Setor\",\n    \"nominal\": 500000,\n    \"keterangan\": \"Setoran sukarela tambahan\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/simpan-pinjam/simpanan/transaksi",
+							"host": ["{{base_url}}"],
+							"path": ["api", "simpan-pinjam", "simpanan", "transaksi"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk Create Simpanan Wajib",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"selected_anggota_ids\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/simpan-pinjam/simpanan/transaksi/bulk-wajib",
+							"host": ["{{base_url}}"],
+							"path": ["api", "simpan-pinjam", "simpanan", "transaksi", "bulk-wajib"]
+						},
+						"description": "Kirim array kosong untuk proses SEMUA anggota aktif."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. Pinjaman",
+			"item": [
+				{
+					"name": "Ajukan Pinjaman Baru",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"jenis_pinjaman\": \"Uang\",\n    \"jumlah_pinjaman\": 5000000,\n    \"keperluan\": \"Biaya pendidikan\",\n    \"tenor\": 10\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/simpan-pinjam/pinjaman",
+							"host": ["{{base_url}}"],
+							"path": ["api", "simpan-pinjam", "pinjaman"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Pinjaman",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/simpan-pinjam/pinjaman",
+							"host": ["{{base_url}}"],
+							"path": ["api", "simpan-pinjam", "pinjaman"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Pinjaman",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"Approved\",\n    \"pinjaman_disetujui\": 5000000,\n    \"tenor\": 10,\n    \"catatan_pengurus\": \"Disetujui penuh\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/simpan-pinjam/pinjaman/status/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "simpan-pinjam", "pinjaman", "status", "1"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk Process Angsuran",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"selected_pinjaman_ids\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/simpan-pinjam/pinjaman/transaksi/bulk-angsuran",
+							"host": ["{{base_url}}"],
+							"path": ["api", "simpan-pinjam", "pinjaman", "transaksi", "bulk-angsuran"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "5. Peraturan & Dashboard",
+			"item": [
+				{
+					"name": "Get Dashboard Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/stats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "stats"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Peraturan",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/peraturan",
+							"host": ["{{base_url}}"],
+							"path": ["api", "peraturan"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "6. Notifikasi",
+			"item": [
+				{
+					"name": "Get My Notifications",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/notifications?page=1&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mark All as Read",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/notifications/read-all",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications", "read-all"]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

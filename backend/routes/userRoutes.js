@@ -4,8 +4,12 @@ const userController = require('../controllers/userController');
 const { verifyToken, authorizeRoles } = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload');
 
-// Semua route di sini memerlukan login (verifyToken)
+// Public route (accessible by guests)
+router.get('/contact/sekretaris', userController.getSecretaryContact);
+
+// Semua route di bawah ini memerlukan login (verifyToken)
 router.use(verifyToken);
+
 
 // Route khusus Manajemen Profil Pribadi (berlaku untuk semua role yang login)
 router.get('/profile', userController.getProfile);

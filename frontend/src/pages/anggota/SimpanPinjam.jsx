@@ -62,9 +62,28 @@ export default function SimpanPinjam() {
   const cursorPosRef = useRef(null);
 
   const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
-  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null, type: 'success' });
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: 'warning', title: '', message: '', onConfirm: () => {} });
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // Membership Eligibility Logic (Min 30 days for Loans)
+  const membershipDays = useMemo(() => {
+    if (!profileData?.tanggal_bergabung) return 0;
+    const joinDate = new Date(profileData.tanggal_bergabung);
+    const today = new Date();
+    // Reset time for accurate day calculation
+    joinDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    const diffTime = today - joinDate;
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  }, [profileData]);
+
+  const isEligibleForLoan = useMemo(() => {
+    // Pengurus are always eligible, Anggota must be 30+ days
+    if (user?.role !== 'Anggota') return true;
+    return membershipDays >= 30;
+  }, [user?.role, membershipDays]);
+
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -113,6 +132,7 @@ export default function SimpanPinjam() {
     };
 
     socket.on('simpanan:updated', handleUpdate);
+    socket.on('simpanan:bulkUpdated', handleUpdate);
     socket.on('transaksi:created', handleUpdate);
     socket.on('transaksi:updated', handleUpdate);
     socket.on('pinjaman:updated', handleUpdate);
@@ -127,6 +147,7 @@ export default function SimpanPinjam() {
 
     return () => {
       socket.off('simpanan:updated', handleUpdate);
+      socket.off('simpanan:bulkUpdated', handleUpdate);
       socket.off('transaksi:created', handleUpdate);
       socket.off('transaksi:updated', handleUpdate);
       socket.off('pinjaman:updated', handleUpdate);
@@ -483,7 +504,8 @@ export default function SimpanPinjam() {
           <p className="text-gray-500 text-lg font-medium">Kelola simpanan dan ajukan pinjaman Anda dengan mudah.</p>
         </div>
 
-        {!isFormOpen && !isDetailOpen && activeTab === 'pinjaman' && (
+        {!isFormOpen && !isDetailOpen && activeTab === 'pinjaman' && isEligibleForLoan && (
+
           <Button 
             className="relative z-10 flex items-center gap-2 !px-8 !py-4 shadow-xl shadow-[#004A9C]/20"
             onClick={() => {
@@ -863,123 +885,175 @@ export default function SimpanPinjam() {
               </div>
             </motion.div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {(activeTab === 'simpanan' 
-                ? [
-                    { id: 'sp', label: 'Simpanan Pokok', value: profileData?.simpanan?.saldo_pokok, icon: Wallet, color: '#004A9C' },
-                    { id: 'sw', label: 'Simpanan Wajib', value: profileData?.simpanan?.saldo_wajib, icon: TrendingUp, color: '#27AE60' },
-                    { id: 'ss', label: 'Simpanan Sukarela', value: profileData?.simpanan?.saldo_sukarela, icon: PiggyBank, color: '#F2994A' },
-                    { id: 'ts', label: 'Total Saldo', value: (parseFloat(profileData?.simpanan?.saldo_pokok || 0) + parseFloat(profileData?.simpanan?.saldo_wajib || 0) + parseFloat(profileData?.simpanan?.saldo_sukarela || 0)), icon: Wallet, color: '#EB5757', highlighted: true },
-                  ]
-                : [
-                    { id: 'lk', 
-                      label: 'Sisa Limit Angsuran', 
-                      value: (() => {
-                        const base = getAngsuranLimit(user?.jabatan || profileData?.anggota?.jabatan || 'Staff');
-                        const used = profileData?.pinjaman?.filter(p => p.status === 'Approved').reduce((acc, curr) => acc + parseFloat(curr.angsuran_per_bulan || 0), 0) || 0;
-                        return Math.max(0, base - used);
-                      })(),
-                      icon: TrendingUp, 
-                      color: '#27AE60', 
-                      detail: 'Batas pemotongan' 
-                    },
-                    { id: 'pa', label: 'Pinjaman Aktif', value: profileData?.pinjaman?.reduce((acc, curr) => acc + (curr.status === 'Approved' ? parseFloat(curr.sisa_tagihan || 0) : 0), 0), icon: CreditCard, color: '#004A9C' },
-                    { id: 'mr', label: 'Menunggu Review', value: profileData?.pinjaman?.filter(p => p.status === 'Pending').length, icon: Clock, color: '#F2994A', isCount: true },
-                    { id: 'tp', label: 'Total Pinjaman', value: profileData?.pinjaman?.length, icon: FileText, color: '#EB5757', isCount: true },
-                  ]
-              ).map((stat) => (
-                <motion.div 
-                  key={stat.id} 
-                  variants={itemVariants} 
-                  onMouseEnter={() => setHoveredCard(stat.id)}
-                  onMouseLeave={() => setHoveredCard(null)}
-                  className="bg-white rounded-[2.5rem] shadow-sm p-8 border border-gray-100 hover:shadow-2xl hover:shadow-blue-900/10 transition-all group relative overflow-hidden aspect-square flex flex-col items-center justify-center text-center cursor-help"
-                >
-                  {/* Clipping container for decorative background effects */}
-                  <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] pointer-events-none">
-                    <div 
-                      className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-5 transition-transform duration-700 group-hover:scale-150"
-                      style={{ backgroundColor: stat.color }}
-                    />
+            {activeTab === 'pinjaman' && !isEligibleForLoan ? (
+              /* Warning for restricted members */
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-[2.5rem] p-12 border border-gray-100 shadow-xl shadow-blue-900/5 text-center space-y-6 relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-50 rounded-full -mr-32 -mt-32 opacity-50 blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-gray-50 rounded-full -ml-24 -mb-24 opacity-40 blur-3xl"></div>
+
+                <div className="w-24 h-24 bg-amber-50 text-amber-500 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner border border-amber-100/50 relative z-10">
+                  <AlertCircle size={48} className="animate-pulse" />
+                </div>
+                
+                <div className="max-w-md mx-auto space-y-3 relative z-10">
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tight">Akses Pinjaman Dibatasi</h3>
+                  <p className="text-gray-500 font-medium leading-relaxed">
+                    Maaf, fitur pengajuan pinjaman hanya tersedia bagi anggota yang telah bergabung selama minimal <span className="text-[#004A9C] font-bold">30 hari</span>.
+                  </p>
+                </div>
+
+                <div className="bg-gray-50/80 backdrop-blur-sm rounded-3xl p-8 border border-gray-100 max-w-sm mx-auto relative z-10">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.25em] mb-4">Status Keanggotaan Anda</p>
+                  <div className="flex items-center justify-center gap-4">
+                    <div className="flex flex-col items-center">
+                      <span className="text-2xl font-black text-[#004A9C]">{membershipDays}</span>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Hari</span>
+                    </div>
+                    <div className="h-10 w-px bg-gray-200"></div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-2xl font-black text-gray-300">30</span>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Target</span>
+                    </div>
                   </div>
                   
-                  <div className="w-16 h-16 rounded-[1.5rem] flex items-center justify-center mb-6 transition-all group-hover:scale-110 group-hover:rotate-6 duration-500 relative z-10" style={{ backgroundColor: `${stat.color}15`, color: stat.color }}>
-                    <stat.icon size={28} />
-                  </div>
-                  <div className="space-y-2 relative z-10 w-full">
-                    <h3 className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em]">{stat.label}</h3>
-                    
-                    <div className="relative inline-block w-full">
-                      <p className={`text-2xl font-black transition-all duration-300 ${stat.highlighted ? 'text-[#004A9C]' : 'text-gray-900'} ${hoveredCard === stat.id && !stat.isCount ? 'blur-sm opacity-20' : ''}`}>
-                        {stat.isCount ? stat.value : formatCompactCurrency(stat.value)}
-                        {stat.isCount && <span className="text-[10px] ml-1 opacity-50 font-bold uppercase tracking-widest">Data</span>}
-                      </p>
-
-                      <AnimatePresence>
-                        {hoveredCard === stat.id && !stat.isCount && (
-                          <motion.div 
-                            initial={{ opacity: 0, scale: 0.8, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.8, y: 10 }}
-                            className="absolute inset-0 flex items-center justify-center z-50"
-                          >
-                            <span className="text-sm font-black text-gray-900 whitespace-nowrap bg-white/80 backdrop-blur-sm px-4 py-1.5 rounded-full border border-gray-100 shadow-sm">
-                              {formatCurrency(stat.value)}
-                            </span>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-
-                    {stat.detail && <p className="text-[10px] text-gray-400 font-medium italic">{stat.detail}</p>}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Table Section */}
-            <motion.div variants={itemVariants} className="bg-white rounded-[2.5rem] shadow-xl shadow-blue-900/5 border border-gray-100 overflow-hidden flex flex-col min-h-[500px]">
-              <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-[#004A9C] text-white rounded-2xl shadow-lg shadow-[#004A9C]/20">
-                    <Activity size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black text-gray-800 tracking-tight">
-                      {activeTab === 'simpanan' ? 'Riwayat Transaksi' : 'Daftar Pengajuan Pinjaman'}
-                    </h3>
-                    <p className="text-sm text-gray-400 font-medium">
-                      {activeTab === 'simpanan' ? 'Data simpanan dan penarikan saldo' : 'Status dan riwayat pinjaman Anda'}
-                    </p>
+                  <div className="mt-6 w-full bg-gray-200 h-2.5 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (membershipDays / 30) * 100)}%` }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className="h-full bg-gradient-to-r from-[#004A9C] to-blue-400"
+                    ></motion.div>
                   </div>
                 </div>
-              </div>
 
-              <div className="overflow-x-auto flex-1">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50/50 text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-gray-100">
-                      {activeTab === 'simpanan' ? (
-                        <>
-                          <th className="py-5 px-8">Tanggal</th>
-                          <th className="py-5 px-8">Keterangan</th>
-                          <th className="py-5 px-8 text-right">Nominal</th>
-                          <th className="py-5 px-8 text-center">Status</th>
-                        </>
-                      ) : (
-                        <>
-                          <th className="py-5 px-8">Tanggal</th>
-                          <th className="py-5 px-8">Tipe & Keperluan</th>
-                          <th className="py-5 px-8 text-right">Diajukan/Disetujui</th>
-                          <th className="py-5 px-8 text-center">Tenor/Angsuran</th>
-                          <th className="py-5 px-8 text-right">Sisa Tagihan</th>
-                          <th className="py-5 px-8 text-center">Status</th>
-                          <th className="py-5 px-8 text-center">Manajemen</th>
-                        </>
-                      )}
-                    </tr>
-                  </thead>
+                <p className="text-xs text-gray-400 italic relative z-10 mt-6">
+                  Silakan kembali lagi setelah masa keanggotaan Anda mencukupi. Terus tingkatkan saldo simpanan Anda!
+                </p>
+              </motion.div>
+            ) : (
+
+              <>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {(activeTab === 'simpanan' 
+                    ? [
+                        { id: 'sp', label: 'Simpanan Pokok', value: profileData?.simpanan?.saldo_pokok, icon: Wallet, color: '#004A9C' },
+                        { id: 'sw', label: 'Simpanan Wajib', value: profileData?.simpanan?.saldo_wajib, icon: TrendingUp, color: '#27AE60' },
+                        { id: 'ss', label: 'Simpanan Sukarela', value: profileData?.simpanan?.saldo_sukarela, icon: PiggyBank, color: '#F2994A' },
+                        { id: 'ts', label: 'Total Saldo', value: (parseFloat(profileData?.simpanan?.saldo_pokok || 0) + parseFloat(profileData?.simpanan?.saldo_wajib || 0) + parseFloat(profileData?.simpanan?.saldo_sukarela || 0)), icon: Wallet, color: '#EB5757', highlighted: true },
+                      ]
+                    : [
+                        { id: 'lk', 
+                          label: 'Sisa Limit Angsuran', 
+                          value: (() => {
+                            const base = getAngsuranLimit(user?.jabatan || profileData?.anggota?.jabatan || 'Staff');
+                            const used = profileData?.pinjaman?.filter(p => p.status === 'Approved').reduce((acc, curr) => acc + parseFloat(curr.angsuran_per_bulan || 0), 0) || 0;
+                            return Math.max(0, base - used);
+                          })(),
+                          icon: TrendingUp, 
+                          color: '#27AE60', 
+                          detail: 'Batas pemotongan' 
+                        },
+                        { id: 'pa', label: 'Pinjaman Aktif', value: profileData?.pinjaman?.reduce((acc, curr) => acc + (curr.status === 'Approved' ? parseFloat(curr.sisa_tagihan || 0) : 0), 0), icon: CreditCard, color: '#004A9C' },
+                        { id: 'mr', label: 'Menunggu Review', value: profileData?.pinjaman?.filter(p => p.status === 'Pending').length, icon: Clock, color: '#F2994A', isCount: true },
+                        { id: 'tp', label: 'Total Pinjaman', value: profileData?.pinjaman?.length, icon: FileText, color: '#EB5757', isCount: true },
+                      ]
+                  ).map((stat) => (
+                    <motion.div 
+                      key={stat.id} 
+                      variants={itemVariants} 
+                      onMouseEnter={() => setHoveredCard(stat.id)}
+                      onMouseLeave={() => setHoveredCard(null)}
+                      className="bg-white rounded-[2.5rem] shadow-sm p-8 border border-gray-100 hover:shadow-2xl hover:shadow-blue-900/10 transition-all group relative overflow-hidden aspect-square flex flex-col items-center justify-center text-center cursor-help"
+                    >
+                      {/* Clipping container for decorative background effects */}
+                      <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] pointer-events-none">
+                        <div 
+                          className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-5 transition-transform duration-700 group-hover:scale-150"
+                          style={{ backgroundColor: stat.color }}
+                        />
+                      </div>
+                      
+                      <div className="w-16 h-16 rounded-[1.5rem] flex items-center justify-center mb-6 transition-all group-hover:scale-110 group-hover:rotate-6 duration-500 relative z-10" style={{ backgroundColor: `${stat.color}15`, color: stat.color }}>
+                        <stat.icon size={28} />
+                      </div>
+                      <div className="space-y-2 relative z-10 w-full">
+                        <h3 className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em]">{stat.label}</h3>
+                        
+                        <div className="relative inline-block w-full">
+                          <p className={`text-2xl font-black transition-all duration-300 ${stat.highlighted ? 'text-[#004A9C]' : 'text-gray-900'} ${hoveredCard === stat.id && !stat.isCount ? 'blur-sm opacity-20' : ''}`}>
+                            {stat.isCount ? stat.value : formatCompactCurrency(stat.value)}
+                            {stat.isCount && <span className="text-[10px] ml-1 opacity-50 font-bold uppercase tracking-widest">Data</span>}
+                          </p>
+
+                          <AnimatePresence>
+                            {hoveredCard === stat.id && !stat.isCount && (
+                              <motion.div 
+                                initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                                className="absolute inset-0 flex items-center justify-center z-50"
+                              >
+                                <span className="text-sm font-black text-gray-900 whitespace-nowrap bg-white/80 backdrop-blur-sm px-4 py-1.5 rounded-full border border-gray-100 shadow-sm">
+                                  {formatCurrency(stat.value)}
+                                </span>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+
+                        {stat.detail && <p className="text-[10px] text-gray-400 font-medium italic">{stat.detail}</p>}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Table Section */}
+                <motion.div variants={itemVariants} className="bg-white rounded-[2.5rem] shadow-xl shadow-blue-900/5 border border-gray-100 overflow-hidden flex flex-col min-h-[500px]">
+                  <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-[#004A9C] text-white rounded-2xl shadow-lg shadow-[#004A9C]/20">
+                        <Activity size={24} />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-gray-800 tracking-tight">
+                          {activeTab === 'simpanan' ? 'Riwayat Transaksi' : 'Daftar Pengajuan Pinjaman'}
+                        </h3>
+                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">
+                          {activeTab === 'simpanan' ? 'Semua aktivitas simpanan' : 'Status pengajuan Anda'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50/50 text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-gray-100">
+                          {activeTab === 'simpanan' ? (
+                            <>
+                              <th className="py-5 px-8">Tanggal</th>
+                              <th className="py-5 px-8">Keterangan</th>
+                              <th className="py-5 px-8 text-right">Nominal</th>
+                              <th className="py-5 px-8 text-center">Status</th>
+                            </>
+                          ) : (
+                            <>
+                              <th className="py-5 px-8">Tanggal</th>
+                              <th className="py-5 px-8">Tipe & Keperluan</th>
+                              <th className="py-5 px-8 text-right">Diajukan/Disetujui</th>
+                              <th className="py-5 px-8 text-center">Tenor/Angsuran</th>
+                              <th className="py-5 px-8 text-right">Sisa Tagihan</th>
+                              <th className="py-5 px-8 text-center">Status</th>
+                              <th className="py-5 px-8 text-center">Manajemen</th>
+                            </>
+                          )}
+                        </tr>
+                      </thead>
                   <tbody className="divide-y divide-gray-100">
                     {isLoading ? (
                       <tr><td colSpan={activeTab === 'simpanan' ? 4 : 7} className="py-20 text-center text-gray-400 italic uppercase tracking-widest text-xs font-bold">Memuat data...</td></tr>
@@ -1213,24 +1287,26 @@ export default function SimpanPinjam() {
                                </button>
                              ))}
                            </div>
-                           <button 
-                             onClick={() => setCurrentInstallmentPage(p => Math.min(totalInstallmentPages, p + 1))}
-                             disabled={currentInstallmentPage === totalInstallmentPages}
-                             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-100 text-[11px] font-bold uppercase tracking-wider text-gray-400 hover:text-[#004A9C] hover:bg-white transition-all disabled:opacity-30 disabled:hover:bg-transparent"
-                           >
-                             <span>Selanjutnya</span>
-                             <BiChevronRight size={18} />
-                           </button>
-                        </div>
-                      )}
+                            <button 
+                              onClick={() => setCurrentInstallmentPage(p => Math.min(totalInstallmentPages, p + 1))}
+                              disabled={currentInstallmentPage === totalInstallmentPages}
+                              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-100 text-[11px] font-bold uppercase tracking-wider text-gray-400 hover:text-[#004A9C] hover:bg-white transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                            >
+                              <span>Selanjutnya</span>
+                              <BiChevronRight size={18} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </>
-        )}
-      </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </>
+          )}
+        </>
+      )}
+    </AnimatePresence>
 
       {/* Info Card */}
       <motion.div variants={itemVariants} className="bg-orange-50 border border-orange-100 rounded-[2.5rem] p-8 flex items-start gap-6">

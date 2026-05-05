@@ -33,6 +33,13 @@ export default function ConfigRules() {
 
   const categories = ['Semua', 'Simpanan', 'Pinjaman', 'Keanggotaan'];
 
+  const PROTECTED_TITLES = [
+    'Simpanan Pokok', 'Simpanan Wajib', 'Simpanan Sukarela',
+    'Suku Bunga', 'Maksimal Pinjaman Uang', 'Pengunduran Diri',
+    'Limit Angsuran Staff', 'Limit Angsuran Asisten Manager', 'Limit Angsuran Manager',
+    'Bunga 10 Bulan', 'Bunga 15 Bulan', 'Bunga 20 Bulan'
+  ];
+
   // Fetch data from API
   const fetchPeraturan = async () => {
     setIsLoading(true);
@@ -310,7 +317,7 @@ export default function ConfigRules() {
                       <span className="text-lg font-black text-[#004A9C] group-hover:scale-110 origin-left transition-transform block">{rule.ketentuan_utama}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {canEdit && (
+                      {canEdit && !PROTECTED_TITLES.includes(rule.judul) && (
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();

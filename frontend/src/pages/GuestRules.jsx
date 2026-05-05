@@ -7,8 +7,10 @@ import {
   ChevronRight,
   BookOpen,
   Loader2,
-  Clock
+  Clock,
+  MessageCircle
 } from 'lucide-react';
+
 import axios from 'axios';
 import Button from '../components/atoms/Button';
 import { getIconComponent } from '../utils/iconMap';
@@ -22,6 +24,7 @@ export default function GuestRules() {
   const [activeCategory, setActiveCategory] = useState('Semua');
   const [peraturanList, setPeraturanList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [secretaryContact, setSecretaryContact] = useState(null);
   const socket = useSocket();
 
   const categories = ['Semua', 'Simpanan', 'Pinjaman', 'Keanggotaan'];
@@ -39,8 +42,39 @@ export default function GuestRules() {
         setIsLoading(false);
       }
     };
+
+    const fetchSecretaryContact = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/user/contact/sekretaris`);
+        if (res.data.success) {
+          setSecretaryContact(res.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching secretary contact:', error);
+      }
+    };
+
     fetchPeraturan();
+    fetchSecretaryContact();
   }, []);
+
+  const handleContactAdmin = () => {
+    if (!secretaryContact || !secretaryContact.no_hp) {
+      alert("Maaf, kontak admin belum tersedia saat ini.");
+      return;
+    }
+
+    // Format phone number: remove non-digits, ensure starts with country code if needed
+    // Assuming the number in DB is like 0812... or +62...
+    let phoneNumber = secretaryContact.no_hp.replace(/\D/g, '');
+    if (phoneNumber.startsWith('0')) {
+      phoneNumber = '62' + phoneNumber.substring(1);
+    }
+
+    const message = encodeURIComponent(`Halo Admin Koperasi Nichias, saya ingin bertanya mengenai peraturan koperasi...`);
+    window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+  };
+
 
   // WebSocket real-time updates
   useEffect(() => {
@@ -243,11 +277,35 @@ export default function GuestRules() {
         </div>
         <div className="flex-1 text-center md:text-left relative z-10">
           <h4 className="text-2xl font-black mb-2">Punya pertanyaan mendalam?</h4>
-          <p className="text-white/80 text-lg font-medium">Tim pengurus kami siap membantu menjelaskan setiap poin kebijakan melalui sesi tanya jawab langsung.</p>
+          <p className="text-white/80 text-lg font-medium">Tim pengurus kami siap membantu menjelaskan setiap poin kebijakan melalui sesi tanya jawab.</p>
         </div>
-        <Button className="shrink-0 bg-white text-[#004A9C] hover:bg-gray-50 px-10 py-4 text-lg font-black shadow-xl relative z-10">
-          Hubungi Admin
-        </Button>
+        <motion.button
+          whileHover={{ 
+            scale: 1.05, 
+            boxShadow: "0 20px 40px -10px rgba(0,0,0,0.3)",
+            y: -2
+          }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleContactAdmin}
+          className="shrink-0 bg-white text-[#004A9C] px-10 py-4 text-lg font-black rounded-full shadow-2xl relative z-10 flex items-center gap-3 group transition-all"
+        >
+          <MessageCircle size={24} className="text-[#25D366] group-hover:rotate-12 transition-transform" />
+          <span>Hubungi Pengurus</span>
+          <motion.div
+            initial={{ x: 0 }}
+            animate={{ x: [0, 5, 0] }}
+            transition={{ 
+              repeat: Infinity, 
+              duration: 1.5,
+              ease: "easeInOut" 
+            }}
+          >
+            <ChevronRight size={24} className="group-hover:text-[#004A9C]/70 transition-colors" />
+          </motion.div>
+        </motion.button>
+
+
+
       </motion.div>
     </div>
   );

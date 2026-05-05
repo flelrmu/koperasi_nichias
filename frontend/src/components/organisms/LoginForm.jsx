@@ -5,7 +5,8 @@ import Button from "../atoms/Button";
 import Modal from "../molecules/Modal";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, LogIn } from "lucide-react";
+import { Eye, EyeOff, LogIn, Loader2 } from "lucide-react";
+
 
 export default function LoginForm() {
   const navigate = useNavigate();
@@ -149,11 +150,14 @@ export default function LoginForm() {
               disabled={isLoading}
               className="w-full !py-3.5 shadow-2xl shadow-blue-900/20 active:scale-[0.98] transition-all"
             >
+
+
               {isLoading ? (
                 <span className="flex items-center gap-2 text-xs">
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <Loader2 size={16} className="animate-spin" />
                   Memproses...
                 </span>
+
               ) : (
                 <span className="font-black uppercase tracking-[0.2em] text-xs">Login</span>
               )}

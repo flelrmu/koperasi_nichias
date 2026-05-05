@@ -54,6 +54,7 @@ export default function Dashboard() {
     };
 
     socket.on('simpanan:updated', handleUpdate);
+    socket.on('simpanan:bulkUpdated', handleUpdate);
     socket.on('transaksi:created', handleUpdate);
     socket.on('transaksi:updated', handleUpdate);
     socket.on('pinjaman:updated', handleUpdate);
@@ -61,6 +62,7 @@ export default function Dashboard() {
 
     return () => {
       socket.off('simpanan:updated', handleUpdate);
+      socket.off('simpanan:bulkUpdated', handleUpdate);
       socket.off('transaksi:created', handleUpdate);
       socket.off('transaksi:updated', handleUpdate);
       socket.off('pinjaman:updated', handleUpdate);

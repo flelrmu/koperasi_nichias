@@ -83,8 +83,17 @@ export default function AdminDashboard() {
 
     if (socket) {
       socket.on('dashboardUpdate', fetchDashboardData);
+      socket.on('transaksi:created', fetchDashboardData);
+      socket.on('transaksi:updated', fetchDashboardData);
+      socket.on('pinjaman:updated', fetchDashboardData);
+      socket.on('pinjaman:created', fetchDashboardData);
+
       return () => {
         socket.off('dashboardUpdate', fetchDashboardData);
+        socket.off('transaksi:created', fetchDashboardData);
+        socket.off('transaksi:updated', fetchDashboardData);
+        socket.off('pinjaman:updated', fetchDashboardData);
+        socket.off('pinjaman:created', fetchDashboardData);
       };
     }
   }, [socket]);

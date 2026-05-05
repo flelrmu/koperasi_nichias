@@ -1,4 +1,6 @@
-const { Simpanan, Pinjaman, Anggota, User, TransaksiSimpanan, Konfigurasi, Notifikasi, Pengurus } = require('../models');
+const db = require('../models');
+const { Simpanan, Pinjaman, Anggota, User, TransaksiSimpanan, Konfigurasi, Notifikasi, Pengurus } = db;
+const { Op } = db.Sequelize;
 const angkaKeTerbilang = require('../utils/terbilang');
 
 // ==================== SIMPANAN ====================
@@ -63,7 +65,7 @@ exports.updateSimpanan = async (req, res) => {
  * Koordinator input simpanan baru (Pokok/Wajib/Sukarela)
  */
 exports.createTransaksiSimpanan = async (req, res) => {
-  const transaction = await require('../models').sequelize.transaction();
+  const transaction = await db.sequelize.transaction();
   
   try {
     const { anggota_id, jenis_simpanan, jenis_transaksi, nominal, keterangan } = req.body;
@@ -91,8 +93,17 @@ exports.createTransaksiSimpanan = async (req, res) => {
     } else if (jenis_simpanan === 'Wajib' && jenis_transaksi === 'Setor') {
       finalNominal = parseFloat(configMap['SIMPANAN_WAJIB'] || nominal);
     }
-    // Sukarela: if config = 0, free input; otherwise use config value
-    // (We don't enforce sukarela here, user can input any amount)
+    // Sukarela: check minimum deposit if configured
+    if (jenis_simpanan === 'Sukarela' && jenis_transaksi === 'Setor') {
+      const minSukarela = parseFloat(configMap['SIMPANAN_SUKARELA'] || 0);
+      if (finalNominal < minSukarela) {
+        await transaction.rollback();
+        return res.status(400).json({ 
+          success: false, 
+          message: `Nominal simpanan sukarela minimal adalah ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(minSukarela)}.` 
+        });
+      }
+    }
 
     // Find or create simpanan record
     let simpanan = await Simpanan.findOne({ where: { anggota_id }, transaction });
@@ -215,7 +226,7 @@ exports.createTransaksiSimpanan = async (req, res) => {
  * Koordinator edit transaksi simpanan yang sudah ada
  */
 exports.updateTransaksiSimpanan = async (req, res) => {
-  const transaction = await require('../models').sequelize.transaction();
+  const transaction = await db.sequelize.transaction();
   
   try {
     const { id } = req.params;
@@ -594,7 +605,7 @@ exports.updatePinjamanStatus = async (req, res) => {
           where: {
             anggota_id: pinjaman.anggota_id,
             status: 'Approved',
-            pinjaman_id: { [db.Sequelize.Op.ne]: id }
+            pinjaman_id: { [Op.ne]: id }
           }
         });
         

@@ -255,6 +255,21 @@ const deletePeraturan = async (req, res) => {
       });
     }
 
+    // Protection: Prevent deleting system-critical rules
+    const PROTECTED_TITLES = [
+      'Simpanan Pokok', 'Simpanan Wajib', 'Simpanan Sukarela',
+      'Suku Bunga', 'Maksimal Pinjaman Uang', 'Pengunduran Diri',
+      'Limit Angsuran Staff', 'Limit Angsuran Asisten Manager', 'Limit Angsuran Manager',
+      'Bunga 10 Bulan', 'Bunga 15 Bulan', 'Bunga 20 Bulan'
+    ];
+
+    if (PROTECTED_TITLES.includes(peraturan.judul)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Peraturan sistem ini tidak dapat dihapus, hanya dapat diubah nilainya.',
+      });
+    }
+
     const judul = peraturan.judul;
     await peraturan.destroy();
 

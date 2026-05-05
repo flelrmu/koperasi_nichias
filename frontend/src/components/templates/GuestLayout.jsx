@@ -26,34 +26,31 @@ export default function GuestLayout() {
           </div>
 
           <div className="flex items-center gap-3">
-            {isDetail ? (
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/rules')}
-                className="flex items-center gap-2 border-none hover:bg-[#DFEAF4] text-[#004A9C]"
-              >
-                <ChevronLeft size={18} />
-                <span className="hidden sm:inline">Kembali</span>
-              </Button>
-            ) : (
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/register')}
-                className="flex items-center gap-2 border-none hover:bg-[#DFEAF4] text-[#004A9C]"
-              >
-                <Home size={18} />
-                <span className="hidden sm:inline">Pendaftaran</span>
-              </Button>
-            )}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate(isDetail ? '/rules' : '/register')}
+              className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm font-bold transition-all ${
+                isDetail 
+                ? 'text-gray-500 hover:text-[#004A9C] hover:bg-[#DFEAF4]' 
+                : 'bg-white text-[#004A9C] border border-[#004A9C] hover:bg-[#004A9C] hover:text-white shadow-sm'
+              }`}
+            >
+              {isDetail ? <ChevronLeft size={18} /> : <Home size={18} />}
+              <span className="hidden sm:inline">{isDetail ? 'Kembali' : 'Pendaftaran'}</span>
+            </motion.button>
             
             <div className="h-8 w-[1px] bg-gray-200 mx-2 hidden sm:block"></div>
             
-            <Button 
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/login')}
-              className="bg-[#004A9C] hover:bg-[#003B7A] px-6"
+              className="bg-[#004A9C] hover:bg-[#003B7A] text-white px-8 py-2 rounded-full text-sm font-bold shadow-lg shadow-blue-900/10 transition-all"
             >
               Login
-            </Button>
+            </motion.button>
+
           </div>
         </div>
       </header>

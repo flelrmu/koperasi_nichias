@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, User, Mail, CreditCard, Phone, MapPin, Briefcase, Building, Landmark, Lock, LogOut, Save, Loader2 } from 'lucide-react';
+import { Camera, User, Mail, CreditCard, Phone, MapPin, Briefcase, Building, Landmark, Lock, LogOut, Save, Loader2, Calendar } from 'lucide-react';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -346,15 +349,23 @@ export default function Profile() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-gray-700">Tanggal Lahir</label>
-                    <Input 
-                      type="date"
-                      name="tanggalLahir"
-                      value={profileData.tanggalLahir}
-                      onChange={handleProfileChange}
-                      className="text-gray-700"
-                      required
-                    />
+                    <div className="relative">
+                      <DatePicker 
+                        selected={profileData.tanggalLahir ? new Date(profileData.tanggalLahir) : null}
+                        onChange={(date) => setProfileData(prev => ({ ...prev, tanggalLahir: date ? date.toISOString().split('T')[0] : '' }))}
+                        dateFormat="dd/MM/yyyy"
+                        placeholderText="DD/MM/YYYY"
+                        showMonthDropdown
+                        showYearDropdown
+                        dropdownMode="select"
+                        maxDate={new Date()}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#004A9C]/50 focus:border-[#004A9C] transition-all text-gray-700 font-medium lg:text-[14px] text-base"
+                        required
+                      />
+                      <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                    </div>
                   </div>
+
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-gray-700">Jabatan</label>
                     <div className="relative">

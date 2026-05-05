@@ -40,6 +40,7 @@ export default function ManajemenSaldo() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(!member);
   const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
   const fetchSimpananDetail = useCallback(async () => {
     try {
@@ -68,8 +69,7 @@ export default function ManajemenSaldo() {
     }
   }, [member, fetchSimpananDetail]);
 
-  const handleSubmit = async (e) => {
-    if (e) e.preventDefault();
+  const actualSubmit = async () => {
     if (isSubmitting) return;
 
     setIsSubmitting(true);
@@ -81,6 +81,7 @@ export default function ManajemenSaldo() {
       });
       
       if (res.data.success) {
+        setConfirmModal({ ...confirmModal, isOpen: false });
         setStatusModal({
           isOpen: true,
           type: 'success',
@@ -90,6 +91,7 @@ export default function ManajemenSaldo() {
       }
     } catch (error) {
       console.error('Error updating balance:', error);
+      setConfirmModal({ ...confirmModal, isOpen: false });
       setStatusModal({
         isOpen: true,
         type: 'error',
@@ -99,6 +101,16 @@ export default function ManajemenSaldo() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = (e) => {
+    if (e) e.preventDefault();
+    setConfirmModal({
+      isOpen: true,
+      title: 'Konfirmasi Perubahan Saldo',
+      message: `Anda akan mengubah total saldo ${member?.anggota?.nama_lengkap} secara langsung. Pastikan data ini sudah sesuai dengan catatan fisik. Lanjutkan?`,
+      onConfirm: actualSubmit
+    });
   };
 
   const formatCurrency = (val) => {
@@ -270,6 +282,19 @@ export default function ManajemenSaldo() {
            </div>
         </div>
       </div>
+
+      {/* Confirm Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type="warning"
+        confirmText="Ya, Perbarui Saldo"
+        onConfirm={confirmModal.onConfirm}
+        isLoading={isSubmitting}
+        maxWidth="max-w-md"
+      />
 
       {/* Status Modal */}
       <Modal

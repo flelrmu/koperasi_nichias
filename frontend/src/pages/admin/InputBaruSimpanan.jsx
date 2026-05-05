@@ -41,6 +41,7 @@ export default function InputBaruSimpanan() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
   const formatToRupiah = (value) => {
     if (!value && value !== 0) return '';
@@ -143,10 +144,8 @@ export default function InputBaruSimpanan() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const actualSubmit = async () => {
     if (isSubmitting) return;
-
     setIsSubmitting(true);
     try {
       const res = await api.post('/simpan-pinjam/simpanan/transaksi', {
@@ -156,6 +155,7 @@ export default function InputBaruSimpanan() {
       });
       
       if (res.data.success) {
+        setConfirmModal({ ...confirmModal, isOpen: false });
         setStatusModal({
           isOpen: true,
           type: 'success',
@@ -165,6 +165,7 @@ export default function InputBaruSimpanan() {
       }
     } catch (error) {
       console.error('Error submitting transaction:', error);
+      setConfirmModal({ ...confirmModal, isOpen: false });
       setStatusModal({
         isOpen: true,
         type: 'error',
@@ -174,6 +175,32 @@ export default function InputBaruSimpanan() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = (e) => {
+    if (e) e.preventDefault();
+
+    // Client-side validation for Sukarela minimum
+    if (formData.jenis_simpanan === 'Sukarela' && formData.jenis_transaksi === 'Setor') {
+      const nominalVal = parseFloat(formData.nominal.toString().replace(/\./g, '')) || 0;
+      const minSukarela = configs.SIMPANAN_SUKARELA || 0;
+      if (nominalVal < minSukarela) {
+        setStatusModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Nominal Kurang',
+          message: `Nominal setoran sukarela minimal adalah ${formatCurrency(minSukarela)}.`
+        });
+        return;
+      }
+    }
+
+    setConfirmModal({
+      isOpen: true,
+      title: 'Konfirmasi Transaksi',
+      message: `Apakah Anda yakin ingin mencatat ${formData.jenis_transaksi === 'Setor' ? 'setoran' : 'penarikan'} ${formData.jenis_simpanan} sebesar Rp ${formData.nominal} untuk ${member?.nama_lengkap}?`,
+      onConfirm: actualSubmit
+    });
   };
 
   const formatCurrency = (val) => {
@@ -330,6 +357,11 @@ export default function InputBaruSimpanan() {
                 readOnly={(formData.jenis_simpanan === 'Pokok' || formData.jenis_simpanan === 'Wajib') && formData.jenis_transaksi === 'Setor'}
               />
             </div>
+            {formData.jenis_simpanan === 'Sukarela' && formData.jenis_transaksi === 'Setor' && configs.SIMPANAN_SUKARELA > 0 && (
+              <p className="text-[10px] text-blue-600 font-bold italic mt-1 flex items-center gap-1">
+                <Info size={10} /> Minimal setoran sukarela adalah {formatCurrency(configs.SIMPANAN_SUKARELA)}.
+              </p>
+            )}
             {formData.nominal && (
               <p className="text-xs text-gray-500 font-medium">
                 Terbilang: <span className="font-bold text-[#004A9C]">{formatCurrency(formData.nominal.toString().replace(/\./g, ''))}</span>
@@ -372,6 +404,19 @@ export default function InputBaruSimpanan() {
           </div>
         </form>
       </div>
+
+      {/* Confirm Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type="warning"
+        confirmText="Ya, Simpan Transaksi"
+        onConfirm={confirmModal.onConfirm}
+        isLoading={isSubmitting}
+        maxWidth="max-w-md"
+      />
 
       {/* Status Modal */}
       <Modal

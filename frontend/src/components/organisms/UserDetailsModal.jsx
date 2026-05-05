@@ -25,12 +25,22 @@ import { useState } from 'react';
 export default function UserDetailsModal({ isOpen, onClose, user, type }) {
   const { api, user: currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '' });
   const canApprove = type === 'anggota' && user?.status_keanggotaan === 'Pending' && isSekretaris(currentUser?.role);
 
   if (!user) return null;
 
-  const handleApprove = async () => {
+  const handleApprove = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Konfirmasi Aktivasi Anggota',
+      message: `Apakah Anda yakin ingin menyetujui pendaftaran "${user.nama_lengkap}"? Anggota akan langsung aktif, nomor anggota akan dibuat secara otomatis, dan simpanan pokok awal akan digenerate.`
+    });
+  };
+
+  const actualApprove = async () => {
     setIsSubmitting(true);
+    setConfirmModal({ ...confirmModal, isOpen: false });
     try {
       const id = user.anggota_id;
       const res = await api.put(`/user/approve/${id}`, { action: 'terima' });
@@ -55,6 +65,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, type }) {
   };
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
@@ -256,5 +267,17 @@ export default function UserDetailsModal({ isOpen, onClose, user, type }) {
         </div>
       </div>
     </Modal>
+    <Modal
+      isOpen={confirmModal.isOpen}
+      onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      title={confirmModal.title}
+      message={confirmModal.message}
+      type="warning"
+      confirmText="Ya, Aktifkan Anggota"
+      onConfirm={actualApprove}
+      isLoading={isSubmitting}
+      maxWidth="max-w-md"
+    />
+    </>
   );
 }

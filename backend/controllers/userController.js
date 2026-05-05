@@ -314,8 +314,15 @@ const updateUser = async (req, res) => {
 
     await transaction.commit();
 
+    // Re-fetch result with User association to include email in socket payload
+    if (type === 'anggota') {
+      result = await Anggota.findByPk(id, { include: [{ model: User, as: 'user', attributes: ['email', 'role'] }] });
+    } else {
+      result = await Pengurus.findByPk(id, { include: [{ model: User, as: 'user', attributes: ['email', 'role'] }] });
+    }
+
     // Emit event real-time
-    req.io.emit('user:updated', { type, id, data: result });
+    req.io.emit('user:updated', { type, id: parseInt(id), data: result });
     req.io.emit('dashboardUpdate');
 
     return res.status(200).json({
@@ -380,9 +387,10 @@ const deleteUser = async (req, res) => {
 
     await transaction.commit();
 
-    // Emit event real-time
-    req.io.emit('user:deleted', { type, id });
-    req.io.emit('dashboardUpdate');
+    // Emit event real-time menggunakan instance global
+    const globalIo = req.app.get('io') || req.io;
+    globalIo.emit('user:deleted', { type: type.toLowerCase(), id: String(id) });
+    globalIo.emit('dashboardUpdate');
 
     return res.status(200).json({
       success: true,
@@ -731,7 +739,35 @@ const uploadProfilePhoto = async (req, res) => {
   }
 };
 
+const getSecretaryContact = async (req, res) => {
+  try {
+    const secretary = await Pengurus.findOne({
+      where: { jabatan: 'Sekretaris' },
+      attributes: ['nama_lengkap', 'no_hp'],
+    });
+
+    if (!secretary) {
+      return res.status(404).json({
+        success: false,
+        message: 'Kontak sekretaris tidak ditemukan.',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: secretary,
+    });
+  } catch (error) {
+    console.error('❌ Error fetching secretary contact:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Gagal mengambil kontak sekretaris.',
+    });
+  }
+};
+
 module.exports = {
+
   getAnggotaList,
   getPengurusList,
   updateUser,
@@ -744,5 +780,7 @@ module.exports = {
   uploadProfilePhoto,
   requestKeluar,
   cancelKeluar,
-  approveKeluar
+  approveKeluar,
+  getSecretaryContact
 };
+

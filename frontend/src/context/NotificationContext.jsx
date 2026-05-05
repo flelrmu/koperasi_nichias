@@ -145,8 +145,8 @@ export function NotificationProvider({ children }) {
       console.log('🔔 Real-time notifikasi:anggota-keluar received:', data);
       const { isAuthenticated: authed, user: currentUser } = authRef.current;
       
-      // Only show to management (Sekretaris, Ketua, etc.)
-      if (!authed || !isManagement(currentUser?.role)) return;
+      // Only show to Sekretaris (administrative responsibility)
+      if (!authed || currentUser?.role !== 'Sekretaris') return;
 
       const newNotif = {
         id: `temp_keluar_${Date.now()}`,

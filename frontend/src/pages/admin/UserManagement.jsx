@@ -56,8 +56,9 @@ export default function UserManagement() {
   const [isReviewKeluarModalOpen, setIsReviewKeluarModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
-  const handleApproveKeluar = async () => {
+  const actualApproveKeluar = async () => {
     try {
       setIsLoading(true);
       const response = await api.post('/user/anggota/approve-keluar', { anggota_id: selectedUser.anggota_id });
@@ -69,6 +70,7 @@ export default function UserManagement() {
           message: 'Anggota telah resmi keluar dari koperasi.'
         });
         setIsReviewKeluarModalOpen(false);
+        setConfirmModal({ ...confirmModal, isOpen: false });
         fetchData();
         if (socket) {
           socket.emit('user:updated');
@@ -76,15 +78,25 @@ export default function UserManagement() {
         }
       }
     } catch (error) {
+      setConfirmModal({ ...confirmModal, isOpen: false });
       setStatusModal({
         isOpen: true,
         type: 'error',
         title: 'Gagal',
-        message: error.response?.data?.message || 'Gagal memproses pengajuan keluar.'
+        message: error.response?.data?.message || 'Terjadi kesalahan sistem.'
       });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleApproveKeluar = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Konfirmasi Pengunduran Diri',
+      message: `Apakah Anda yakin ingin menyetujui pengunduran diri ${selectedUser?.anggota?.nama_lengkap}? Akun anggota ini akan dinonaktifkan secara permanen.`,
+      onConfirm: actualApproveKeluar
+    });
   };
 
   const fetchData = async () => {
@@ -187,12 +199,13 @@ export default function UserManagement() {
 
     const handleDeleted = (data) => {
       console.log('📥 WebSocket Received user:deleted:', data);
-      const normalizedType = data?.type?.toLowerCase();
+      const { type, id } = data;
+      const normalizedType = type?.toLowerCase();
 
       if (normalizedType === 'anggota') {
-        setAnggotaData(prev => prev.filter(u => u.anggota_id != data.id));
+        setAnggotaData(prev => prev.filter(u => String(u.anggota_id) !== String(id)));
       } else if (normalizedType === 'pengurus') {
-        setPengurusData(prev => prev.filter(u => u.pengurus_id != data.id));
+        setPengurusData(prev => prev.filter(u => String(u.pengurus_id) !== String(id)));
       }
     };
 
@@ -672,6 +685,19 @@ export default function UserManagement() {
           </Button>
         </div>
       </Modal>
+
+      {/* Confirm Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type="warning"
+        confirmText="Ya, Setujui"
+        onConfirm={confirmModal.onConfirm}
+        isLoading={isLoading}
+        maxWidth="max-w-md"
+      />
 
       {/* Status Modal (Success/Error) */}
       <Modal
