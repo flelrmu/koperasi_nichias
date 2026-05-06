@@ -57,7 +57,7 @@ Dokumen ini berisi daftar seluruh fungsi (API Backend & Fitur Frontend) yang ada
 
 ## 8. Fitur Frontend (React & Socket.io)
 - [✅] **Real-time Notifikasi**: Munculnya badge notifikasi dan toast secara instan saat ada aksi (pendaftaran baru, pinjaman disetujui, dll).
-- [ ] **Real-time Dashboard Update**: Statistik di dashboard admin berubah otomatis tanpa refresh saat ada transaksi baru.
+- [✅] **Real-time Dashboard Update**: Statistik di dashboard admin berubah otomatis tanpa refresh saat ada transaksi baru.
 - [✅] **Form Validasi Client-side**: Pengecekan input (email, password, nominal) di sisi browser sebelum dikirim ke API.
 - [✅] **Sidebar & Role-based Access Control (RBAC)**: Menu yang muncul menyesuaikan dengan role user (Anggota vs Pengurus).
 - [✅] **Preview Invoice/Kuitansi**: Tampilan detail pinjaman yang diformat seperti invoice untuk diunduh/cetak.

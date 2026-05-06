@@ -15,6 +15,7 @@ router.put('/simpanan/:id', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua',
 // Transaksi Simpanan (CRUD by Koordinator)
 router.post('/simpanan/transaksi', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Bendahara'), simpanPinjamController.createTransaksiSimpanan);
 router.post('/simpanan/transaksi/bulk-wajib', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Bendahara'), simpanPinjamController.bulkCreateSimpananWajib);
+router.post('/simpanan/tarik-semua/:anggotaId', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Bendahara'), simpanPinjamController.tarikSemuaSimpanan);
 router.put('/simpanan/transaksi/:id', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Bendahara'), simpanPinjamController.updateTransaksiSimpanan);
 router.get('/transaksi/:anggotaId', authorizeRoles('Koordinator_Simpan_Pinjam', 'Ketua', 'Sekretaris', 'Bendahara'), simpanPinjamController.getTransaksiByAnggota);
 

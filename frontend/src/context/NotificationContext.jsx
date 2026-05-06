@@ -51,7 +51,7 @@ export function NotificationProvider({ children }) {
       console.log('🔔 Real-time notifikasi:pendaftaran-baru received:', data);
       
       const { isAuthenticated: authed, user: currentUser } = authRef.current;
-      if (!authed || !isManagement(currentUser?.role)) return;
+      if (!authed || currentUser?.role !== 'Sekretaris') return;
 
       const newNotif = {
         id: `temp_${Date.now()}`,
@@ -92,7 +92,8 @@ export function NotificationProvider({ children }) {
 
         setNotifications(prev => [newNotif, ...prev]);
         setUnreadCount(prev => prev + 1);
-        setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
+        // Toast disabled for approval as per user request
+        // setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
       }
     };
 
@@ -113,7 +114,11 @@ export function NotificationProvider({ children }) {
 
       setNotifications(prev => [newNotif, ...prev]);
       setUnreadCount(prev => prev + 1);
-      setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
+      
+      // Don't show toast for initial Simpanan Pokok notification
+      if (!data.notifikasi.judul.includes('Simpanan Pokok')) {
+        setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
+      }
       
       setTimeout(() => fetchNotifications(), 1500);
     };

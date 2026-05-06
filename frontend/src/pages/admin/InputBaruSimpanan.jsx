@@ -30,6 +30,7 @@ export default function InputBaruSimpanan() {
     SIMPANAN_WAJIB: 0,
     SIMPANAN_SUKARELA: 0
   });
+  const [savings, setSavings] = useState(null);
   
   const [formData, setFormData] = useState({
     jenis_simpanan: 'Wajib',
@@ -88,10 +89,24 @@ export default function InputBaruSimpanan() {
     }
   }, [api, id, member]);
 
+  const fetchSavings = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await api.get('/simpan-pinjam/simpanan');
+      if (res.data.success) {
+        const found = res.data.data.find(s => s.anggota_id === parseInt(id));
+        setSavings(found);
+      }
+    } catch (error) {
+      console.error('Error fetching savings:', error);
+    }
+  }, [api, id]);
+
   useEffect(() => {
     fetchConfigs();
     fetchMember();
-  }, [fetchConfigs, fetchMember]);
+    fetchSavings();
+  }, [fetchConfigs, fetchMember, fetchSavings]);
 
   // WebSocket listener for real-time config updates
   useEffect(() => {
@@ -106,14 +121,37 @@ export default function InputBaruSimpanan() {
     };
 
     socket.on('konfigurasi:updated', handleConfigUpdate);
-    return () => socket.off('konfigurasi:updated', handleConfigUpdate);
-  }, [socket]);
+    
+    const handleSimpananUpdated = (data) => {
+      if (data.anggota_id === parseInt(id)) {
+        setSavings(data);
+      }
+    };
+    socket.on('simpanan:updated', handleSimpananUpdated);
+
+    return () => {
+      socket.off('konfigurasi:updated', handleConfigUpdate);
+      socket.off('simpanan:updated', handleSimpananUpdated);
+    };
+  }, [socket, id]);
 
   // Handle nominal auto-fill when jenis_simpanan changes
   useEffect(() => {
     // If switching to Pokok/Wajib while 'Tarik' is selected, force back to 'Setor'
-    if (formData.jenis_transaksi === 'Tarik' && formData.jenis_simpanan !== 'Sukarela') {
+    if (formData.jenis_transaksi === 'Tarik' && (formData.jenis_simpanan === 'Pokok' || formData.jenis_simpanan === 'Wajib')) {
       setFormData(prev => ({ ...prev, jenis_transaksi: 'Setor' }));
+      return;
+    }
+
+    if (formData.jenis_simpanan === 'Semua') {
+      const total = parseFloat(savings?.saldo_pokok || 0) + 
+                    parseFloat(savings?.saldo_wajib || 0) + 
+                    parseFloat(savings?.saldo_sukarela || 0);
+      setFormData(prev => ({ 
+        ...prev, 
+        jenis_transaksi: 'Tarik',
+        nominal: formatToRupiah(total.toString().split('.')[0])
+      }));
       return;
     }
 
@@ -126,7 +164,7 @@ export default function InputBaruSimpanan() {
         setFormData(prev => ({ ...prev, nominal: '' }));
       }
     }
-  }, [formData.jenis_simpanan, formData.jenis_transaksi, configs]);
+  }, [formData.jenis_simpanan, formData.jenis_transaksi, configs, savings]);
 
   const today = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -138,7 +176,18 @@ export default function InputBaruSimpanan() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     if (name === 'nominal') {
-      setFormData(prev => ({ ...prev, [name]: formatToRupiah(value) }));
+      const input = e.target;
+      const selectionStart = input.selectionStart;
+      const oldLength = input.value.length;
+      
+      const formatted = formatToRupiah(value);
+      setFormData(prev => ({ ...prev, [name]: formatted }));
+
+      requestAnimationFrame(() => {
+        const newLength = formatted.length;
+        const position = Math.max(0, selectionStart + (newLength - oldLength));
+        input.setSelectionRange(position, position);
+      });
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -147,12 +196,20 @@ export default function InputBaruSimpanan() {
   const actualSubmit = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    const endpoint = formData.jenis_simpanan === 'Semua' 
+      ? `/simpan-pinjam/simpanan/tarik-semua/${id}`
+      : '/simpan-pinjam/simpanan/transaksi';
+    
     try {
-      const res = await api.post('/simpan-pinjam/simpanan/transaksi', {
-        anggota_id: id,
-        ...formData,
-        nominal: formData.nominal.toString().replace(/\./g, '')
-      });
+      const payload = formData.jenis_simpanan === 'Semua'
+        ? { keterangan: formData.keterangan }
+        : {
+            anggota_id: id,
+            ...formData,
+            nominal: formData.nominal.toString().replace(/\./g, '')
+          };
+
+      const res = await api.post(endpoint, payload);
       
       if (res.data.success) {
         setConfirmModal({ ...confirmModal, isOpen: false });
@@ -197,8 +254,10 @@ export default function InputBaruSimpanan() {
 
     setConfirmModal({
       isOpen: true,
-      title: 'Konfirmasi Transaksi',
-      message: `Apakah Anda yakin ingin mencatat ${formData.jenis_transaksi === 'Setor' ? 'setoran' : 'penarikan'} ${formData.jenis_simpanan} sebesar Rp ${formData.nominal} untuk ${member?.nama_lengkap}?`,
+      title: formData.jenis_simpanan === 'Semua' ? 'Konfirmasi Tarik Semua' : 'Konfirmasi Transaksi',
+      message: formData.jenis_simpanan === 'Semua'
+        ? `Apakah Anda yakin ingin MENARIK SELURUH simpanan milik ${member?.nama_lengkap}? Saldo simpanan akan menjadi Rp 0.`
+        : `Apakah Anda yakin ingin mencatat ${formData.jenis_transaksi === 'Setor' ? 'setoran' : 'penarikan'} ${formData.jenis_simpanan} sebesar Rp ${formData.nominal} for ${member?.nama_lengkap}?`,
       onConfirm: actualSubmit
     });
   };
@@ -293,8 +352,7 @@ export default function InputBaruSimpanan() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (formData.jenis_simpanan !== 'Sukarela') {
-                      // Do nothing or show alert if user tries to click Tarik for Pokok/Wajib
+                    if (formData.jenis_simpanan !== 'Sukarela' && formData.jenis_simpanan !== 'Semua') {
                       return;
                     }
                     setFormData({...formData, jenis_transaksi: 'Tarik'});
@@ -302,18 +360,23 @@ export default function InputBaruSimpanan() {
                   className={`py-3 rounded-xl text-sm font-bold transition-all border ${
                     formData.jenis_transaksi === 'Tarik' 
                     ? 'bg-[#EB5757] text-white border-[#EB5757] shadow-md shadow-[#EB5757]/20' 
-                    : formData.jenis_simpanan !== 'Sukarela'
+                    : (formData.jenis_simpanan !== 'Sukarela' && formData.jenis_simpanan !== 'Semua')
                     ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed'
                     : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                   }`}
-                  disabled={formData.jenis_simpanan !== 'Sukarela'}
+                  disabled={formData.jenis_simpanan !== 'Sukarela' && formData.jenis_simpanan !== 'Semua'}
                 >
                   Penarikan
                 </button>
               </div>
-              {formData.jenis_simpanan !== 'Sukarela' && (
+              {formData.jenis_simpanan !== 'Sukarela' && formData.jenis_simpanan !== 'Semua' && (
                 <p className="text-[10px] text-orange-500 font-bold italic mt-1 flex items-center gap-1">
                   <AlertCircle size={10} /> Penarikan hanya untuk Simpanan Sukarela.
+                </p>
+              )}
+              {formData.jenis_simpanan === 'Semua' && (
+                <p className="text-[10px] text-red-500 font-bold italic mt-1 flex items-center gap-1">
+                  <AlertCircle size={10} /> Penarikan seluruh simpanan hanya untuk anggota keluar koperasi,.
                 </p>
               )}
             </div>
@@ -332,6 +395,7 @@ export default function InputBaruSimpanan() {
               >
                 <option value="Wajib">Simpanan Wajib</option>
                 <option value="Sukarela">Simpanan Sukarela</option>
+                <option value="Semua">Semua Simpanan (Tarik Seluruh)</option>
               </select>
             </div>
           </div>
@@ -348,13 +412,14 @@ export default function InputBaruSimpanan() {
                 value={formData.nominal}
                 onChange={handleInputChange}
                 className={`pl-12 !text-lg !font-bold !py-4 ${
-                  (formData.jenis_simpanan === 'Pokok' || formData.jenis_simpanan === 'Wajib') && formData.jenis_transaksi === 'Setor'
+                  ((formData.jenis_simpanan === 'Pokok' || formData.jenis_simpanan === 'Wajib') && formData.jenis_transaksi === 'Setor') ||
+                  formData.jenis_simpanan === 'Semua'
                   ? 'bg-gray-100 cursor-not-allowed opacity-80'
                   : ''
                 }`}
                 placeholder="0"
                 required
-                readOnly={(formData.jenis_simpanan === 'Pokok' || formData.jenis_simpanan === 'Wajib') && formData.jenis_transaksi === 'Setor'}
+                readOnly={((formData.jenis_simpanan === 'Pokok' || formData.jenis_simpanan === 'Wajib') && formData.jenis_transaksi === 'Setor') || formData.jenis_simpanan === 'Semua'}
               />
             </div>
             {formData.jenis_simpanan === 'Sukarela' && formData.jenis_transaksi === 'Setor' && configs.SIMPANAN_SUKARELA > 0 && (
@@ -395,11 +460,11 @@ export default function InputBaruSimpanan() {
              </Button>
              <Button 
                type="submit" 
-               className="flex-1 !py-3 flex justify-center items-center gap-2"
+               className={`flex-1 !py-3 flex justify-center items-center gap-2 ${formData.jenis_simpanan === 'Semua' ? '!bg-[#EB5757]' : ''}`}
                disabled={isSubmitting}
              >
                <Save size={18} />
-               {isSubmitting ? 'Menyimpan...' : 'Simpan Transaksi'}
+               {isSubmitting ? 'Menyimpan...' : formData.jenis_simpanan === 'Semua' ? 'Tarik Semua Uang Anggota' : 'Simpan Transaksi'}
              </Button>
           </div>
         </form>

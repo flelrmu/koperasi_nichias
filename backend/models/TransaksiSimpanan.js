@@ -15,7 +15,7 @@ module.exports = (sequelize, DataTypes) => {
       },
     },
     jenis_simpanan: {
-      type: DataTypes.ENUM('Pokok', 'Wajib', 'Sukarela'),
+      type: DataTypes.ENUM('Pokok', 'Wajib', 'Sukarela', 'Semua'),
     },
     jenis_transaksi: {
       type: DataTypes.ENUM('Setor', 'Tarik'),

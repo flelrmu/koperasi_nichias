@@ -42,6 +42,23 @@ export default function ManajemenSaldo() {
   const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
+  const handleSaldoChange = (e, key) => {
+    const input = e.target;
+    const selectionStart = input.selectionStart;
+    const oldLength = input.value.length;
+    
+    const formatted = formatToRupiah(input.value);
+    
+    setSaldo(prev => ({ ...prev, [key]: formatted }));
+    
+    // Use requestAnimationFrame or setTimeout to restore cursor position after React re-render
+    requestAnimationFrame(() => {
+      const newLength = formatted.length;
+      const position = Math.max(0, selectionStart + (newLength - oldLength));
+      input.setSelectionRange(position, position);
+    });
+  };
+
   const fetchSimpananDetail = useCallback(async () => {
     try {
       const res = await api.get('/simpan-pinjam/simpanan');
@@ -187,7 +204,7 @@ export default function ManajemenSaldo() {
                         <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-gray-300 text-lg group-focus-within:text-[#004A9C] transition-colors">Rp</span>
                         <Input 
                           value={saldo[item.key]} 
-                          onChange={(e) => setSaldo({...saldo, [item.key]: formatToRupiah(e.target.value)})}
+                          onChange={(e) => handleSaldoChange(e, item.key)}
                           className="!pl-14 !py-5 !rounded-2xl !bg-gray-50/50 hover:bg-white focus:bg-white !border-transparent hover:!border-gray-200 focus:!border-[#004A9C]/30 !shadow-sm !font-black !text-xl !text-gray-800 transition-all"
                         />
                       </div>

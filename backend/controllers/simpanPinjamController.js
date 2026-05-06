@@ -50,6 +50,7 @@ exports.updateSimpanan = async (req, res) => {
 
     if (req.io) {
       req.io.emit('simpanan:updated', updated);
+      req.io.emit('dashboardUpdate');
     }
 
     res.json({ success: true, data: updated, message: 'Simpanan berhasil diupdate' });
@@ -459,6 +460,114 @@ exports.bulkCreateSimpananWajib = async (req, res) => {
   } catch (error) {
     if (transaction) await transaction.rollback();
     console.error('❌ Error bulk create simpanan wajib:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /simpan-pinjam/simpanan/tarik-semua/:anggotaId
+ * Koordinator tarik semua simpanan anggota (set to 0)
+ */
+exports.tarikSemuaSimpanan = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
+  
+  try {
+    const { anggotaId } = req.params;
+    const { keterangan } = req.body;
+
+    const anggota = await Anggota.findByPk(anggotaId, {
+      include: [{ model: User, as: 'user' }],
+      transaction
+    });
+    if (!anggota) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Anggota tidak ditemukan' });
+    }
+
+    const simpanan = await Simpanan.findOne({ where: { anggota_id: anggotaId }, transaction });
+    if (!simpanan) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Data simpanan tidak ditemukan' });
+    }
+
+    const totalTarik = parseFloat(simpanan.saldo_pokok || 0) + 
+                       parseFloat(simpanan.saldo_wajib || 0) + 
+                       parseFloat(simpanan.saldo_sukarela || 0);
+
+    if (totalTarik <= 0) {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: 'Saldo anggota sudah 0 atau kosong.' });
+    }
+
+    // Update simpanan to 0
+    await simpanan.update({
+      saldo_pokok: 0,
+      saldo_wajib: 0,
+      saldo_sukarela: 0,
+      last_updated: new Date()
+    }, { transaction });
+
+    // Create a transaction record for "Semua Simpanan"
+    const bulanTahun = new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    const newTransaksi = await TransaksiSimpanan.create({
+      anggota_id: anggotaId,
+      jenis_simpanan: 'Semua',
+      jenis_transaksi: 'Tarik',
+      nominal: totalTarik,
+      tanggal: new Date().toISOString().split('T')[0],
+      keterangan: keterangan || `Penarikan Seluruh Simpanan - ${bulanTahun}`
+    }, { transaction });
+
+    // Create notification for member
+    const formatRupiah = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+    const notifTitle = `Penarikan Seluruh Simpanan 📤`;
+    const notifMessage = `Seluruh simpanan Anda sebesar ${formatRupiah(totalTarik)} telah ditarik oleh pengurus. Saldo simpanan Anda sekarang: Rp 0. Keterangan: "${keterangan || 'Penarikan Seluruh Simpanan'}"`;
+
+    await Notifikasi.create({
+      user_id: anggota.user_id,
+      judul: notifTitle,
+      pesan: notifMessage,
+      tipe: 'simpanan',
+      link: '/simpan-pinjam',
+      is_read: false
+    }, { transaction });
+
+    await transaction.commit();
+
+    // Fetch updated data for socket emission
+    const updatedSimpanan = await Simpanan.findOne({
+      where: { anggota_id: anggotaId },
+      include: [
+        {
+          model: Anggota,
+          as: 'anggota',
+          include: [{ model: User, as: 'user', attributes: ['email'] }]
+        }
+      ]
+    });
+
+    if (req.io) {
+      req.io.emit('simpanan:updated', updatedSimpanan);
+      req.io.emit('transaksi:created', { 
+        transaksi: newTransaksi,
+        anggota_id: anggotaId,
+        user_id: anggota.user_id
+      });
+      req.io.emit('notifikasi:simpanan', {
+        user_id: anggota.user_id,
+        notifikasi: { judul: notifTitle, pesan: notifMessage, tipe: 'simpanan' }
+      });
+      req.io.emit('dashboardUpdate');
+    }
+
+    res.json({ 
+      success: true, 
+      data: updatedSimpanan,
+      message: 'Berhasil menarik seluruh simpanan anggota.' 
+    });
+  } catch (error) {
+    if (transaction) await transaction.rollback();
+    console.error('❌ Error tarik semua simpanan:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -82,21 +82,30 @@ export default function AdminDashboard() {
     fetchDashboardData();
 
     if (socket) {
-      socket.on('dashboardUpdate', fetchDashboardData);
-      socket.on('transaksi:created', fetchDashboardData);
-      socket.on('transaksi:updated', fetchDashboardData);
-      socket.on('pinjaman:updated', fetchDashboardData);
-      socket.on('pinjaman:created', fetchDashboardData);
+      const handleUpdate = () => {
+        console.log('🔄 Dashboard real-time update triggered');
+        fetchDashboardData();
+      };
+
+      socket.on('dashboardUpdate', handleUpdate);
+      socket.on('transaksi:created', handleUpdate);
+      socket.on('transaksi:updated', handleUpdate);
+      socket.on('simpanan:updated', handleUpdate);
+      socket.on('simpanan:bulkUpdated', handleUpdate);
+      socket.on('pinjaman:updated', handleUpdate);
+      socket.on('pinjaman:created', handleUpdate);
 
       return () => {
-        socket.off('dashboardUpdate', fetchDashboardData);
-        socket.off('transaksi:created', fetchDashboardData);
-        socket.off('transaksi:updated', fetchDashboardData);
-        socket.off('pinjaman:updated', fetchDashboardData);
-        socket.off('pinjaman:created', fetchDashboardData);
+        socket.off('dashboardUpdate', handleUpdate);
+        socket.off('transaksi:created', handleUpdate);
+        socket.off('transaksi:updated', handleUpdate);
+        socket.off('simpanan:updated', handleUpdate);
+        socket.off('simpanan:bulkUpdated', handleUpdate);
+        socket.off('pinjaman:updated', handleUpdate);
+        socket.off('pinjaman:created', handleUpdate);
       };
     }
-  }, [socket]);
+  }, [socket, api]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
