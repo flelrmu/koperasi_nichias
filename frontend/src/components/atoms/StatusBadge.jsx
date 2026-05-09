@@ -22,7 +22,7 @@ export default function StatusBadge({ status, children }) {
     case 'lunas':
     case 'success':
     case 'selesai':
-    case 'debit':
+    case 'kredit':
     case 'approved':
       bgColor = 'bg-[#27AE60]/10';
       textColor = 'text-[#27AE60]';
@@ -41,7 +41,7 @@ export default function StatusBadge({ status, children }) {
     case 'hutang':
     case 'error':
     case 'gagal':
-    case 'kredit':
+    case 'debit':
     case 'keluar':
     case 'rejected':
       bgColor = 'bg-[#EB5757]/10';

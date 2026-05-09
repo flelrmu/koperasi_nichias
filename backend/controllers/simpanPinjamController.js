@@ -2,6 +2,7 @@ const db = require('../models');
 const { Simpanan, Pinjaman, Anggota, User, TransaksiSimpanan, Konfigurasi, Notifikasi, Pengurus } = db;
 const { Op } = db.Sequelize;
 const angkaKeTerbilang = require('../utils/terbilang');
+const ArusKasService = require('../services/ArusKasService');
 
 // ==================== SIMPANAN ====================
 
@@ -24,19 +25,62 @@ exports.getAllSimpanan = async (req, res) => {
 };
 
 exports.updateSimpanan = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
     const { id } = req.params;
     const { saldo_pokok, saldo_wajib, saldo_sukarela } = req.body;
     
-    const simpanan = await Simpanan.findByPk(id);
-    if (!simpanan) return res.status(404).json({ success: false, message: 'Data tidak ditemukan' });
+    const simpanan = await Simpanan.findByPk(id, {
+      include: [{ model: Anggota, as: 'anggota' }],
+      transaction
+    });
+    
+    if (!simpanan) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Data tidak ditemukan' });
+    }
+
+    const oldPokok = parseFloat(simpanan.saldo_pokok) || 0;
+    const oldWajib = parseFloat(simpanan.saldo_wajib) || 0;
+    const oldSukarela = parseFloat(simpanan.saldo_sukarela) || 0;
+    
+    const newPokok = parseFloat(saldo_pokok) || 0;
+    const newWajib = parseFloat(saldo_wajib) || 0;
+    const newSukarela = parseFloat(saldo_sukarela) || 0;
+
+    const diffPokok = newPokok - oldPokok;
+    const diffWajib = newWajib - oldWajib;
+    const diffSukarela = newSukarela - oldSukarela;
+
+    const userId = simpanan.anggota.user_id;
+
+    // Helper function to record difference
+    const recordDiff = async (diff, categoryName) => {
+      if (diff !== 0) {
+        await ArusKasService.recordTransaction({
+          user_id: userId,
+          nama_kategori: `Simpanan ${categoryName}`,
+          jenis: diff > 0 ? 'Kredit' : 'Debit',
+          nominal: Math.abs(diff),
+          keterangan: `Penyesuaian Manual (Manajemen Saldo) - Simpanan ${categoryName}`,
+          kode_transaksi: `ADJ-${categoryName.substring(0,3).toUpperCase()}-${simpanan.anggota_id}-${Date.now()}`
+        }, { transaction }); // Removed req.io to prevent early emission
+      }
+    };
+
+    // Record any differences to Arus Kas
+    await recordDiff(diffPokok, 'Pokok');
+    await recordDiff(diffWajib, 'Wajib');
+    await recordDiff(diffSukarela, 'Sukarela');
 
     await simpanan.update({
-      saldo_pokok,
-      saldo_wajib,
-      saldo_sukarela,
+      saldo_pokok: newPokok,
+      saldo_wajib: newWajib,
+      saldo_sukarela: newSukarela,
       last_updated: new Date()
-    });
+    }, { transaction });
+
+    await transaction.commit();
 
     const updated = await Simpanan.findByPk(id, {
       include: [
@@ -51,10 +95,12 @@ exports.updateSimpanan = async (req, res) => {
     if (req.io) {
       req.io.emit('simpanan:updated', updated);
       req.io.emit('dashboardUpdate');
+      req.io.emit('arus-kas-updated');
     }
 
-    res.json({ success: true, data: updated, message: 'Simpanan berhasil diupdate' });
+    res.json({ success: true, data: updated, message: 'Simpanan berhasil diupdate dan disinkronkan dengan Arus Kas' });
   } catch (error) {
+    if (transaction) await transaction.rollback();
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -161,6 +207,16 @@ exports.createTransaksiSimpanan = async (req, res) => {
       last_updated: new Date() 
     }, { transaction });
 
+    // --- INTEGRASI ARUS KAS ---
+    await ArusKasService.recordTransaction({
+      user_id: anggota.user_id,
+      nama_kategori: `Simpanan ${jenis_simpanan}`,
+      jenis: jenis_transaksi === 'Setor' ? 'Kredit' : 'Debit',
+      nominal: finalNominal,
+      keterangan: autoKeterangan,
+      kode_transaksi: `TXS-${newTransaksi.transaksi_id}`
+    }, { transaction }, req.io);
+
     // Create notification for the member
     const formatRupiah = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
     
@@ -208,6 +264,7 @@ exports.createTransaksiSimpanan = async (req, res) => {
         notifikasi: { judul: notifTitle, pesan: notifMessage, tipe: 'simpanan' }
       });
       req.io.emit('dashboardUpdate');
+      req.io.emit('arus-kas-updated');
     }
 
     res.status(201).json({ 
@@ -324,6 +381,7 @@ exports.updateTransaksiSimpanan = async (req, res) => {
         anggota_id: transaksi.anggota_id
       });
       req.io.emit('dashboardUpdate');
+      req.io.emit('arus-kas-updated');
     }
 
     res.json({ 
@@ -429,6 +487,16 @@ exports.bulkCreateSimpananWajib = async (req, res) => {
         is_read: false,
       }, { transaction });
 
+      // --- INTEGRASI ARUS KAS ---
+      await ArusKasService.recordTransaction({
+        user_id: anggota.user_id,
+        nama_kategori: 'Simpanan Wajib',
+        jenis: 'Kredit',
+        nominal: nominalWajib,
+        keterangan: autoKeterangan,
+        kode_transaksi: `BLK-WJB-${anggota.anggota_id}-${today}`
+      }, { transaction }, req.io);
+
       notificationsToEmit.push({
         user_id: anggota.user_id,
         judul: judulNotif,
@@ -441,7 +509,8 @@ exports.bulkCreateSimpananWajib = async (req, res) => {
     // 4. Emit socket updates
     if (req.io) {
       req.io.emit('dashboardUpdate');
-      req.io.emit('simpanan:bulkUpdated'); 
+      req.io.emit('arus-kas-updated');
+      req.io.emit('simpanan:bulkUpdated');
       
       notificationsToEmit.forEach(n => {
         req.io.emit('notifikasi:simpanan', {
@@ -518,6 +587,16 @@ exports.tarikSemuaSimpanan = async (req, res) => {
       keterangan: keterangan || `Penarikan Seluruh Simpanan - ${bulanTahun}`
     }, { transaction });
 
+    // --- INTEGRASI ARUS KAS ---
+    await ArusKasService.recordTransaction({
+      user_id: anggota.user_id,
+      nama_kategori: 'Penarikan Simpanan',
+      jenis: 'Debit',
+      nominal: totalTarik,
+      keterangan: keterangan || `Penarikan Seluruh Simpanan - ${bulanTahun}`,
+      kode_transaksi: `WDR-${newTransaksi.transaksi_id}`
+    }, { transaction }); // Removed req.io here to prevent early emission, will emit manually after commit
+
     // Create notification for member
     const formatRupiah = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
     const notifTitle = `Penarikan Seluruh Simpanan 📤`;
@@ -558,6 +637,7 @@ exports.tarikSemuaSimpanan = async (req, res) => {
         notifikasi: { judul: notifTitle, pesan: notifMessage, tipe: 'simpanan' }
       });
       req.io.emit('dashboardUpdate');
+      req.io.emit('arus-kas-updated');
     }
 
     res.json({ 
@@ -743,6 +823,19 @@ exports.updatePinjamanStatus = async (req, res) => {
           const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
           updateData.nomor_invoice = `INV/PNJ/${year}/${month}/${id}/${random}`;
         }
+
+        // --- INTEGRASI ARUS KAS (Pencairan Pinjaman) ---
+        // Only record if status changed to Approved (Disbursed)
+        if (pinjaman.status !== 'Approved') {
+          await ArusKasService.recordTransaction({
+            user_id: anggota.user_id,
+            nama_kategori: 'Pencairan Pinjaman',
+            jenis: 'Debit',
+            nominal: updateData.pinjaman_disetujui,
+            keterangan: `Pencairan Pinjaman ${pinjaman.jenis_pinjaman} - ${updateData.nomor_invoice}`,
+            kode_transaksi: updateData.nomor_invoice
+          }); // Removed req.io to prevent early/double emission
+        }
     }
 
     await pinjaman.update(updateData);
@@ -778,6 +871,7 @@ exports.updatePinjamanStatus = async (req, res) => {
       req.io.emit('pinjaman:updated', updated);
       req.io.emit('notifikasi:pinjaman', { user_id: updated.anggota.user_id, notifikasi: notifMember });
       req.io.emit('dashboardUpdate');
+      req.io.emit('arus-kas-updated');
     }
 
     res.json({ success: true, data: updated, message: 'Status pinjaman berhasil diupdate' });
@@ -871,6 +965,7 @@ exports.createPinjaman = async (req, res) => {
     if (req.io) {
       req.io.emit('pinjaman:created', populated);
       req.io.emit('dashboardUpdate');
+      req.io.emit('arus-kas-updated');
     }
 
     res.status(201).json({ success: true, data: populated, message: 'Pengajuan pinjaman berhasil dikirim' });
@@ -981,6 +1076,16 @@ exports.bulkProcessAngsuran = async (req, res) => {
         is_read: false,
       }, { transaction });
 
+      // --- INTEGRASI ARUS KAS ---
+      await ArusKasService.recordTransaction({
+        user_id: loan.anggota.user_id,
+        nama_kategori: 'Pembayaran Angsuran',
+        jenis: 'Kredit',
+        nominal: finalInstallment,
+        keterangan: pesanNotif,
+        kode_transaksi: `ANG-${loan.pinjaman_id}-${existingCount + 1}`
+      }, { transaction }, req.io);
+
       notificationsToEmit.push({
         user_id: loan.anggota.user_id,
         judul: judulNotif,
@@ -993,7 +1098,8 @@ exports.bulkProcessAngsuran = async (req, res) => {
     // 3. Emit socket updates
     if (req.io) {
       req.io.emit('dashboardUpdate');
-      req.io.emit('pinjaman:bulkUpdated'); 
+      req.io.emit('arus-kas-updated');
+      req.io.emit('pinjaman:bulkUpdated');
       
       notificationsToEmit.forEach(n => {
         req.io.emit('notifikasi:pinjaman', {
@@ -1082,6 +1188,16 @@ exports.lunaskanPinjaman = async (req, res) => {
       is_read: false
     }, { transaction });
 
+    // --- INTEGRASI ARUS KAS ---
+    await ArusKasService.recordTransaction({
+      user_id: pinjaman.anggota.user_id,
+      nama_kategori: 'Pembayaran Angsuran',
+      jenis: 'Kredit',
+      nominal: sisaTagihan,
+      keterangan: `Pelunasan Pinjaman - ${pinjaman.nomor_invoice}`,
+      kode_transaksi: `LNS-${pinjaman.pinjaman_id}`
+    }, { transaction }, req.io);
+
     await transaction.commit();
 
     // Re-fetch with full associations for socket emit
@@ -1101,6 +1217,7 @@ exports.lunaskanPinjaman = async (req, res) => {
         notifikasi: notifMember
       });
       req.io.emit('dashboardUpdate');
+      req.io.emit('arus-kas-updated');
     }
 
     res.status(200).json({

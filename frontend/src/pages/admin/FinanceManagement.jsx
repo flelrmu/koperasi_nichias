@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BarChart3, 
@@ -13,65 +13,184 @@ import {
   Filter,
   Search,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Tags,
+  User,
+  ArrowUpRight,
+  ArrowDownRight,
+  ChevronLeft,
+  ChevronRight,
+  Printer,
+  Settings2,
+  Edit2,
+  Trash2,
+  Wallet
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 import Button from '../../components/atoms/Button';
 import StatusBadge from '../../components/atoms/StatusBadge';
-
-// Mock Data
-const MOCK_CASH_FLOW = [
-  { id: 1, tanggal: '2026-04-15', kode: 'TRX001', kategori: 'Angsuran Pinjaman', jenis: 'Debit', keterangan: 'Angsuran ke-5 - Budi Santoso', nominal: 1500000, saldo: 45000000 },
-  { id: 2, tanggal: '2026-04-16', kode: 'TRX002', kategori: 'Pencairan Pinjaman', jenis: 'Kredit', keterangan: 'Pinjaman Uang - Siti Aminah', nominal: 5000000, saldo: 40000000 },
-  { id: 3, tanggal: '2026-04-17', kode: 'TRX003', kategori: 'Simpanan Sukarela', jenis: 'Debit', keterangan: 'Setoran - Ahmad Dahlan', nominal: 200000, saldo: 40200000 },
-  { id: 4, tanggal: '2026-04-18', kode: 'TRX004', kategori: 'Biaya Operasional', jenis: 'Kredit', keterangan: 'Pembelian ATK Kantor', nominal: 150000, saldo: 40050000 },
-  { id: 5, tanggal: '2026-04-19', kode: 'TRX005', kategori: 'Simpanan Wajib', jenis: 'Debit', keterangan: 'Potong Gaji All Members - April', nominal: 12500000, saldo: 52550000 },
-];
-
-const MOCK_LPHU = {
-  periode: 'Januari - April 2026',
-  pendapatan: [
-    { label: 'Jasa Pinjaman (Bunga)', nominal: 15400000 },
-    { label: 'Provisi & Administrasi', nominal: 2100000 },
-    { label: 'Pendapatan Lain-lain', nominal: 500000 },
-  ],
-  beban: [
-    { label: 'Beban Operasional', nominal: 3200000 },
-    { label: 'Beban Honor Pengurus', nominal: 4000000 },
-    { label: 'Beban Pajak', nominal: 450000 },
-  ],
-};
-
-const MOCK_SHU = {
-  totalShu: 10350000,
-  pembagian: [
-    { label: 'Cadangan Koperasi (40%)', nominal: 4140000, color: '#004A9C' },
-    { label: 'Jasa Anggota (40%)', nominal: 4140000, color: '#27AE60' },
-    { label: 'Dana Pengurus (10%)', nominal: 1035000, color: '#F2994A' },
-    { label: 'Dana Pendidikan (5%)', nominal: 517500, color: '#EB5757' },
-    { label: 'Dana Sosial (5%)', nominal: 517500, color: '#94a3b8' },
-  ]
-};
-
-const MOCK_NERACA = {
-  aktiva: [
-    { label: 'Kas & Bank', nominal: 52550000 },
-    { label: 'Piutang Pinjaman Anggota', nominal: 1104280000 },
-    { label: 'Inventaris Kantor', nominal: 15000000 },
-  ],
-  passiva: [
-    { label: 'Simpanan Pokok', nominal: 125000000 },
-    { label: 'Simpanan Wajib', nominal: 450000000 },
-    { label: 'Simpanan Sukarela', nominal: 89500000 },
-    { label: 'Modal Cadangan', nominal: 450000000 },
-    { label: 'SHU Berjalan', nominal: 57330000 },
-  ]
-};
+import { io } from 'socket.io-client';
 
 export default function FinanceManagement() {
-  const { user } = useAuth();
+  const { api, user } = useAuth();
+  const { showNotification } = useNotification();
   const [activeTab, setActiveTab] = useState('arus-kas');
   const isBendahara = user?.role === 'Bendahara';
+
+  // Helper for current date
+  const now = new Date();
+  const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+  const currentYear = String(now.getFullYear());
+
+  // --- Arus Kas State ---
+  const [arusKasData, setArusKasData] = useState([]);
+  const [loadingKas, setLoadingKas] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [bulan, setBulan] = useState(currentMonth);
+  const [tahun, setTahun] = useState(currentYear);
+  const [showModalKas, setShowModalKas] = useState(false);
+  const [currentKasBalance, setCurrentKasBalance] = useState(0);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  
+  // --- Kategori State ---
+  const [categories, setCategories] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [formDataKas, setFormDataKas] = useState({ user_id: '', nama_kategori: '', nominal: '', keterangan: '', jenis: '' });
+  
+  // --- Category Modal State ---
+  const [showModalCat, setShowModalCat] = useState(false);
+  const [editCatData, setEditCatData] = useState(null);
+  const [formDataCat, setFormDataCat] = useState({ nama_kategori: '', jenis: 'Debit' });
+  const [showConfirmDelete, setShowConfirmDelete] = useState({ isOpen: false, id: null, name: '', type: 'category' });
+  
+  // --- Edit Kas State ---
+  const [editKasData, setEditKasData] = useState(null);
+
+  const fetchArusKas = useCallback(async () => {
+    setLoadingKas(true);
+    try {
+      const res = await api.get(`/keuangan/arus-kas?bulan=${bulan}&tahun=${tahun}`);
+      if (res.data.success) {
+        setArusKasData(res.data.data);
+        if (res.data.currentBalance !== undefined) {
+          setCurrentKasBalance(res.data.currentBalance);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching arus kas:', error);
+    } finally {
+      setLoadingKas(false);
+    }
+  }, [api, bulan, tahun]);
+
+  const fetchSetupData = useCallback(async () => {
+    try {
+      const [catRes, userRes] = await Promise.all([
+        api.get('/keuangan/kategori'),
+        api.get('/user/anggota')
+      ]);
+      setCategories(catRes.data.data);
+      setUsers(userRes.data.data || []);
+    } catch (error) {
+      console.error('Error fetching setup data:', error);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [bulan, tahun, searchTerm]);
+
+  useEffect(() => {
+    if (activeTab === 'arus-kas' || activeTab === 'kategori') {
+      fetchArusKas();
+      fetchSetupData();
+    }
+    
+    const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
+    socket.on('arus-kas-updated', () => {
+      fetchArusKas();
+    });
+    return () => socket.disconnect();
+  }, [activeTab, fetchArusKas, fetchSetupData]);
+
+  const handleCategoryChange = (catName) => {
+    const cat = categories.find(c => c.nama_kategori === catName);
+    setFormDataKas({
+      ...formDataKas,
+      nama_kategori: catName,
+      jenis: cat ? cat.jenis : ''
+    });
+  };
+
+  const handleSubmitKas = async (e) => {
+    e.preventDefault();
+    try {
+      let res;
+      if (editKasData) {
+        res = await api.put(`/keuangan/arus-kas/${editKasData.kas_id}`, formDataKas);
+      } else {
+        res = await api.post('/keuangan/arus-kas', formDataKas);
+      }
+      
+      if (res.data.success) {
+        setShowModalKas(false);
+        setEditKasData(null);
+        setFormDataKas({ user_id: '', nama_kategori: '', nominal: '', keterangan: '', jenis: '' });
+        fetchArusKas();
+      }
+    } catch (error) {
+      showNotification(error.response?.data?.message || 'Gagal menyimpan transaksi', 'error');
+    }
+  };
+
+  const handleCategorySubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editCatData) {
+        await api.put(`/keuangan/kategori/${editCatData.kategori_id}`, formDataCat);
+      } else {
+        await api.post('/keuangan/kategori', formDataCat);
+      }
+      setShowModalCat(false);
+      setEditCatData(null);
+      setFormDataCat({ nama_kategori: '', jenis: 'Debit' });
+      fetchSetupData();
+    } catch (error) {
+      showNotification(error.response?.data?.message || 'Terjadi kesalahan', 'error');
+    }
+  };
+
+  const deleteCategory = async () => {
+    try {
+      await api.delete(`/keuangan/kategori/${showConfirmDelete.id}`);
+      setShowConfirmDelete({ isOpen: false, id: null, name: '', type: 'category' });
+      fetchSetupData();
+    } catch (error) {
+      showNotification(error.response?.data?.message || 'Gagal menghapus', 'error');
+    }
+  };
+
+  const deleteArusKas = async () => {
+    try {
+      await api.delete(`/keuangan/arus-kas/${showConfirmDelete.id}`);
+      setShowConfirmDelete({ isOpen: false, id: null, name: '', type: 'category' });
+      fetchArusKas();
+    } catch (error) {
+      showNotification(error.response?.data?.message || 'Gagal menghapus arus kas', 'error');
+    }
+  };
+
+  const handleDeleteConfirm = () => {
+    if (showConfirmDelete.type === 'kas') {
+      deleteArusKas();
+    } else {
+      deleteCategory();
+    }
+  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
@@ -80,6 +199,17 @@ export default function FinanceManagement() {
       maximumFractionDigits: 0
     }).format(amount);
   };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  };
+
+  const months = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
 
   const tabs = [
     { id: 'arus-kas', label: 'Arus Kas', icon: ArrowRightLeft },
@@ -94,6 +224,15 @@ export default function FinanceManagement() {
     exit: { opacity: 0, y: -10, transition: { duration: 0.2 } }
   };
 
+  const filteredKas = arusKasData.filter(item => 
+    item.keterangan?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.kode_transaksi?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.user?.anggota?.nama_lengkap?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const totalPages = Math.ceil(filteredKas.length / itemsPerPage);
+  const paginatedKas = filteredKas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div className="space-y-6 pb-10">
       {/* Header Section */}
@@ -104,18 +243,18 @@ export default function FinanceManagement() {
           </h1>
           <p className="text-gray-500 text-sm mt-1">
             {isBendahara 
-              ? 'Kelola arus kas, generate laporan LPHU, SHU, dan Neraca akhir tahun.'
-              : 'Pantau laporan keuangan dan posisi neraca koperasi (View Only).'}
+              ? 'Kelola arus kas, kategori, dan pantau laporan keuangan real-time.'
+              : 'Pantau laporan keuangan dan posisi neraca koperasi.'}
           </p>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
-          {isBendahara && (
-            <Button className="flex items-center gap-2 !px-6 text-sm">
+          {activeTab === 'arus-kas' && isBendahara && (
+            <Button onClick={() => setShowModalKas(true)} className="flex items-center gap-2 !px-6 text-sm">
               <Plus size={18} /> Update Kas
             </Button>
           )}
           <Button className="bg-[#DFEAF4] !text-[#004A9C] border border-[#004A9C]/20 flex items-center gap-2 !px-6 text-sm hover:bg-[#d0e1f0]">
-            <Download size={18} /> Download Lap.
+            <Download size={18} /> Export Laporan
           </Button>
         </div>
       </div>
@@ -153,267 +292,421 @@ export default function FinanceManagement() {
           className="min-h-[500px]"
         >
           {activeTab === 'arus-kas' && (
-            <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-6 border-b border-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h2 className="text-lg font-bold text-gray-800">Riwayat Arus Kas</h2>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <div className="relative flex-1 sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input 
-                      type="text" 
-                      placeholder="Cari transaksi..." 
-                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#004A9C]/20 focus:border-[#004A9C]"
-                    />
+            <div className="space-y-6">
+              {/* Real-time Balance Card */}
+              <div className="bg-gradient-to-br from-[#004A9C] to-[#003B7D] rounded-2xl p-6 text-white shadow-lg relative overflow-hidden flex items-center justify-between">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-1/2 translate-x-1/3"></div>
+                <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-400 opacity-10 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+                
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="w-14 h-14 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20">
+                    <Wallet size={28} className="text-white" />
                   </div>
-                  <button className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                    <Filter size={18} className="text-gray-600" />
-                  </button>
+                  <div>
+                    <p className="text-blue-100 text-sm font-medium mb-1">Saldo Kas Saat Ini (Real-time)</p>
+                    <h2 className="text-3xl font-black tracking-tight">
+                      {formatCurrency(currentKasBalance)}
+                    </h2>
+                  </div>
+                </div>
+                
+                <div className="relative z-10 hidden md:flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20">
+                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                  <span className="text-xs font-bold tracking-widest uppercase text-blue-50">Live Sync</span>
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-[#F8FAFC]">
-                    <tr>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Tanggal</th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Kode</th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Kategori</th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Keterangan</th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Debet/Kredit</th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase text-right">Saldo Akhir</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {MOCK_CASH_FLOW.map((row) => (
-                      <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4">
-                          <span className="text-sm font-semibold text-gray-700">{row.tanggal}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-mono font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded">{row.kode}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-600 font-medium">{row.kategori}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-400 line-clamp-1">{row.keterangan}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <span className={`text-sm font-bold ${row.jenis === 'Debit' ? 'text-green-600' : 'text-red-500'}`}>
-                              {row.jenis === 'Debit' ? '+' : '-'} {formatCurrency(row.nominal)}
-                            </span>
-                            <StatusBadge status={row.jenis}>{row.jenis === 'Debit' ? 'Masuk' : 'Keluar'}</StatusBadge>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className="text-sm font-extrabold text-[#1e293b]">{formatCurrency(row.saldo)}</span>
-                        </td>
-                      </tr>
+
+              {/* Filters */}
+              <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative flex-1 w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Cari transaksi..." 
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#004A9C]/20 outline-none"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <select 
+                    className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none"
+                    value={bulan}
+                    onChange={(e) => setBulan(e.target.value)}
+                  >
+                    {months.map((m, i) => <option key={i} value={String(i+1).padStart(2, '0')}>{m}</option>)}
+                  </select>
+                  <select 
+                    className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none"
+                    value={tahun}
+                    onChange={(e) => setTahun(e.target.value)}
+                  >
+                    {Array.from({ length: now.getFullYear() - 2024 + 2 }, (_, i) => 2024 + i).reverse().map(y => (
+                      <option key={y} value={y}>{y}</option>
                     ))}
-                  </tbody>
-                </table>
+                  </select>
+                </div>
               </div>
+
+              {/* Table */}
+              <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-[#F8FAFC]">
+                      <tr>
+                        <th className="py-5 px-8 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tanggal</th>
+                        <th className="py-5 px-8 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Kode & Kategori</th>
+                        <th className="py-5 px-8 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Keterangan</th>
+                        <th className="py-5 px-8 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Jenis</th>
+                        <th className="py-5 px-8 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Nominal</th>
+                        <th className="py-5 px-8 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Saldo Akhir</th>
+                        <th className="py-5 px-8 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Manajemen</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {loadingKas ? (
+                        Array(5).fill(0).map((_, i) => <tr key={i}><td colSpan="7" className="py-5 px-8 text-center">Loading...</td></tr>)
+                      ) : paginatedKas.length === 0 ? (
+                        <tr><td colSpan="7" className="py-5 px-8 text-center text-gray-400">Tidak ada data transaksi.</td></tr>
+                      ) : (
+                        paginatedKas.map((row) => (
+                          <tr key={row.kas_id} className="group hover:bg-gray-50/50 transition-colors">
+                            <td className="py-5 px-8 text-xs font-bold text-gray-700">
+                              {formatDate(row.tanggal)}
+                            </td>
+                            <td className="py-5 px-8">
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-mono font-bold text-[#004A9C] bg-blue-50 px-1.5 py-0.5 rounded w-fit">{row.kode_transaksi}</span>
+                                <span className="text-xs font-bold text-gray-600 mt-0.5">{row.kategoriKas?.nama_kategori}</span>
+                              </div>
+                            </td>
+                            <td className="py-5 px-8">
+                              <div className="flex flex-col">
+                                {row.user?.anggota && <span className="text-xs font-bold text-gray-700 flex items-center gap-1"><User size={12}/> {row.user.anggota.nama_lengkap}</span>}
+                                <span className="text-xs text-gray-400 line-clamp-1">{row.keterangan}</span>
+                              </div>
+                            </td>
+                            <td className="py-5 px-8">
+                              <StatusBadge status={row.jenis}>{row.jenis === 'Kredit' ? 'Masuk' : 'Keluar'}</StatusBadge>
+                            </td>
+                            <td className="py-5 px-8 text-right">
+                              <span className={`text-xs font-black ${row.jenis === 'Kredit' ? 'text-green-600' : 'text-red-500'}`}>
+                                {row.jenis === 'Kredit' ? '+' : '-'} {formatCurrency(row.nominal)}
+                              </span>
+                            </td>
+                            <td className="py-5 px-8 text-right">
+                              <span className="text-xs font-extrabold text-gray-800">{formatCurrency(row.saldo_akhir)}</span>
+                            </td>
+                            <td className="py-5 px-8 text-right">
+                              {isBendahara ? (
+                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button 
+                                    onClick={() => {
+                                      setEditKasData(row);
+                                      setFormDataKas({
+                                        user_id: row.user_id || '',
+                                        nama_kategori: row.kategoriKas?.nama_kategori || '',
+                                        nominal: row.nominal,
+                                        keterangan: row.keterangan || '',
+                                        jenis: row.jenis
+                                      });
+                                      setShowModalKas(true);
+                                    }}
+                                    className="p-2 text-gray-400 hover:text-[#004A9C] hover:bg-blue-50 rounded-lg transition-all"
+                                    title="Edit Transaksi"
+                                  >
+                                    <Edit2 size={16} />
+                                  </button>
+                                  <button 
+                                    onClick={() => setShowConfirmDelete({ isOpen: true, id: row.kas_id, name: row.keterangan || row.kode_transaksi, type: 'kas' })}
+                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                    title="Hapus Transaksi"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-[9px] font-bold text-gray-300 uppercase italic">View Only</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination Footer - Simplified & More Visible */}
+                {filteredKas.length > 0 && (
+                  <div className="p-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between bg-[#F8FAFC]">
+                    <div className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4 sm:mb-0">
+                      Menampilkan <span className="text-[#004A9C]">{(currentPage - 1) * itemsPerPage + 1}</span> - <span className="text-[#004A9C]">{Math.min(filteredKas.length, currentPage * itemsPerPage)}</span> dari <span className="text-gray-600">{filteredKas.length}</span> Data
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-[11px] font-bold uppercase tracking-wider text-gray-400 hover:text-[#004A9C] hover:bg-white hover:border-[#004A9C]/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft size={16} />
+                        Sebelumnya
+                      </button>
+                      
+                      <div className="flex gap-1.5 mx-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                          if (totalPages > 5 && Math.abs(page - currentPage) > 1 && page !== 1 && page !== totalPages) {
+                            if (Math.abs(page - currentPage) === 2) return <span key={page} className="px-1 text-gray-300">...</span>;
+                            return null;
+                          }
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${
+                                currentPage === page 
+                                  ? 'bg-[#004A9C] text-white shadow-lg shadow-blue-900/20' 
+                                  : 'border border-gray-200 text-gray-400 hover:bg-white hover:text-[#004A9C] hover:border-[#004A9C]/20'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-[11px] font-bold uppercase tracking-wider text-gray-400 hover:text-[#004A9C] hover:bg-white hover:border-[#004A9C]/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        Selanjutnya
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Kelola Kategori Button - Only for Bendahara */}
+              {isBendahara && (
+                <div className="flex justify-end pt-2">
+                  <button 
+                    onClick={() => setActiveTab('kategori')}
+                    className="flex items-center gap-2 px-6 py-3 bg-[#004A9C] hover:bg-[#003d82] text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-900/10 hover:shadow-blue-900/20 active:scale-95"
+                  >
+                    <Tags size={16} />
+                    Kelola Kategori Kas
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'kategori' && (
+            <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 p-8">
+               <div className="flex justify-between items-center mb-6">
+                 <div className="flex items-center gap-3">
+                   <button onClick={() => setActiveTab('arus-kas')} className="p-2 hover:bg-gray-50 rounded-lg text-gray-400"><ChevronLeft size={20}/></button>
+                   <h2 className="text-xl font-bold">Daftar Kategori Kas</h2>
+                 </div>
+                 <Button className="!px-4 !py-2 text-xs" onClick={() => { setEditCatData(null); setFormDataCat({nama_kategori: '', jenis: 'Debit'}); setShowModalCat(true); }}>
+                   <Plus size={14}/> Kategori Baru
+                 </Button>
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                 {categories.map(c => (
+                   <div key={c.kategori_id} className="p-4 border border-gray-100 rounded-2xl flex justify-between items-center hover:shadow-md transition-all">
+                     <div>
+                       <p className="font-bold text-gray-700">{c.nama_kategori}</p>
+                       <p className={`text-[10px] font-bold uppercase tracking-wider ${c.jenis === 'Kredit' ? 'text-green-500' : 'text-red-500'}`}>{c.jenis === 'Kredit' ? 'Pemasukan' : 'Pengeluaran'}</p>
+                     </div>
+                     <div className="flex gap-2">
+                        <button onClick={() => { setEditCatData(c); setFormDataCat({nama_kategori: c.nama_kategori, jenis: c.jenis}); setShowModalCat(true); }} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg"><Edit2 size={14}/></button>
+                        <button onClick={() => setShowConfirmDelete({ isOpen: true, id: c.kategori_id, name: c.nama_kategori })} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={14}/></button>
+                     </div>
+                   </div>
+                 ))}
+               </div>
             </div>
           )}
 
           {activeTab === 'lphu' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 p-8">
-                <h2 className="text-lg font-bold text-gray-800 mb-2">Pendapatan Operasional</h2>
-                <p className="text-xs text-gray-400 mb-6">Periode: {MOCK_LPHU.periode}</p>
-                <div className="space-y-4">
-                  {MOCK_LPHU.pendapatan.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-4 bg-green-50/30 border border-green-100/50 rounded-2xl">
-                      <span className="text-sm font-bold text-green-800">{item.label}</span>
-                      <span className="text-base font-extrabold text-green-900">{formatCurrency(item.nominal)}</span>
-                    </div>
-                  ))}
-                  <div className="pt-4 border-t border-gray-100 flex justify-between items-center px-4">
-                    <span className="text-sm font-bold text-gray-800">Total Pendapatan</span>
-                    <span className="text-xl font-black text-[#004A9C]">
-                      {formatCurrency(MOCK_LPHU.pendapatan.reduce((a, b) => a + b.nominal, 0))}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 p-8">
-                <h2 className="text-lg font-bold text-gray-800 mb-2">Beban Operasional</h2>
-                <p className="text-xs text-gray-400 mb-6">Segala biaya yang dikeluarkan koperasi</p>
-                <div className="space-y-4">
-                  {MOCK_LPHU.beban.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-4 bg-red-50/30 border border-red-100/50 rounded-2xl">
-                      <span className="text-sm font-bold text-red-800">{item.label}</span>
-                      <span className="text-base font-extrabold text-red-900">({formatCurrency(item.nominal)})</span>
-                    </div>
-                  ))}
-                  <div className="pt-4 border-t border-gray-100 flex justify-between items-center px-4">
-                    <span className="text-sm font-bold text-gray-800">Total Beban</span>
-                    <span className="text-xl font-black text-red-600">
-                      {formatCurrency(MOCK_LPHU.beban.reduce((a, b) => a + b.nominal, 0))}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="lg:col-span-2 bg-[#004A9C] rounded-[24px] p-8 text-white flex flex-col md:flex-row justify-between items-center shadow-xl shadow-blue-900/10">
-                <div className="text-center md:text-left mb-4 md:mb-0">
-                  <h3 className="text-2xl font-black">Laba Bersih (EAT)</h3>
-                  <p className="text-blue-100/70 text-sm">Pendapatan dikurangi beban operasional & pajak</p>
-                </div>
-                <div className="text-center md:text-right">
-                  <p className="text-4xl font-black text-white">
-                    {formatCurrency(
-                      MOCK_LPHU.pendapatan.reduce((a, b) => a + b.nominal, 0) - 
-                      MOCK_LPHU.beban.reduce((a, b) => a + b.nominal, 0)
-                    )}
-                  </p>
-                  {isBendahara && (
-                    <button className="mt-2 text-xs font-bold bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors">
-                      Update Jurnal Balik &rarr;
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+             <div className="p-20 text-center text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200">
+               <BarChart3 size={48} className="mx-auto mb-4 opacity-20"/>
+               <p className="font-bold">Laporan Perhitungan Hasil Usaha</p>
+               <p className="text-sm mt-1">Data sedang disinkronisasi dari jurnal umum.</p>
+             </div>
           )}
-
           {activeTab === 'shu' && (
-            <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 p-8">
-              <div className="flex flex-col md:flex-row gap-8 items-center">
-                <div className="flex-1 space-y-6">
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-800">Pembagian SHU Tahunan</h2>
-                    <p className="text-sm text-gray-400 mt-1">Estimasi pembagian sisa hasil usaha berdasarkan aturan AD/ART.</p>
-                  </div>
-                  <div className="space-y-3">
-                    {MOCK_SHU.pembagian.map((item, idx) => (
-                      <div key={idx} className="group flex items-center justify-between p-4 rounded-2xl hover:bg-gray-50 border border-transparent hover:border-gray-100 transition-all">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                          <span className="text-sm font-bold text-gray-600">{item.label}</span>
-                        </div>
-                        <span className="text-base font-extrabold text-gray-800">{formatCurrency(item.nominal)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="w-full md:w-80 flex flex-col items-center justify-center text-center p-8 bg-[#DFEAF4]/30 rounded-[32px] border border-[#004A9C]/10">
-                  <div className="w-20 h-20 bg-[#004A9C] rounded-3xl flex items-center justify-center text-white mb-6 shadow-lg shadow-blue-900/20">
-                    <PieChart size={40} />
-                  </div>
-                  <p className="text-xs font-bold text-[#004A9C] uppercase tracking-wider mb-2">Total Dana SHU</p>
-                  <p className="text-3xl font-black text-[#1e293b] leading-tight">
-                    {formatCurrency(MOCK_SHU.totalShu)}
-                  </p>
-                  <p className="text-[10px] text-gray-400 mt-4 leading-relaxed">
-                    Dana ini akan dikreditkan ke masing-masing saldo anggota sesuai dengan proporsi jasa modal dan jasa transaksi.
-                  </p>
-                  {isBendahara && (
-                    <Button className="mt-8 !px-8 text-sm !rounded-2xl">Generate & Posting</Button>
-                  )}
-                </div>
-              </div>
-            </div>
+             <div className="p-20 text-center text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200">
+               <PieChart size={48} className="mx-auto mb-4 opacity-20"/>
+               <p className="font-bold">Sisa Hasil Usaha</p>
+               <p className="text-sm mt-1">Pembagian SHU akan tersedia di akhir periode akuntansi.</p>
+             </div>
           )}
-
           {activeTab === 'neraca' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="p-6 bg-blue-50 border-b border-blue-100">
-                    <h2 className="text-lg font-bold text-[#004A9C] flex items-center gap-2">
-                       <TrendingUp size={20} /> Aktiva (Harta)
-                    </h2>
-                  </div>
-                  <div className="p-6 space-y-4">
-                    {MOCK_NERACA.aktiva.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center py-2">
-                        <span className="text-sm font-medium text-gray-600">{item.label}</span>
-                        <span className="text-sm font-bold text-gray-800">{formatCurrency(item.nominal)}</span>
-                      </div>
-                    ))}
-                    <div className="pt-4 border-t border-gray-50 flex justify-between items-center">
-                      <span className="text-sm font-bold text-gray-900">Total Aktiva</span>
-                      <span className="text-lg font-black text-blue-700">
-                        {formatCurrency(MOCK_NERACA.aktiva.reduce((a, b) => a + b.nominal, 0))}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="p-6 bg-orange-50 border-b border-orange-100">
-                    <h2 className="text-lg font-bold text-orange-700 flex items-center gap-2">
-                       <ArrowRightLeft size={20} /> Passiva (Kewajiban & Modal)
-                    </h2>
-                  </div>
-                  <div className="p-6 space-y-4">
-                    {MOCK_NERACA.passiva.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center py-2">
-                        <span className="text-sm font-medium text-gray-600">{item.label}</span>
-                        <span className="text-sm font-bold text-gray-800">{formatCurrency(item.nominal)}</span>
-                      </div>
-                    ))}
-                    <div className="pt-4 border-t border-gray-50 flex justify-between items-center">
-                      <span className="text-sm font-bold text-gray-900">Total Passiva</span>
-                      <span className="text-lg font-black text-orange-700">
-                        {formatCurrency(MOCK_NERACA.passiva.reduce((a, b) => a + b.nominal, 0))}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Balance Check */}
-              <div className={`p-6 rounded-[24px] border ${
-                MOCK_NERACA.aktiva.reduce((a, b) => a + b.nominal, 0) === MOCK_NERACA.passiva.reduce((a, b) => a + b.nominal, 0)
-                  ? 'bg-green-50 border-green-200'
-                  : 'bg-red-50 border-red-200'
-              } flex items-center gap-4`}>
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                  MOCK_NERACA.aktiva.reduce((a, b) => a + b.nominal, 0) === MOCK_NERACA.passiva.reduce((a, b) => a + b.nominal, 0)
-                    ? 'bg-green-100 text-green-600'
-                    : 'bg-red-100 text-red-600'
-                }`}>
-                  {MOCK_NERACA.aktiva.reduce((a, b) => a + b.nominal, 0) === MOCK_NERACA.passiva.reduce((a, b) => a + b.nominal, 0)
-                    ? <CheckCircle2 size={24} />
-                    : <AlertCircle size={24} />
-                  }
-                </div>
-                <div>
-                  <h3 className={`font-bold ${
-                    MOCK_NERACA.aktiva.reduce((a, b) => a + b.nominal, 0) === MOCK_NERACA.passiva.reduce((a, b) => a + b.nominal, 0)
-                      ? 'text-green-800'
-                      : 'text-red-800'
-                  }`}>
-                    {MOCK_NERACA.aktiva.reduce((a, b) => a + b.nominal, 0) === MOCK_NERACA.passiva.reduce((a, b) => a + b.nominal, 0)
-                      ? 'Neraca Seimbang (Balanced)'
-                      : 'Neraca Tidak Seimbang (Unbalanced)'
-                    }
-                  </h3>
-                  <p className="text-xs opacity-70">Posisi keuangan koperasi dipastikan akurat berdasarkan pencatatan jurnal umum.</p>
-                </div>
-              </div>
-            </div>
+             <div className="p-20 text-center text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200">
+               <FileText size={48} className="mx-auto mb-4 opacity-20"/>
+               <p className="font-bold">Neraca Koperasi</p>
+               <p className="text-sm mt-1">Laporan posisi keuangan aset, kewajiban, dan ekuitas.</p>
+             </div>
           )}
         </motion.div>
       </AnimatePresence>
 
-      {/* Footer Info */}
-      <div className="bg-gray-50/50 p-6 rounded-[24px] border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Calendar size={20} className="text-gray-400" />
-          <span className="text-sm text-gray-500">Terakhir Update: 19 April 2026, 16:45 WIB</span>
-        </div>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#27AE60]"></div>
-            <span className="text-xs font-bold text-gray-600 uppercase">Live Sync</span>
+      {/* Modal Arus Kas */}
+      <AnimatePresence>
+        {showModalKas && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowModalKas(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative w-full max-w-xl bg-white rounded-[32px] shadow-2xl p-8">
+               <div className="flex justify-between items-center mb-6">
+                 <h2 className="text-2xl font-bold text-gray-800">{editKasData ? 'Edit Transaksi' : 'Catat Transaksi'}</h2>
+                 <button onClick={() => setShowModalKas(false)} className="text-gray-400 hover:text-gray-600"><Plus size={24} className="rotate-45" /></button>
+               </div>
+               <form onSubmit={handleSubmitKas} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Kategori</label>
+                      <select 
+                        required className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-[#004A9C]/20"
+                        value={formDataKas.nama_kategori}
+                        onChange={(e) => handleCategoryChange(e.target.value)}
+                      >
+                        <option value="">Pilih Kategori</option>
+                        {categories.map(c => <option key={c.kategori_id} value={c.nama_kategori}>{c.nama_kategori}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Nominal (Rp)</label>
+                      <input 
+                        type="number" required placeholder="0" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-[#004A9C]/20"
+                        value={formDataKas.nominal}
+                        onChange={(e) => setFormDataKas({...formDataKas, nominal: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Jenis Transaksi</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        type="button"
+                        onClick={() => setFormDataKas({...formDataKas, jenis: 'Kredit'})}
+                        className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formDataKas.jenis === 'Kredit' ? 'border-[#27AE60] bg-[#27AE60]/5 text-[#27AE60]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
+                      >
+                        Kredit (Masuk)
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setFormDataKas({...formDataKas, jenis: 'Debit'})}
+                        className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formDataKas.jenis === 'Debit' ? 'border-[#EB5757] bg-[#EB5757]/5 text-[#EB5757]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
+                      >
+                        Debit (Keluar)
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Keterangan</label>
+                    <textarea 
+                      required rows="3" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-[#004A9C]/20"
+                      placeholder="Detail transaksi..."
+                      value={formDataKas.keterangan}
+                      onChange={(e) => setFormDataKas({...formDataKas, keterangan: e.target.value})}
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <Button type="button" onClick={() => setShowModalKas(false)} className="flex-1 !bg-gray-100 !text-gray-500">Batal</Button>
+                    <Button type="submit" className="flex-1">Simpan</Button>
+                  </div>
+               </form>
+            </motion.div>
           </div>
-          <div className="flex items-center gap-2 font-poppins">
-            <span className="text-xs text-gray-400">Dikelola oleh:</span>
-            <span className="text-xs font-bold text-[#004A9C]">Sistem Keuangan Koperasi Nichias</span>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Kategori */}
+      <AnimatePresence>
+        {showModalCat && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowModalCat(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-800">{editCatData ? 'Edit Kategori' : 'Tambah Kategori'}</h2>
+                  <button onClick={() => setShowModalCat(false)} className="text-gray-400 hover:text-gray-600"><Plus size={24} className="rotate-45" /></button>
+                </div>
+                <form onSubmit={handleCategorySubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nama Kategori</label>
+                    <input 
+                      type="text" required placeholder="Contoh: Biaya Operasional"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-[#004A9C]/20 outline-none"
+                      value={formDataCat.nama_kategori}
+                      onChange={(e) => setFormDataCat({...formDataCat, nama_kategori: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Jenis Default</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        type="button"
+                        onClick={() => setFormDataCat({...formDataCat, jenis: 'Kredit'})}
+                        className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formDataCat.jenis === 'Kredit' ? 'border-[#27AE60] bg-[#27AE60]/5 text-[#27AE60]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
+                      >
+                        Kredit (In)
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setFormDataCat({...formDataCat, jenis: 'Debit'})}
+                        className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formDataCat.jenis === 'Debit' ? 'border-[#EB5757] bg-[#EB5757]/5 text-[#EB5757]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
+                      >
+                        Debit (Out)
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <Button type="button" onClick={() => setShowModalCat(false)} className="flex-1 !bg-gray-100 !text-gray-500">Batal</Button>
+                    <Button type="submit" className="flex-1">Simpan</Button>
+                  </div>
+                </form>
+            </motion.div>
           </div>
-        </div>
-      </div>
+        )}
+      </AnimatePresence>
+      {/* Modal Konfirmasi Hapus */}
+      <AnimatePresence>
+        {showConfirmDelete.isOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowConfirmDelete({ isOpen: false, id: null, name: '' })} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative w-full max-w-sm bg-white rounded-[32px] shadow-2xl p-8 text-center">
+                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <AlertCircle size={40} className="text-red-500" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">{showConfirmDelete.type === 'kas' ? 'Hapus Transaksi?' : 'Hapus Kategori?'}</h3>
+                <p className="text-gray-500 text-sm mb-8">
+                  {showConfirmDelete.type === 'kas' 
+                    ? <>Apakah Anda yakin ingin menghapus transaksi <span className="font-bold text-gray-700">"{showConfirmDelete.name}"</span>? Saldo akhir akan dihitung ulang secara otomatis.</>
+                    : <>Apakah Anda yakin ingin menghapus kategori <span className="font-bold text-gray-700">"{showConfirmDelete.name}"</span>? Transaksi yang sudah ada tidak akan hilang, namun kategori ini tidak bisa dipilih lagi.</>
+                  }
+                </p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setShowConfirmDelete({ isOpen: false, id: null, name: '' })}
+                    className="flex-1 px-6 py-3 bg-gray-50 text-gray-500 font-bold rounded-2xl hover:bg-gray-100 transition-all"
+                  >
+                    Batal
+                  </button>
+                  <button 
+                    onClick={handleDeleteConfirm}
+                    className="flex-1 px-6 py-3 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all"
+                  >
+                    Ya, Hapus
+                  </button>
+                </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

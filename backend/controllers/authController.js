@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../models');
 const { generateNoAnggota } = require('../utils/idGenerator');
+const ArusKasService = require('../services/ArusKasService');
 
 const User = db.User;
 const Anggota = db.Anggota;
@@ -203,6 +204,7 @@ const register = async (req, res) => {
 
     // Emit dashboard update for real-time stats
     req.io.emit('dashboardUpdate');
+    req.io.emit('arus-kas-updated');
 
     // Emit juga user:created agar UserManagement table auto-update
     console.log(`📤 Emitting user:created for ${nama_lengkap}`);
@@ -449,8 +451,18 @@ const adminCreateUser = async (req, res) => {
         jenis_transaksi: 'Setor',
         nominal: nominalPokok,
         tanggal: new Date().toISOString().split('T')[0],
-        keterangan: 'Setoran Pokok Awal (Dibuat oleh Admin)'
+        keterangan: 'Simpanan Pokok Awal (Dibuat oleh Admin)'
       }, { transaction });
+
+      // --- INTEGRASI ARUS KAS ---
+      await ArusKasService.recordTransaction({
+        user_id: detailInstance.user_id,
+        nama_kategori: 'Simpanan Pokok',
+        jenis: 'Kredit',
+        nominal: nominalPokok,
+        keterangan: 'Simpanan Pokok Awal (Dibuat oleh Admin)',
+        kode_transaksi: `ADM-PKK-${detailInstance.anggota_id}`
+      }, { transaction }, req.io);
     } else {
       detailInstance = await Pengurus.create({
         user_id: newUser.user_id,
@@ -488,6 +500,7 @@ const adminCreateUser = async (req, res) => {
 
     // Emit dashboard update for real-time stats
     req.io.emit('dashboardUpdate');
+    req.io.emit('arus-kas-updated');
 
     // Emit simpanan:created if member was created
     if (type.toLowerCase() === 'anggota') {

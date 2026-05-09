@@ -324,7 +324,6 @@ export default function InputBaruSimpanan() {
            <div className="flex flex-col sm:items-end">
               <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1 sm:justify-end"><Calendar size={12}/> Tanggal Transaksi</span>
               <span className="text-sm font-bold text-gray-800">{today}</span>
-              <span className="text-[10px] text-green-600 bg-green-100 px-2 py-0.5 rounded-full mt-1 font-bold inline-flex w-fit">Otomatis Terisi</span>
            </div>
         </div>
 

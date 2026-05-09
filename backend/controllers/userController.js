@@ -1,6 +1,7 @@
 const db = require('../models');
 const { generateNoAnggota } = require('../utils/idGenerator');
 const bcrypt = require('bcrypt');
+const ArusKasService = require('../services/ArusKasService');
 const User = db.User;
 const Anggota = db.Anggota;
 const Pengurus = db.Pengurus;
@@ -88,6 +89,7 @@ const requestKeluar = async (req, res) => {
       });
 
       req.io.emit('dashboardUpdate');
+      req.io.emit('arus-kas-updated');
     }
 
     res.status(200).json({ success: true, message: 'Pengajuan pengunduran diri berhasil dikirim.' });
@@ -136,6 +138,7 @@ const cancelKeluar = async (req, res) => {
         data: { status_keanggotaan: 'Aktif', alasan_keluar: null } 
       });
       req.io.emit('dashboardUpdate');
+      req.io.emit('arus-kas-updated');
     }
 
     res.status(200).json({ success: true, message: 'Pengajuan pengunduran diri berhasil dibatalkan.' });
@@ -189,6 +192,7 @@ const approveKeluar = async (req, res) => {
         data: { status_keanggotaan: 'Keluar' } 
       });
       req.io.emit('dashboardUpdate');
+      req.io.emit('arus-kas-updated');
     }
 
     res.status(200).json({ success: true, message: 'Pengajuan pengunduran diri berhasil disetujui.' });
@@ -490,15 +494,25 @@ const approveMember = async (req, res) => {
       last_updated: new Date()
     }, { transaction });
 
-    // 2. Buat record TransaksiSimpanan (Setoran Pokok Awal)
+    // 2. Buat record TransaksiSimpanan (Simpanan Pokok Awal)
     await TransaksiSimpanan.create({
       anggota_id: anggota.anggota_id,
       jenis_simpanan: 'Pokok',
       jenis_transaksi: 'Setor',
       nominal: nominalPokok,
       tanggal: new Date().toISOString().split('T')[0],
-      keterangan: 'Setoran Pokok Awal (Pendaftaran Diterima)'
+      keterangan: 'Simpanan Pokok Awal (Pendaftaran Diterima)'
     }, { transaction });
+
+    // --- INTEGRASI ARUS KAS ---
+    await ArusKasService.recordTransaction({
+      user_id: anggota.user_id,
+      nama_kategori: 'Simpanan Pokok',
+      jenis: 'Kredit',
+      nominal: nominalPokok,
+      keterangan: 'Simpanan Pokok Awal (Pendaftaran Diterima)',
+      kode_transaksi: `REG-PKK-${anggota.anggota_id}`
+    }, { transaction }, req.io);
 
     // 3. Buat notifikasi pendaftaran diterima
     await Notifikasi.create({
@@ -531,6 +545,7 @@ const approveMember = async (req, res) => {
     if (req.io) {
         req.io.emit('user:updated', { type: 'anggota', id, data: anggotaPlain });
         req.io.emit('dashboardUpdate');
+        req.io.emit('arus-kas-updated');
     }
 
     // Emit member:approved untuk notifikasi ke user yang diterima

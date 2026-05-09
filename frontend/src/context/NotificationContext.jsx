@@ -254,6 +254,20 @@ export function NotificationProvider({ children }) {
     setToastQueue(prev => prev.filter(t => t._toastId !== toastId));
   }, []);
 
+  // Manual notification trigger
+  const showNotification = useCallback((pesan, tipe = 'sistem', judul = 'Pemberitahuan') => {
+    const newToast = {
+      id: `toast_${Date.now()}`,
+      judul,
+      pesan,
+      tipe,
+      is_read: false,
+      created_at: new Date().toISOString(),
+      _toastId: Date.now()
+    };
+    setToastQueue(prev => [...prev, newToast]);
+  }, []);
+
   const value = {
     notifications,
     unreadCount,
@@ -262,6 +276,7 @@ export function NotificationProvider({ children }) {
     markAsRead,
     markAllAsRead,
     dismissToast,
+    showNotification
   };
 
   return (
@@ -278,5 +293,8 @@ export function useNotifications() {
   }
   return context;
 }
+
+// Alias for convenience
+export const useNotification = useNotifications;
 
 export default NotificationContext;

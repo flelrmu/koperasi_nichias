@@ -61,6 +61,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/peraturan', peraturanRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/simpan-pinjam', require('./routes/simpanPinjamRoutes'));
+app.use('/api/keuangan', require('./routes/keuanganRoutes'));
 
 // Test route
 app.get('/', (req, res) => {
