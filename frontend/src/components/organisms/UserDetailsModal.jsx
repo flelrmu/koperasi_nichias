@@ -25,6 +25,7 @@ import { useState } from 'react';
 export default function UserDetailsModal({ isOpen, onClose, user, type }) {
   const { api, user: currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [metodePembayaran, setMetodePembayaran] = useState('CASH');
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '' });
   const canApprove = type === 'anggota' && user?.status_keanggotaan === 'Pending' && isSekretaris(currentUser?.role);
 
@@ -43,7 +44,10 @@ export default function UserDetailsModal({ isOpen, onClose, user, type }) {
     setConfirmModal({ ...confirmModal, isOpen: false });
     try {
       const id = user.anggota_id;
-      const res = await api.put(`/user/approve/${id}`, { action: 'terima' });
+      const res = await api.put(`/user/approve/${id}`, { 
+        action: 'terima',
+        metode_pembayaran: metodePembayaran
+      });
       if (res.data.success) {
         onClose();
       }
@@ -249,7 +253,26 @@ export default function UserDetailsModal({ isOpen, onClose, user, type }) {
                 </div>
 
                 {canApprove && (
-                  <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-10 border-t border-gray-50">
+                  <div className="flex flex-col sm:flex-row items-center justify-end gap-6 pt-10 border-t border-gray-50">
+                     <div className="flex flex-col items-end gap-2">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Metode Simpanan Pokok</label>
+                        <div className="flex bg-gray-100 p-1 rounded-xl">
+                           <button 
+                              type="button"
+                              onClick={() => setMetodePembayaran('CASH')}
+                              className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${metodePembayaran === 'CASH' ? 'bg-white text-[#004A9C] shadow-sm' : 'text-gray-400'}`}
+                           >
+                              TUNAI
+                           </button>
+                           <button 
+                              type="button"
+                              onClick={() => setMetodePembayaran('BANK')}
+                              className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${metodePembayaran === 'BANK' ? 'bg-white text-[#004A9C] shadow-sm' : 'text-gray-400'}`}
+                           >
+                              BANK
+                           </button>
+                        </div>
+                     </div>
                      <Button 
                         onClick={handleApprove}
                         disabled={isSubmitting}

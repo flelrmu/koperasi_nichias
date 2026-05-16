@@ -446,7 +446,7 @@ const getUserDetail = async (req, res) => {
  */
 const approveMember = async (req, res) => {
   const { id } = req.params;
-  const { action } = req.body; // hanya 'terima'
+  const { action, metode_pembayaran } = req.body; // Terima metode_pembayaran
   const transaction = await db.sequelize.transaction();
 
   try {
@@ -511,7 +511,8 @@ const approveMember = async (req, res) => {
       jenis: 'Kredit',
       nominal: nominalPokok,
       keterangan: 'Simpanan Pokok Awal (Pendaftaran Diterima)',
-      kode_transaksi: `REG-PKK-${anggota.anggota_id}`
+      kode_transaksi: `REG-PKK-${anggota.anggota_id}`,
+      metode_pembayaran: metode_pembayaran || 'CASH'
     }, { transaction }, req.io);
 
     // 3. Buat notifikasi pendaftaran diterima

@@ -77,6 +77,7 @@ export default function TambahUser() {
     no_rekening_bank: '',
     alamat: '',
     role: '',
+    metode_pembayaran: 'CASH',
   });
 
   const [modalConfig, setModalConfig] = useState({
@@ -437,6 +438,28 @@ export default function TambahUser() {
                             onChange={handleChange}
                             required
                           />
+                        </div>
+                        <div className="md:col-span-2 space-y-3 pt-4">
+                          <label className="text-[11px] font-bold text-gray-500 ml-1 uppercase tracking-widest">Metode Simpanan Pokok Awal</label>
+                          <div className="grid grid-cols-2 gap-4">
+                            <button 
+                              type="button"
+                              onClick={() => setFormData({...formData, metode_pembayaran: 'CASH'})}
+                              className={`py-4 rounded-2xl text-xs font-bold border-2 transition-all flex items-center justify-center gap-3 ${formData.metode_pembayaran === 'CASH' ? 'border-[#004A9C] bg-[#004A9C]/5 text-[#004A9C]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
+                            >
+                              <div className={`w-3.5 h-3.5 rounded-full border-2 ${formData.metode_pembayaran === 'CASH' ? 'border-[#004A9C] bg-[#004A9C]' : 'border-gray-200'}`} />
+                              TUNAI (CASH)
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => setFormData({...formData, metode_pembayaran: 'BANK'})}
+                              className={`py-4 rounded-2xl text-xs font-bold border-2 transition-all flex items-center justify-center gap-3 ${formData.metode_pembayaran === 'BANK' ? 'border-[#004A9C] bg-[#004A9C]/5 text-[#004A9C]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
+                            >
+                              <div className={`w-3.5 h-3.5 rounded-full border-2 ${formData.metode_pembayaran === 'BANK' ? 'border-[#004A9C] bg-[#004A9C]' : 'border-gray-200'}`} />
+                              TRANSFER (BANK)
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-gray-400 italic ml-1">*Pilih bagaimana uang simpanan pokok diterima oleh koperasi.</p>
                         </div>
                       </div>
                     </motion.div>

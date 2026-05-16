@@ -38,6 +38,7 @@ export default function ManajemenSaldo() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [metodePembayaran, setMetodePembayaran] = useState('CASH');
   const [isLoading, setIsLoading] = useState(!member);
   const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
@@ -94,7 +95,8 @@ export default function ManajemenSaldo() {
       const res = await api.put(`/simpan-pinjam/simpanan/${id}`, {
         saldo_pokok: saldo.pokok.toString().replace(/\./g, ''),
         saldo_wajib: saldo.wajib.toString().replace(/\./g, ''),
-        saldo_sukarela: saldo.sukarela.toString().replace(/\./g, '')
+        saldo_sukarela: saldo.sukarela.toString().replace(/\./g, ''),
+        metode_pembayaran: metodePembayaran
       });
       
       if (res.data.success) {
@@ -211,6 +213,31 @@ export default function ManajemenSaldo() {
                       <p className="text-[10px] text-gray-400 italic px-1 font-medium">Masukkan total akumulasi saldo {item.label.toLowerCase()} saat ini.</p>
                    </div>
                  ))}
+              </div>
+
+              {/* Metode Pembayaran Selection */}
+              <div className="pt-8 border-t border-gray-100 space-y-4">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] px-1 block">Akun Sumber Penyesuaian</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {['CASH', 'BANK'].map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setMetodePembayaran(m)}
+                        className={`flex items-center justify-center gap-3 p-4 rounded-2xl border-2 transition-all font-black text-sm ${
+                          metodePembayaran === m 
+                          ? 'border-[#004A9C] bg-[#004A9C]/5 text-[#004A9C]' 
+                          : 'border-gray-50 bg-gray-50/30 text-gray-400 hover:border-gray-200'
+                        }`}
+                      >
+                        <div className={`p-2 rounded-lg ${metodePembayaran === m ? 'bg-[#004A9C] text-white' : 'bg-gray-200 text-gray-500'}`}>
+                          {m === 'CASH' ? <Wallet size={18} /> : <CreditCard size={18} />}
+                        </div>
+                        {m === 'CASH' ? 'Kas Tunai' : 'Rekening Bank'}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-gray-400 italic px-1 font-medium">Pilih akun mana yang akan mencatat selisih saldo ini di laporan keuangan (Arus Kas).</p>
               </div>
 
               {/* Action Buttons */}

@@ -2,16 +2,13 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Home, 
-  Wallet, 
-  CreditCard, 
-  User, 
   LogOut, 
   X, 
   LayoutDashboard, 
-  UserCheck, 
+  User, 
   PiggyBank, 
   BarChart3, 
-  Settings 
+  Settings
 } from 'lucide-react';
 import Logo from '../atoms/Logo';
 import Modal from '../molecules/Modal';

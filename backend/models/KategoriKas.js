@@ -12,9 +12,23 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       unique: true,
     },
+    kode_akun: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
+    tipe_neraca: {
+      type: DataTypes.ENUM('Asset', 'Liability', 'Equity', 'Income', 'Expense'),
+      allowNull: false,
+      defaultValue: 'Asset'
+    },
+    saldo_awal: {
+      type: DataTypes.DECIMAL(15, 2),
+      defaultValue: 0,
+    },
     jenis: {
       type: DataTypes.ENUM('Debit', 'Kredit'),
       allowNull: false,
+      defaultValue: 'Kredit'
     },
   }, {
     tableName: 'kategori_kas',

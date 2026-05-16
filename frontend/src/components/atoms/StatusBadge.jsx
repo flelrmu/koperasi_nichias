@@ -3,8 +3,8 @@ import {
   Clock, 
   XCircle, 
   AlertTriangle, 
-  ArrowUpRight, 
-  ArrowDownRight,
+  ArrowDownLeft,
+  ArrowUpRight,
   UserCheck,
   UserX
 } from 'lucide-react';
@@ -26,7 +26,7 @@ export default function StatusBadge({ status, children }) {
     case 'approved':
       bgColor = 'bg-[#27AE60]/10';
       textColor = 'text-[#27AE60]';
-      Icon = s === 'aktif' ? UserCheck : CheckCircle2;
+      Icon = s === 'aktif' ? UserCheck : s === 'kredit' ? ArrowDownLeft : CheckCircle2;
       break;
     case 'peringatan':
     case 'progres':
@@ -46,7 +46,7 @@ export default function StatusBadge({ status, children }) {
     case 'rejected':
       bgColor = 'bg-[#EB5757]/10';
       textColor = 'text-[#EB5757]';
-      Icon = s === 'keluar' ? UserX : XCircle;
+      Icon = s === 'keluar' ? UserX : s === 'debit' ? ArrowUpRight : XCircle;
       break;
   }
 

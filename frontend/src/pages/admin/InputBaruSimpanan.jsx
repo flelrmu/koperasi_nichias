@@ -37,6 +37,7 @@ export default function InputBaruSimpanan() {
     jenis_transaksi: 'Setor',
     nominal: '',
     keterangan: '',
+    metode_pembayaran: 'CASH',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -202,7 +203,10 @@ export default function InputBaruSimpanan() {
     
     try {
       const payload = formData.jenis_simpanan === 'Semua'
-        ? { keterangan: formData.keterangan }
+        ? { 
+            keterangan: formData.keterangan,
+            metode_pembayaran: formData.metode_pembayaran 
+          }
         : {
             anggota_id: id,
             ...formData,
@@ -396,6 +400,31 @@ export default function InputBaruSimpanan() {
                 <option value="Sukarela">Simpanan Sukarela</option>
                 <option value="Semua">Semua Simpanan (Tarik Seluruh)</option>
               </select>
+            </div>
+            </div>
+
+          {/* Metode Pembayaran */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+              Metode Pembayaran
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                type="button"
+                onClick={() => setFormData({...formData, metode_pembayaran: 'CASH'})}
+                className={`py-3 rounded-xl text-sm font-bold border-2 transition-all flex items-center justify-center gap-2 ${formData.metode_pembayaran === 'CASH' ? 'border-[#004A9C] bg-[#004A9C]/5 text-[#004A9C]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
+              >
+                <div className={`w-3 h-3 rounded-full ${formData.metode_pembayaran === 'CASH' ? 'bg-[#004A9C]' : 'bg-gray-200'}`} />
+                TUNAI (CASH)
+              </button>
+              <button 
+                type="button"
+                onClick={() => setFormData({...formData, metode_pembayaran: 'BANK'})}
+                className={`py-3 rounded-xl text-sm font-bold border-2 transition-all flex items-center justify-center gap-2 ${formData.metode_pembayaran === 'BANK' ? 'border-[#004A9C] bg-[#004A9C]/5 text-[#004A9C]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
+              >
+                <div className={`w-3 h-3 rounded-full ${formData.metode_pembayaran === 'BANK' ? 'bg-[#004A9C]' : 'bg-gray-200'}`} />
+                TRANSFER (BANK)
+              </button>
             </div>
           </div>
 

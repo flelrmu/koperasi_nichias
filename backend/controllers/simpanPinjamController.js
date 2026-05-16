@@ -28,7 +28,7 @@ exports.updateSimpanan = async (req, res) => {
   const transaction = await db.sequelize.transaction();
   try {
     const { id } = req.params;
-    const { saldo_pokok, saldo_wajib, saldo_sukarela } = req.body;
+    const { saldo_pokok, saldo_wajib, saldo_sukarela, metode_pembayaran } = req.body;
     
     const simpanan = await Simpanan.findByPk(id, {
       include: [{ model: Anggota, as: 'anggota' }],
@@ -39,6 +39,8 @@ exports.updateSimpanan = async (req, res) => {
       await transaction.rollback();
       return res.status(404).json({ success: false, message: 'Data tidak ditemukan' });
     }
+
+    const targetMetode = metode_pembayaran || 'CASH';
 
     const oldPokok = parseFloat(simpanan.saldo_pokok) || 0;
     const oldWajib = parseFloat(simpanan.saldo_wajib) || 0;
@@ -60,10 +62,11 @@ exports.updateSimpanan = async (req, res) => {
         await ArusKasService.recordTransaction({
           user_id: userId,
           nama_kategori: `Simpanan ${categoryName}`,
-          jenis: diff > 0 ? 'Kredit' : 'Debit',
+          jenis: diff > 0 ? 'Kredit' : 'Debit', // Kredit=Masuk, Debit=Keluar
           nominal: Math.abs(diff),
           keterangan: `Penyesuaian Manual (Manajemen Saldo) - Simpanan ${categoryName}`,
-          kode_transaksi: `ADJ-${categoryName.substring(0,3).toUpperCase()}-${simpanan.anggota_id}-${Date.now()}`
+          kode_transaksi: `ADJ-${categoryName.substring(0,3).toUpperCase()}-${simpanan.anggota_id}-${Date.now()}`,
+          metode_pembayaran: targetMetode
         }, { transaction }); // Removed req.io to prevent early emission
       }
     };
@@ -115,7 +118,7 @@ exports.createTransaksiSimpanan = async (req, res) => {
   const transaction = await db.sequelize.transaction();
   
   try {
-    const { anggota_id, jenis_simpanan, jenis_transaksi, nominal, keterangan } = req.body;
+    const { anggota_id, jenis_simpanan, jenis_transaksi, nominal, keterangan, metode_pembayaran } = req.body;
 
     // Validate anggota exists
     const anggota = await Anggota.findByPk(anggota_id, {
@@ -211,10 +214,11 @@ exports.createTransaksiSimpanan = async (req, res) => {
     await ArusKasService.recordTransaction({
       user_id: anggota.user_id,
       nama_kategori: `Simpanan ${jenis_simpanan}`,
-      jenis: jenis_transaksi === 'Setor' ? 'Kredit' : 'Debit',
+      jenis: jenis_transaksi === 'Setor' ? 'Kredit' : 'Debit', // Kredit=Masuk, Debit=Keluar
       nominal: finalNominal,
       keterangan: autoKeterangan,
-      kode_transaksi: `TXS-${newTransaksi.transaksi_id}`
+      kode_transaksi: `TXS-${newTransaksi.transaksi_id}`,
+      metode_pembayaran: metode_pembayaran || 'CASH'
     }, { transaction }, req.io);
 
     // Create notification for the member
@@ -491,10 +495,11 @@ exports.bulkCreateSimpananWajib = async (req, res) => {
       await ArusKasService.recordTransaction({
         user_id: anggota.user_id,
         nama_kategori: 'Simpanan Wajib',
-        jenis: 'Kredit',
+        jenis: 'Kredit', // Kredit = Masuk (simpanan wajib masuk kas)
         nominal: nominalWajib,
         keterangan: autoKeterangan,
-        kode_transaksi: `BLK-WJB-${anggota.anggota_id}-${today}`
+        kode_transaksi: `BLK-WJB-${anggota.anggota_id}-${today}`,
+        metode_pembayaran: 'BANK' // Otomatis BANK untuk kolektif
       }, { transaction }, req.io);
 
       notificationsToEmit.push({
@@ -542,7 +547,7 @@ exports.tarikSemuaSimpanan = async (req, res) => {
   
   try {
     const { anggotaId } = req.params;
-    const { keterangan } = req.body;
+    const { keterangan, metode_pembayaran } = req.body;
 
     const anggota = await Anggota.findByPk(anggotaId, {
       include: [{ model: User, as: 'user' }],
@@ -591,10 +596,11 @@ exports.tarikSemuaSimpanan = async (req, res) => {
     await ArusKasService.recordTransaction({
       user_id: anggota.user_id,
       nama_kategori: 'Penarikan Simpanan',
-      jenis: 'Debit',
+      jenis: 'Debit', // Debit = Keluar (penarikan simpanan keluar dari kas)
       nominal: totalTarik,
       keterangan: keterangan || `Penarikan Seluruh Simpanan - ${bulanTahun}`,
-      kode_transaksi: `WDR-${newTransaksi.transaksi_id}`
+      kode_transaksi: `WDR-${newTransaksi.transaksi_id}`,
+      metode_pembayaran: metode_pembayaran || 'CASH'
     }, { transaction }); // Removed req.io here to prevent early emission, will emit manually after commit
 
     // Create notification for member
@@ -743,14 +749,14 @@ exports.getPinjamanById = async (req, res) => {
 exports.updatePinjamanStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, pinjaman_disetujui, tenor } = req.body;
+    const { status, pinjaman_disetujui, tenor, metode_pembayaran } = req.body;
     
     const pinjaman = await Pinjaman.findByPk(id);
     if (!pinjaman) return res.status(404).json({ success: false, message: 'Data tidak ditemukan' });
 
     const updateData = {
       status,
-      acc_koordinator_id: req.user.id,
+      acc_koordinator_id: req.user.user_id,
       tgl_acc_koordinator: new Date(),
       catatan_pengurus: req.body.catatan_pengurus
     };
@@ -776,6 +782,18 @@ exports.updatePinjamanStatus = async (req, res) => {
         const totalBunga = approvedAmount * bungaPersen;
         const totalAngsuran = approvedAmount + totalBunga;
         const angsuranPerBulan = totalAngsuran / approvedTenor;
+
+        // --- NEW: Cek Saldo Kas ---
+        const latestKas = await db.ArusKas.findOne({ order: [['kas_id', 'DESC']] });
+        const currentSaldoKas = latestKas ? parseFloat(latestKas.saldo_akhir) : 0;
+        
+        if (approvedAmount > currentSaldoKas) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `Saldo kas tidak mencukupi untuk pencairan pinjaman. Saldo saat ini: Rp ${new Intl.NumberFormat('id-ID').format(currentSaldoKas)}, sedangkan pinjaman disetujui: Rp ${new Intl.NumberFormat('id-ID').format(approvedAmount)}.` 
+          });
+        }
+
 
         // 2. Validate Limit based on Jabatan
         const anggota = await Anggota.findByPk(pinjaman.anggota_id);
@@ -827,13 +845,15 @@ exports.updatePinjamanStatus = async (req, res) => {
         // --- INTEGRASI ARUS KAS (Pencairan Pinjaman) ---
         // Only record if status changed to Approved (Disbursed)
         if (pinjaman.status !== 'Approved') {
+          const kategoriPencairan = pinjaman.jenis_pinjaman === 'Uang' ? 'PINJAMAN UANG' : 'CREDIT BARANG';
           await ArusKasService.recordTransaction({
             user_id: anggota.user_id,
-            nama_kategori: 'Pencairan Pinjaman',
-            jenis: 'Debit',
+            nama_kategori: kategoriPencairan,
+            jenis: 'Debit', // Debit = Keluar (pencairan keluar dari kas)
             nominal: updateData.pinjaman_disetujui,
             keterangan: `Pencairan Pinjaman ${pinjaman.jenis_pinjaman} - ${updateData.nomor_invoice}`,
-            kode_transaksi: updateData.nomor_invoice
+            kode_transaksi: updateData.nomor_invoice,
+            metode_pembayaran: metode_pembayaran || 'CASH'
           }); // Removed req.io to prevent early/double emission
         }
     }
@@ -1077,14 +1097,38 @@ exports.bulkProcessAngsuran = async (req, res) => {
       }, { transaction });
 
       // --- INTEGRASI ARUS KAS ---
+      const approvedAmount = parseFloat(loan.pinjaman_disetujui || loan.jumlah_pinjaman);
+      const totalAngsuranPlan = parseFloat(loan.total_angsuran);
+      const totalBungaPlan = parseFloat(loan.total_bunga);
+
+      // Hitung porsi bunga dan pokok secara proporsional
+      const porsiBunga = (finalInstallment * totalBungaPlan) / totalAngsuranPlan;
+      const porsiPokok = finalInstallment - porsiBunga;
+
+      const kategoriPokok = loan.jenis_pinjaman === 'Uang' ? 'ANGSURAN PINJAMAN UANG' : 'ANGSURAN CREDIT BARANG';
+      const kategoriJasa = 'BUNGA/PROFIT';
+
+      // 1. Catat Porsi Pokok (Mengurangi Piutang)
       await ArusKasService.recordTransaction({
         user_id: loan.anggota.user_id,
-        nama_kategori: 'Pembayaran Angsuran',
+        nama_kategori: kategoriPokok,
         jenis: 'Kredit',
-        nominal: finalInstallment,
-        keterangan: pesanNotif,
-        kode_transaksi: `ANG-${loan.pinjaman_id}-${existingCount + 1}`
-      }, { transaction }, req.io);
+        nominal: porsiPokok,
+        keterangan: `Angsuran Pokok ke-${existingCount + 1} - ${loan.nomor_invoice}`,
+        kode_transaksi: `ANG-PKK-${loan.pinjaman_id}-${existingCount + 1}`,
+        metode_pembayaran: 'BANK'
+      }, { transaction });
+
+      // 2. Catat Porsi Bunga (Masuk ke Pendapatan/Income)
+      await ArusKasService.recordTransaction({
+        user_id: loan.anggota.user_id,
+        nama_kategori: kategoriJasa,
+        jenis: 'Kredit',
+        nominal: porsiBunga,
+        keterangan: `Jasa/Bunga Pinjaman ke-${existingCount + 1} - ${loan.nomor_invoice}`,
+        kode_transaksi: `ANG-JSA-${loan.pinjaman_id}-${existingCount + 1}`,
+        metode_pembayaran: 'BANK'
+      }, { transaction });
 
       notificationsToEmit.push({
         user_id: loan.anggota.user_id,
@@ -1131,6 +1175,7 @@ exports.lunaskanPinjaman = async (req, res) => {
   
   try {
     const { id } = req.params;
+    const { metode_pembayaran } = req.body;
     const { Angsuran } = require('../models');
 
     const pinjaman = await Pinjaman.findByPk(id, {
@@ -1189,14 +1234,38 @@ exports.lunaskanPinjaman = async (req, res) => {
     }, { transaction });
 
     // --- INTEGRASI ARUS KAS ---
+    const approvedAmount = parseFloat(pinjaman.pinjaman_disetujui || pinjaman.jumlah_pinjaman);
+    const totalAngsuranPlan = parseFloat(pinjaman.total_angsuran);
+    const totalBungaPlan = parseFloat(pinjaman.total_bunga);
+
+    // Hitung porsi bunga dan pokok dari sisa tagihan
+    const porsiBunga = (sisaTagihan * totalBungaPlan) / totalAngsuranPlan;
+    const porsiPokok = sisaTagihan - porsiBunga;
+
+    const kategoriPokok = pinjaman.jenis_pinjaman === 'Uang' ? 'ANGSURAN PINJAMAN UANG' : 'ANGSURAN CREDIT BARANG';
+    const kategoriJasa = 'BUNGA/PROFIT';
+
+    // 1. Catat Porsi Pokok (Mengurangi Piutang)
     await ArusKasService.recordTransaction({
       user_id: pinjaman.anggota.user_id,
-      nama_kategori: 'Pembayaran Angsuran',
+      nama_kategori: kategoriPokok,
       jenis: 'Kredit',
-      nominal: sisaTagihan,
-      keterangan: `Pelunasan Pinjaman - ${pinjaman.nomor_invoice}`,
-      kode_transaksi: `LNS-${pinjaman.pinjaman_id}`
-    }, { transaction }, req.io);
+      nominal: porsiPokok,
+      keterangan: `Pelunasan Pokok Pinjaman - ${pinjaman.nomor_invoice}`,
+      kode_transaksi: `LNS-PKK-${pinjaman.pinjaman_id}`,
+      metode_pembayaran: metode_pembayaran || 'CASH'
+    }, { transaction });
+
+    // 2. Catat Porsi Bunga (Masuk ke Pendapatan/Income)
+    await ArusKasService.recordTransaction({
+      user_id: pinjaman.anggota.user_id,
+      nama_kategori: kategoriJasa,
+      jenis: 'Kredit',
+      nominal: porsiBunga,
+      keterangan: `Pelunasan Jasa/Bunga Pinjaman - ${pinjaman.nomor_invoice}`,
+      kode_transaksi: `LNS-JSA-${pinjaman.pinjaman_id}`,
+      metode_pembayaran: metode_pembayaran || 'CASH'
+    }, { transaction });
 
     await transaction.commit();
 

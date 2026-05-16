@@ -387,6 +387,7 @@ const adminCreateUser = async (req, res) => {
     alamat,
     // Field khusus Pengurus
     role, // e.g., 'Sekretaris', 'Bendahara'
+    metode_pembayaran, // Tambahkan ini
   } = req.body;
 
   // ... (Validasi tetap sama)
@@ -461,7 +462,8 @@ const adminCreateUser = async (req, res) => {
         jenis: 'Kredit',
         nominal: nominalPokok,
         keterangan: 'Simpanan Pokok Awal (Dibuat oleh Admin)',
-        kode_transaksi: `ADM-PKK-${detailInstance.anggota_id}`
+        kode_transaksi: `ADM-PKK-${detailInstance.anggota_id}`,
+        metode_pembayaran: metode_pembayaran || 'CASH'
       }, { transaction }, req.io);
     } else {
       detailInstance = await Pengurus.create({

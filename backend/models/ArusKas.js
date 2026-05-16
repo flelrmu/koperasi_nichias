@@ -39,6 +39,10 @@ module.exports = (sequelize, DataTypes) => {
     saldo_akhir: {
       type: DataTypes.DECIMAL(15, 2),
     },
+    metode_pembayaran: {
+      type: DataTypes.ENUM('CASH', 'BANK'),
+      defaultValue: 'CASH',
+    },
   }, {
     tableName: 'arus_kas',
     timestamps: false,

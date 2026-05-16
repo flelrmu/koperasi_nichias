@@ -78,7 +78,8 @@ export default function SimpanPinjam() {
     jumlah_disetujui: 0,
     tenor: 10,
     status: 'Pending',
-    catatan_pengurus: ''
+    catatan_pengurus: '',
+    metode_pembayaran: 'CASH'
   });
 
   // Data states
@@ -287,7 +288,8 @@ export default function SimpanPinjam() {
       jumlah_disetujui: formatToRupiah((loan.pinjaman_disetujui || loan.jumlah_pinjaman).toString().split('.')[0]),
       tenor: loan.tenor || 10,
       status: loan.status,
-      catatan_pengurus: loan.catatan_pengurus || ''
+      catatan_pengurus: loan.catatan_pengurus || '',
+      metode_pembayaran: 'CASH'
     });
     setIsReviewOpen(true);
   };
@@ -355,7 +357,7 @@ export default function SimpanPinjam() {
       isOpen: true,
       type: 'warning',
       title: 'Konfirmasi Setoran Kolektif',
-      message: `Apakah Anda yakin ingin memproses setoran wajib untuk ${scope === 'all' ? 'seluruh anggota' : selectedItems.length + ' anggota terpilih'}? Transaksi akan dibuat secara otomatis.`,
+      message: `Apakah Anda yakin ingin memproses setoran wajib untuk ${scope === 'all' ? 'seluruh anggota' : selectedItems.length + ' anggota terpilih'}? Transaksi akan dibuat secara otomatis menggunakan metode pembayaran BANK.`,
       onConfirm: async () => {
         setConfirmModal({ ...confirmModal, isOpen: false });
         try {
@@ -399,7 +401,7 @@ export default function SimpanPinjam() {
       isOpen: true,
       type: 'warning',
       title: 'Konfirmasi Angsuran Kolektif',
-      message: `Proses angsuran untuk ${scope === 'all' ? 'semua pinjaman aktif' : selectedItems.length + ' pinjaman terpilih'}?`,
+      message: `Proses angsuran untuk ${scope === 'all' ? 'semua pinjaman aktif' : selectedItems.length + ' pinjaman terpilih'}? Transaksi akan otomatis dicatat ke akun BANK.`,
       onConfirm: async () => {
         setConfirmModal({ ...confirmModal, isOpen: false });
         try {
@@ -426,7 +428,9 @@ export default function SimpanPinjam() {
       onConfirm: async () => {
         setConfirmModal({ ...confirmModal, isOpen: false });
         try {
-          const response = await api.post(`/simpan-pinjam/pinjaman/${loan.pinjaman_id}/lunaskan`);
+          const response = await api.post(`/simpan-pinjam/pinjaman/${loan.pinjaman_id}/lunaskan`, {
+            metode_pembayaran: updateLoan.metode_pembayaran
+          });
           if (response.data.success) {
             setStatusModal({ isOpen: true, type: 'success', title: 'Berhasil', message: response.data.message });
             setIsReviewOpen(false);
@@ -498,7 +502,8 @@ export default function SimpanPinjam() {
         pinjaman_disetujui: updateLoan.jumlah_disetujui.toString().replace(/\./g, ''),
         tenor: updateLoan.tenor,
         status: targetStatus,
-        catatan_pengurus: updateLoan.catatan_pengurus
+        catatan_pengurus: updateLoan.catatan_pengurus,
+        metode_pembayaran: updateLoan.metode_pembayaran
       });
       
       setIsReviewOpen(false);
@@ -1414,7 +1419,31 @@ export default function SimpanPinjam() {
                         );
                       })()}
 
-                      <div className="flex flex-col gap-3 mt-10">
+                      {selectedLoan.status === 'Pending' && (
+                        <div className="mt-8 space-y-3">
+                          <label className="text-[10px] font-bold text-[#004A9C] uppercase tracking-[0.2em] ml-1">Pilih Metode Pencairan</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <button 
+                              type="button"
+                              onClick={() => setUpdateLoan({...updateLoan, metode_pembayaran: 'CASH'})}
+                              className={`py-3 rounded-2xl text-xs font-black border-2 transition-all flex items-center justify-center gap-3 ${updateLoan.metode_pembayaran === 'CASH' ? 'border-[#004A9C] bg-[#004A9C]/5 text-[#004A9C]' : 'border-gray-200 bg-white text-gray-400 hover:bg-gray-50'}`}
+                            >
+                              <div className={`w-3 h-3 rounded-full ${updateLoan.metode_pembayaran === 'CASH' ? 'bg-[#004A9C]' : 'bg-gray-200'}`} />
+                              CASH
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => setUpdateLoan({...updateLoan, metode_pembayaran: 'BANK'})}
+                              className={`py-3 rounded-2xl text-xs font-black border-2 transition-all flex items-center justify-center gap-3 ${updateLoan.metode_pembayaran === 'BANK' ? 'border-[#004A9C] bg-[#004A9C]/5 text-[#004A9C]' : 'border-gray-200 bg-white text-gray-400 hover:bg-gray-50'}`}
+                            >
+                              <div className={`w-3 h-3 rounded-full ${updateLoan.metode_pembayaran === 'BANK' ? 'bg-[#004A9C]' : 'bg-gray-200'}`} />
+                              BANK
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col gap-3 mt-6">
                         {selectedLoan.status === 'Pending' ? (
                           <>
                             <div className="grid grid-cols-2 gap-4">
@@ -1486,9 +1515,25 @@ export default function SimpanPinjam() {
                               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Status Pinjaman</p>
                               <StatusBadge status={selectedLoan.status} />
                             </div>
-                            <div className="bg-green-50 p-5 rounded-2xl border border-green-100 text-center space-y-3">
-                              <p className="text-[10px] font-bold text-green-600 uppercase tracking-[0.2em]">Pelunasan Langsung</p>
-                              <p className="text-xs text-green-700 font-medium">Sisa tagihan: <span className="font-black text-sm">{formatCurrency(selectedLoan.sisa_tagihan)}</span></p>
+                            <div className="bg-green-50 p-5 rounded-2xl border border-green-100 text-center space-y-4">
+                              <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-green-600 uppercase tracking-[0.2em]">Metode Pelunasan</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <button 
+                                    onClick={() => setUpdateLoan({...updateLoan, metode_pembayaran: 'CASH'})}
+                                    className={`py-2 rounded-xl text-[10px] font-bold border-2 transition-all ${updateLoan.metode_pembayaran === 'CASH' ? 'border-green-600 bg-white text-green-600' : 'border-green-100 text-green-300 hover:bg-white/50'}`}
+                                  >
+                                    TUNAI
+                                  </button>
+                                  <button 
+                                    onClick={() => setUpdateLoan({...updateLoan, metode_pembayaran: 'BANK'})}
+                                    className={`py-2 rounded-xl text-[10px] font-bold border-2 transition-all ${updateLoan.metode_pembayaran === 'BANK' ? 'border-green-600 bg-white text-green-600' : 'border-green-100 text-green-300 hover:bg-white/50'}`}
+                                  >
+                                    TRANSFER
+                                  </button>
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-green-700 font-medium">Sisa tagihan: <span className="font-black text-sm">{formatCurrency(selectedLoan.sisa_tagihan)}</span></p>
                               <Button
                                 onClick={() => handleLunaskan(selectedLoan)}
                                 className="w-full !py-4 !bg-[#27AE60] hover:!bg-[#219150] !text-white shadow-xl shadow-[#27AE60]/20 font-black uppercase tracking-widest"
