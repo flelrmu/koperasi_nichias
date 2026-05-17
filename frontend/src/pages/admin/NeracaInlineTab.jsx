@@ -41,12 +41,14 @@ export default function NeracaInlineTab({ api, showNotification }) {
   const handleTutupBuku = async (bulan) => {
     const monthData = yearlyData.find(m => m.bulan === bulan);
     if (!monthData) return;
-    if (!window.confirm(`Tutup buku untuk ${MONTHS[bulan - 1]} ${tahun}?`)) return;
+    if (!window.confirm(`Apakah Anda yakin ingin melakukan TUTUP BUKU untuk periode ${MONTHS[bulan - 1]} ${tahun}? Setelah ditutup, transaksi di bulan ini TIDAK DAPAT diubah lagi.`)) return;
+    
     try {
-      await api.post('/keuangan/neraca/tutup-buku', {
-        bulan, tahun: parseInt(tahun), dataNeraca: monthData.data
+      await api.post('/keuangan/tutup-buku', {
+        bulan: parseInt(bulan), 
+        tahun: parseInt(tahun)
       });
-      showNotification(`Berhasil tutup buku ${MONTHS[bulan - 1]} ${tahun}`, 'success');
+      showNotification(`Berhasil tutup buku periode ${MONTHS[bulan - 1]} ${tahun}`, 'success');
       fetchData();
     } catch (error) {
       showNotification(error.response?.data?.message || 'Gagal tutup buku', 'error');

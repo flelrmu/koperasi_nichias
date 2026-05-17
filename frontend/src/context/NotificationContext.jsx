@@ -195,6 +195,28 @@ export function NotificationProvider({ children }) {
       setTimeout(() => fetchNotifications(), 1500);
     };
 
+    const handleSHUNotif = (data) => {
+      console.log('🔔 Real-time notifikasi:shu received:', data);
+      const { isAuthenticated: authed, user: currentUser } = authRef.current;
+      if (!authed || currentUser?.role !== 'Anggota') return;
+
+      const newNotif = {
+        id: `temp_shu_${Date.now()}`,
+        judul: data.notifikasi?.judul || 'SHU Telah Diterima 🎉',
+        pesan: data.notifikasi?.pesan || 'Pembagian SHU telah masuk ke akun Anda.',
+        tipe: 'sistem',
+        link: '/dashboard',
+        is_read: false,
+        created_at: new Date().toISOString(),
+      };
+
+      setNotifications(prev => [newNotif, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
+      
+      setTimeout(() => fetchNotifications(), 1500);
+    };
+
     const handleReconnect = () => {
       console.log('🔄 Socket reconnected, refetching notifications...');
       const { isAuthenticated: authed } = authRef.current;
@@ -207,6 +229,7 @@ export function NotificationProvider({ children }) {
     socket.on('notifikasi:simpanan', handleSimpananNotif);
     socket.on('notifikasi:anggota-keluar', handleAnggotaKeluarNotif);
     socket.on('notifikasi:pinjaman', handlePinjamanNotif);
+    socket.on('notifikasi:shu', handleSHUNotif);
     socket.on('member:approved', handleMemberApproved);
     socket.on('user:updated', handleUserUpdated);
     socket.on('connect', handleReconnect);
@@ -216,6 +239,7 @@ export function NotificationProvider({ children }) {
       socket.off('notifikasi:simpanan', handleSimpananNotif);
       socket.off('notifikasi:anggota-keluar', handleAnggotaKeluarNotif);
       socket.off('notifikasi:pinjaman', handlePinjamanNotif);
+      socket.off('notifikasi:shu', handleSHUNotif);
       socket.off('member:approved', handleMemberApproved);
       socket.off('user:updated', handleUserUpdated);
       socket.off('connect', handleReconnect);

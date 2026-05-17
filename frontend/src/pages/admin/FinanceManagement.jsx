@@ -34,6 +34,8 @@ import StatusBadge from "../../components/atoms/StatusBadge";
 import { io } from "socket.io-client";
 import { useNavigate } from "react-router-dom";
 import NeracaInlineTab from "./NeracaInlineTab";
+import SHUTab from "./SHUTab";
+import moment from "moment";
 
 const formatNumber = (num) => {
   if (!num) return "";
@@ -65,6 +67,8 @@ export default function FinanceManagement() {
   const [tahun, setTahun] = useState(currentYear);
   const [showModalKas, setShowModalKas] = useState(false);
   const [currentKasBalance, setCurrentKasBalance] = useState(0);
+  const [isClosed, setIsClosed] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -110,6 +114,19 @@ export default function FinanceManagement() {
   });
   const [isAdjusting, setIsAdjusting] = useState(false);
 
+  const fetchPeriodeStatus = useCallback(async () => {
+    try {
+      const res = await api.get(
+        `/keuangan/periode-status?bulan=${bulan}&tahun=${tahun}`,
+      );
+      if (res.data.success) {
+        setIsClosed(res.data.is_closed);
+      }
+    } catch (error) {
+      console.error("Error fetching periode status:", error);
+    }
+  }, [api, bulan, tahun]);
+
   const fetchArusKas = useCallback(async () => {
     setLoadingKas(true);
     try {
@@ -134,26 +151,30 @@ export default function FinanceManagement() {
       const [catRes, userRes, saldoRes] = await Promise.all([
         api.get("/keuangan/kategori"),
         api.get("/user/anggota"),
-        api.get("/keuangan/saldo-kas"),
+        api.get(`/keuangan/saldo-kas?bulan=${bulan}&tahun=${tahun}`),
       ]);
       setCategories(catRes.data.data);
       setUsers(userRes.data.data || []);
       if (saldoRes.data.success) {
         setRealtimeSaldo(saldoRes.data.data);
+        const total =
+          (saldoRes.data.data.CASH || 0) + (saldoRes.data.data.BANK || 0);
+        setCurrentKasBalance(total);
       }
     } catch (error) {
       console.error("Error fetching setup data:", error);
     }
-  }, [api]);
+  }, [api, bulan, tahun]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [bulan, tahun, searchTerm, filterKategori]);
 
   useEffect(() => {
-    if (activeTab === "arus-kas" || activeTab === "kategori") {
+    if (activeTab === "arus-kas" || activeTab === "neraca") {
       fetchArusKas();
       fetchSetupData();
+      fetchPeriodeStatus();
     }
 
     const socket = io(
@@ -161,6 +182,7 @@ export default function FinanceManagement() {
     );
     socket.on("arus-kas-updated", () => {
       fetchArusKas();
+      fetchSetupData();
     });
     return () => socket.disconnect();
   }, [activeTab, fetchArusKas, fetchSetupData]);
@@ -266,6 +288,31 @@ export default function FinanceManagement() {
     }
   };
 
+  const handleTutupBuku = async () => {
+    if (
+      !window.confirm(
+        `Apakah Anda yakin ingin melakukan TUTUP BUKU untuk periode ${bulan}/${tahun}? Setelah ditutup, transaksi di bulan ini TIDAK DAPAT diubah lagi.`,
+      )
+    )
+      return;
+
+    setIsClosing(true);
+    try {
+      const res = await api.post("/keuangan/tutup-buku", { bulan, tahun });
+      if (res.data.success) {
+        showNotification(res.data.message, "success");
+        fetchPeriodeStatus();
+      }
+    } catch (error) {
+      showNotification(
+        error.response?.data?.message || "Gagal tutup buku",
+        "error",
+      );
+    } finally {
+      setIsClosing(false);
+    }
+  };
+
   const handleAddKas = () => {
     setEditKasData(null);
     setFormDataKas({
@@ -286,8 +333,6 @@ export default function FinanceManagement() {
       deleteCategory();
     }
   };
-
-
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("id-ID", {
@@ -382,6 +427,7 @@ export default function FinanceManagement() {
             <Button
               onClick={handleAddKas}
               className="flex items-center gap-2 !px-6 text-sm"
+              disabled={isClosed}
             >
               <Plus size={18} /> Update Kas
             </Button>
@@ -472,11 +518,12 @@ export default function FinanceManagement() {
                         });
                         setShowModalAdjust(true);
                       }}
-                      className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/20 transition-all group"
+                      disabled={isClosed}
+                      className={`flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/20 transition-all group ${isClosed ? "opacity-50 cursor-not-allowed" : "hover:bg-white/20"}`}
                     >
                       <Settings2
                         size={16}
-                        className="text-blue-100 group-hover:rotate-90 transition-transform duration-500"
+                        className={`text-blue-100 transition-transform duration-500 ${!isClosed && "group-hover:rotate-90"}`}
                       />
                       <span className="text-xs font-bold text-white">
                         Penyesuaian Saldo Awal
@@ -484,9 +531,11 @@ export default function FinanceManagement() {
                     </button>
                   )}
                   <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20">
-                    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                    <div
+                      className={`w-2 h-2 rounded-full animate-pulse ${isClosed ? "bg-red-400" : "bg-green-400"}`}
+                    ></div>
                     <span className="text-xs font-bold tracking-widest uppercase text-blue-50">
-                      Live Sync
+                      {isClosed ? "Periode Terkunci" : "Live Sync"}
                     </span>
                   </div>
                 </div>
@@ -547,6 +596,12 @@ export default function FinanceManagement() {
                       </option>
                     ))}
                   </select>
+
+                  {isClosed && (
+                    <div className="px-4 py-2.5 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2 text-red-600 text-xs font-bold">
+                      <AlertCircle size={16} /> TERKUNCI
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -664,41 +719,52 @@ export default function FinanceManagement() {
                             <td className="py-5 px-8 text-right">
                               {isBendahara ? (
                                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button
-                                    onClick={() => {
-                                      setEditKasData(row);
-                                      setFormDataKas({
-                                        user_id: row.user_id || "",
-                                        nama_kategori:
-                                          row.kategoriKas?.nama_kategori || "",
-                                        nominal: row.nominal,
-                                        keterangan: row.keterangan || "",
-                                        jenis: row.jenis,
-                                        metode_pembayaran:
-                                          row.metode_pembayaran || "CASH",
-                                      });
-                                      setShowModalKas(true);
-                                    }}
-                                    className="p-2 text-gray-400 hover:text-[#004A9C] hover:bg-blue-50 rounded-lg transition-all"
-                                    title="Edit Transaksi"
-                                  >
-                                    <Edit2 size={16} />
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      setShowConfirmDelete({
-                                        isOpen: true,
-                                        id: row.kas_id,
-                                        name:
-                                          row.keterangan || row.kode_transaksi,
-                                        type: "kas",
-                                      })
-                                    }
-                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                    title="Hapus Transaksi"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
+                                  {!isClosed && (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          setEditKasData(row);
+                                          setFormDataKas({
+                                            user_id: row.user_id || "",
+                                            nama_kategori:
+                                              row.kategoriKas?.nama_kategori ||
+                                              "",
+                                            nominal: row.nominal,
+                                            keterangan: row.keterangan || "",
+                                            jenis: row.jenis,
+                                            metode_pembayaran:
+                                              row.metode_pembayaran || "CASH",
+                                          });
+                                          setShowModalKas(true);
+                                        }}
+                                        className="p-2 text-gray-400 hover:text-[#004A9C] hover:bg-blue-50 rounded-lg transition-all"
+                                        title="Edit Transaksi"
+                                      >
+                                        <Edit2 size={16} />
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          setShowConfirmDelete({
+                                            isOpen: true,
+                                            id: row.kas_id,
+                                            name:
+                                              row.keterangan ||
+                                              row.kode_transaksi,
+                                            type: "kas",
+                                          })
+                                        }
+                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                        title="Hapus Transaksi"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </>
+                                  )}
+                                  {isClosed && (
+                                    <span className="text-[10px] font-bold text-gray-400 italic">
+                                      Locked
+                                    </span>
+                                  )}
                                 </div>
                               ) : (
                                 <span className="text-[9px] font-bold text-gray-300 uppercase italic">
@@ -966,13 +1032,7 @@ export default function FinanceManagement() {
           )}
 
           {activeTab === "shu" && (
-            <div className="p-20 text-center text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200">
-              <PieChart size={48} className="mx-auto mb-4 opacity-20" />
-              <p className="font-bold">Sisa Hasil Usaha</p>
-              <p className="text-sm mt-1">
-                Pembagian SHU akan tersedia di akhir periode akuntansi.
-              </p>
-            </div>
+            <SHUTab api={api} showNotification={showNotification} />
           )}
           {activeTab === "neraca" && (
             <NeracaInlineTab api={api} showNotification={showNotification} />
@@ -1209,8 +1269,6 @@ export default function FinanceManagement() {
           </div>
         )}
       </AnimatePresence>
-
-
 
       {/* Modal Kategori */}
       <AnimatePresence>
@@ -1477,7 +1535,9 @@ export default function FinanceManagement() {
                 {/* Input CASH */}
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                    Saldo Awal Bulan (CASH) - {months[parseInt(formDataAdjust.bulan) - 1]} {formDataAdjust.tahun}
+                    Saldo Awal Bulan (CASH) -{" "}
+                    {months[parseInt(formDataAdjust.bulan) - 1]}{" "}
+                    {formDataAdjust.tahun}
                   </label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
@@ -1501,7 +1561,9 @@ export default function FinanceManagement() {
                 {/* Input BANK */}
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                    Saldo Awal Bulan (BANK) - {months[parseInt(formDataAdjust.bulan) - 1]} {formDataAdjust.tahun}
+                    Saldo Awal Bulan (BANK) -{" "}
+                    {months[parseInt(formDataAdjust.bulan) - 1]}{" "}
+                    {formDataAdjust.tahun}
                   </label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">

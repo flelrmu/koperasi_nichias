@@ -7,31 +7,28 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       autoIncrement: true,
     },
-    lphu_id: {
+    rekap_id: {
       type: DataTypes.INTEGER,
       references: {
-        model: 'lphu',
-        key: 'lphu_id',
+        model: 'RekapShu',
+        key: 'id',
       },
     },
     anggota_id: {
       type: DataTypes.INTEGER,
       references: {
-        model: 'anggota',
+        model: 'Anggota',
         key: 'anggota_id',
       },
     },
     total_simpanan: {
       type: DataTypes.DECIMAL(15, 2),
-      comment: 'Basis Hitung',
     },
     persentase: {
       type: DataTypes.FLOAT,
-      comment: 'Simpanan Anggota / Total Simpanan Koperasi',
     },
     shu_diterima: {
       type: DataTypes.DECIMAL(15, 2),
-      comment: 'Persentase x Total SHU',
     },
   }, {
     tableName: 'pembagian_shu',
@@ -39,7 +36,7 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   PembagianShu.associate = (models) => {
-    PembagianShu.belongsTo(models.Lphu, { foreignKey: 'lphu_id', as: 'lphu' });
+    PembagianShu.belongsTo(models.RekapShu, { foreignKey: 'rekap_id', as: 'rekap' });
     PembagianShu.belongsTo(models.Anggota, { foreignKey: 'anggota_id', as: 'anggota' });
   };
 

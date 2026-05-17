@@ -76,12 +76,17 @@ db.sequelize
   .authenticate()
   .then(() => {
     console.log('✅ Koneksi database berhasil!');
+    // Sinkronisasi tabel (Membuat tabel jika belum ada)
+    return db.sequelize.sync();
+  })
+  .then(() => {
+    console.log('✅ Sinkronisasi tabel berhasil!');
     server.listen(PORT, () => {
       console.log(`🚀 Server berjalan di http://localhost:${PORT}`);
     });
   })
   .catch((err) => {
-    console.error('❌ Gagal koneksi ke database:', err);
+    console.error('❌ Terjadi kesalahan pada database/server:', err);
   });
 
 module.exports = app;

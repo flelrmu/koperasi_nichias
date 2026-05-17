@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const keuanganController = require('../controllers/keuanganController');
 const neracaController = require('../controllers/neracaController');
+const shuController = require('../controllers/shuController');
 const { verifyToken, authorizeRoles } = require('../middleware/authMiddleware');
 
 router.use(verifyToken);
@@ -23,6 +24,16 @@ router.delete('/kategori/:id', authorizeRoles('Bendahara'), keuanganController.d
 // Neraca
 router.get('/neraca', authorizeRoles('Bendahara', 'Ketua', 'Wakil_Ketua', 'Sekretaris', 'Koordinator_Simpan_Pinjam'), neracaController.getNeraca);
 router.get('/neraca/tahunan', authorizeRoles('Bendahara', 'Ketua', 'Wakil_Ketua', 'Sekretaris', 'Koordinator_Simpan_Pinjam'), neracaController.getNeracaTahunan);
-router.post('/neraca/tutup-buku', authorizeRoles('Bendahara'), neracaController.tutupBuku);
+
+// SHU
+router.get('/shu/preview', authorizeRoles('Bendahara'), shuController.getPreview);
+router.post('/shu/proses', authorizeRoles('Bendahara'), shuController.prosesSHU);
+router.put('/shu/finalize', authorizeRoles('Bendahara'), shuController.finalizeSHU);
+router.put('/shu/cancel-finalize', authorizeRoles('Bendahara'), shuController.cancelFinalizeSHU);
+router.delete('/shu/:tahun', authorizeRoles('Bendahara'), shuController.cancelSHU);
+
+// Periode & Tutup Buku
+router.get('/periode-status', authorizeRoles('Bendahara', 'Ketua', 'Wakil_Ketua', 'Sekretaris', 'Koordinator_Simpan_Pinjam'), keuanganController.getPeriodeStatus);
+router.post('/tutup-buku', authorizeRoles('Bendahara'), keuanganController.tutupBuku);
 
 module.exports = router;
