@@ -22,11 +22,11 @@ export default function StatusBadge({ status, children }) {
     case 'lunas':
     case 'success':
     case 'selesai':
-    case 'kredit':
+    case 'debit':
     case 'approved':
       bgColor = 'bg-[#27AE60]/10';
       textColor = 'text-[#27AE60]';
-      Icon = s === 'aktif' ? UserCheck : s === 'kredit' ? ArrowDownLeft : CheckCircle2;
+      Icon = s === 'aktif' ? UserCheck : s === 'debit' ? ArrowDownLeft : CheckCircle2;
       break;
     case 'peringatan':
     case 'progres':
@@ -41,12 +41,12 @@ export default function StatusBadge({ status, children }) {
     case 'hutang':
     case 'error':
     case 'gagal':
-    case 'debit':
+    case 'kredit':
     case 'keluar':
     case 'rejected':
       bgColor = 'bg-[#EB5757]/10';
       textColor = 'text-[#EB5757]';
-      Icon = s === 'keluar' ? UserX : s === 'debit' ? ArrowUpRight : XCircle;
+      Icon = s === 'keluar' ? UserX : s === 'kredit' ? ArrowUpRight : XCircle;
       break;
   }
 

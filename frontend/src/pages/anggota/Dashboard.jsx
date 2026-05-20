@@ -518,12 +518,15 @@ export default function Dashboard() {
                   </p>
                 </div>
               </div>
-              <button className="mt-8 w-full py-4 bg-white text-[#004A9C] font-black rounded-2xl hover:scale-105 transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/10">
+              <button 
+                onClick={() => navigate("/profile")}
+                className="mt-8 w-full py-4 bg-white text-[#004A9C] font-black rounded-2xl hover:scale-105 transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/10"
+              >
                 Detail Profil <ArrowUpRight size={18} />
               </button>
             </div>
           </div>
-
+ 
           <div className="bg-orange-50 border border-orange-100 rounded-[2.5rem] p-8 flex flex-col gap-4">
             <div className="w-12 h-12 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-inner">
               <Info size={24} />
@@ -537,7 +540,10 @@ export default function Dashboard() {
                 atau modal usaha Anda.
               </p>
             </div>
-            <button className="mt-2 text-orange-700 font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
+            <button 
+              onClick={() => navigate("/koperasi-rules")}
+              className="mt-2 text-orange-700 font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all"
+            >
               Pelajari Aturan <ChevronRight size={16} />
             </button>
           </div>

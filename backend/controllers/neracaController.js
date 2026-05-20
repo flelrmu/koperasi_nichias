@@ -170,8 +170,8 @@ async function calculateNeracaForMonth(bulan, tahun) {
         const d = parseFloat(t.totalDebit || 0);
         const k = parseFloat(t.totalKredit || 0);
         const tipe = t.kategoriKas.tipe_neraca;
-        if (tipe === "Income") prevIncome += k - d;
-        else if (tipe === "Expense") prevExpense += d - k;
+        if (tipe === "Income") prevIncome += d - k;
+        else if (tipe === "Expense") prevExpense += k - d;
       });
       const profitAwal = prevIncome - prevExpense;
 
@@ -217,8 +217,8 @@ async function calculateNeracaForMonth(bulan, tahun) {
         const d = parseFloat(t.totalDebit || 0);
         const k = parseFloat(t.totalKredit || 0);
         const tipe = t.kategoriKas.tipe_neraca;
-        if (tipe === "Income") currIncome += k - d;
-        else if (tipe === "Expense") currExpense += d - k;
+        if (tipe === "Income") currIncome += d - k;
+        else if (tipe === "Expense") currExpense += k - d;
       });
       const profitBulanIni = currIncome - currExpense;
 
@@ -289,7 +289,7 @@ async function calculateNeracaForMonth(bulan, tahun) {
           });
           const pDebit = parseFloat(prevTrx[0]?.dataValues?.totalDebit || 0);
           const pKredit = parseFloat(prevTrx[0]?.dataValues?.totalKredit || 0);
-          sAwal = parseFloat(cat.saldo_awal || 0) + pKredit - pDebit;
+          sAwal = parseFloat(cat.saldo_awal || 0) + pDebit - pKredit;
         }
 
         // 3. Mutasi bulan ini
@@ -323,11 +323,11 @@ async function calculateNeracaForMonth(bulan, tahun) {
         const cKredit = parseFloat(currTrx[0]?.dataValues?.totalKredit || 0); // Masuk
 
         // Rumus Neraca: Awal + Masuk - Keluar
-        const sAkhir = sAwal + cKredit - cDebit;
+        const sAkhir = sAwal + cDebit - cKredit;
 
         combinedAwal += sAwal;
-        combinedDebit += cKredit; // Masuk ke kolom Debit Neraca
-        combinedKredit += cDebit; // Masuk ke kolom Kredit Neraca
+        combinedDebit += cDebit; // Masuk ke kolom Debit Neraca
+        combinedKredit += cKredit; // Keluar ke kolom Kredit Neraca
         combinedAkhir += sAkhir;
         break;
       }
@@ -370,7 +370,7 @@ async function calculateNeracaForMonth(bulan, tahun) {
         });
         const pDebit = parseFloat(prevTrx[0]?.dataValues?.totalDebit || 0);
         const pKredit = parseFloat(prevTrx[0]?.dataValues?.totalKredit || 0);
-        saldoAwalBulan = parseFloat(cat.saldo_awal || 0) + pKredit - pDebit;
+        saldoAwalBulan = parseFloat(cat.saldo_awal || 0) + pDebit - pKredit;
       }
 
       // Current month transactions
@@ -409,16 +409,14 @@ async function calculateNeracaForMonth(bulan, tahun) {
       );
 
       let currentNeracaDebit, currentNeracaKredit;
-      if (entry.isPiutang) {
-        currentNeracaDebit = cDebit;
-        currentNeracaKredit = cKredit;
-      } else if (entry.isPasiva) {
-        // Pasiva: Debit Neraca (Keluar/Kurang) = Debit Arus Kas, Kredit Neraca (Masuk/Tambah) = Kredit Arus Kas
-        currentNeracaDebit = cDebit;
-        currentNeracaKredit = cKredit;
+      if (entry.isPasiva) {
+        // Pasiva: Uang Masuk (Debit Arus Kas) ke Kredit Neraca, Uang Keluar (Kredit Arus Kas) ke Debit Neraca
+        currentNeracaKredit = cDebit; // Uang Masuk
+        currentNeracaDebit = cKredit; // Uang Keluar
       } else {
-        currentNeracaDebit = cKredit; // Masuk (Arus Kas) ke Debit Neraca
-        currentNeracaKredit = cDebit; // Keluar (Arus Kas) ke Kredit Neraca
+        // Asset/Aktiva: Uang Masuk (Debit Arus Kas) ke Debit Neraca, Uang Keluar ke Kredit Neraca
+        currentNeracaDebit = cDebit; // Uang Masuk
+        currentNeracaKredit = cKredit; // Uang Keluar
       }
 
       const saldoAkhirBulan = entry.isPasiva

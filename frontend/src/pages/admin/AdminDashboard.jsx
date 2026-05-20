@@ -242,12 +242,12 @@ export default function AdminDashboard() {
             </div>
             <div className="flex p-1.5 bg-gray-50 rounded-xl gap-1">
               <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg shadow-sm">
-                <div className="w-2 h-2 rounded-full bg-[#004A9C]"></div>
-                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Debit</span>
+                <div className="w-2 h-2 rounded-full bg-[#27AE60]"></div>
+                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Debit (Masuk)</span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5">
-                <div className="w-2 h-2 rounded-full bg-[#27AE60]"></div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Kredit</span>
+                <div className="w-2 h-2 rounded-full bg-[#EB5757]"></div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Kredit (Keluar)</span>
               </div>
             </div>
           </div>
@@ -256,12 +256,12 @@ export default function AdminDashboard() {
               <AreaChart data={dashboardData.aliranDana.length > 0 ? dashboardData.aliranDana : financeData}>
                 <defs>
                   <linearGradient id="colorDebit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#004A9C" stopOpacity={0.05}/>
-                    <stop offset="95%" stopColor="#004A9C" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorCredit" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#27AE60" stopOpacity={0.05}/>
                     <stop offset="95%" stopColor="#27AE60" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorCredit" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#EB5757" stopOpacity={0.05}/>
+                    <stop offset="95%" stopColor="#EB5757" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -287,11 +287,11 @@ export default function AdminDashboard() {
                   }}
                   itemStyle={{ fontWeight: 'bold', fontSize: '12px' }}
                   labelStyle={{ fontWeight: 'black', marginBottom: '8px', color: '#1e293b' }}
-                  cursor={{ stroke: '#004A9C', strokeWidth: 1, strokeDasharray: '5 5' }}
+                  cursor={{ stroke: '#27AE60', strokeWidth: 1, strokeDasharray: '5 5' }}
                   formatter={(value) => formatCurrency(value)}
                 />
-                <Area type="monotone" dataKey="debit" stroke="#004A9C" strokeWidth={4} fillOpacity={1} fill="url(#colorDebit)" animationDuration={1500} />
-                <Area type="monotone" dataKey="credit" stroke="#27AE60" strokeWidth={4} fillOpacity={1} fill="url(#colorCredit)" animationDuration={1500} />
+                <Area type="monotone" dataKey="debit" stroke="#27AE60" strokeWidth={4} fillOpacity={1} fill="url(#colorDebit)" animationDuration={1500} />
+                <Area type="monotone" dataKey="credit" stroke="#EB5757" strokeWidth={4} fillOpacity={1} fill="url(#colorCredit)" animationDuration={1500} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -461,50 +461,6 @@ export default function AdminDashboard() {
           </div>
         </motion.div>
       </div>
-
-      {/* Modern Quick Action Footer */}
-      <motion.div 
-        variants={itemVariants} 
-        className="bg-gradient-to-br from-[#004A9C] via-[#004A9C] to-[#0a56ad] rounded-[2.5rem] p-10 text-white flex flex-col lg:flex-row items-center justify-between gap-8 shadow-2xl shadow-blue-900/20 relative overflow-hidden group"
-      >
-        {/* Animated pattern background */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-700">
-          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <defs>
-              <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-                <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.5"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
-        </div>
-        
-        <div className="relative z-10 text-center lg:text-left">
-          <h3 className="text-2xl md:text-3xl font-black mb-3 flex items-center justify-center lg:justify-start gap-3">
-            Punya tugas mendesak? <ArrowUpRight size={28} className="text-blue-300" />
-          </h3>
-          <p className="text-blue-100/80 text-lg font-medium max-w-lg">
-            Akses cepat ke menu manajemen untuk memproses pendaftaran anggota baru atau pengajuan pinjaman.
-          </p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-4 relative z-10 w-full lg:w-auto">
-          <button 
-            onClick={() => navigate('/admin/users')}
-            className="px-10 py-5 bg-white text-[#004A9C] font-black rounded-2xl text-base transition-all hover:scale-105 active:scale-95 shadow-xl shadow-black/10 flex items-center justify-center gap-2 group/btn"
-          >
-            <UserPlus size={20} className="group-hover/btn:scale-110 transition-transform" />
-            Manajemen Anggota
-          </button>
-          <button 
-            onClick={() => navigate('/admin/simpan-pinjam')}
-            className="px-10 py-5 bg-[#ffffff15] text-white border border-white/20 backdrop-blur-md font-black rounded-2xl text-base transition-all hover:bg-[#ffffff25] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 group/btn"
-          >
-            <CreditCard size={20} className="group-hover/btn:scale-110 transition-transform" />
-            Laporan Keuangan
-          </button>
-        </div>
-      </motion.div>
     </motion.div>
   );
 }

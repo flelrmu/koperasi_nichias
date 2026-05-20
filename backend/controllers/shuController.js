@@ -33,6 +33,17 @@ exports.prosesSHU = async (req, res) => {
       userId,
     );
 
+    const io = req.io || req.app.get("io");
+    if (io) {
+      io.emit("notifikasi:shu-proses-sukses", {
+        notifikasi: {
+          judul: "SHU Berhasil Diproses 📊",
+          pesan: `Data SHU Tahun ${tahun} berhasil diproses oleh Bendahara.`
+        }
+      });
+      io.emit("dashboardUpdate");
+    }
+
     res.json({
       success: true,
       message: `SHU tahun ${tahun} berhasil diproses. Silakan simpan untuk memperbarui Neraca.`,
@@ -61,6 +72,12 @@ exports.finalizeSHU = async (req, res) => {
         notifikasi: {
           judul: "SHU Telah Diterima 🎉",
           pesan: `Pembagian SHU Tahun ${tahun} telah dikalkulasi dan masuk ke akun Anda.`,
+        }
+      });
+      io.emit("notifikasi:shu-final-sukses", {
+        notifikasi: {
+          judul: "SHU Berhasil Dibagikan 🎉",
+          pesan: `Distribusi SHU Tahun ${tahun} berhasil diselesaikan.`
         }
       });
       io.emit("dashboardUpdate");

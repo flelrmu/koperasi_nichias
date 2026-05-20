@@ -1,4 +1,4 @@
-const { ArusKas, KategoriKas, User, Anggota, PeriodeKeuangan, SaldoBulanan, sequelize } = require("../models");
+const { ArusKas, KategoriKas, User, Anggota, PeriodeKeuangan, SaldoBulanan, NeracaSaldo, sequelize } = require("../models");
 const { Op } = require("sequelize");
 const ArusKasService = require("../services/ArusKasService");
 const moment = require("moment");
@@ -31,9 +31,13 @@ exports.tutupBuku = async (req, res) => {
     const { bulan, tahun } = req.body;
     const bendaharaId = req.user.user_id;
 
+    // Parse parameters to integer safely
+    const targetBulan = parseInt(bulan);
+    const targetTahun = parseInt(tahun);
+
     // 1. Cek apakah sudah ditutup
     const existing = await PeriodeKeuangan.findOne({
-      where: { bulan, tahun }
+      where: { bulan: targetBulan, tahun: targetTahun }
     });
 
     if (existing && existing.is_closed) {
@@ -44,39 +48,60 @@ exports.tutupBuku = async (req, res) => {
     const categories = await KategoriKas.findAll();
     
     // 3. Hitung Saldo Akhir Tiap Kategori di Bulan Ini
-    // Rumus: Saldo Awal Bulan Ini + Mutasi Bulan Ini
-    const nextBulan = bulan == 12 ? 1 : parseInt(bulan) + 1;
-    const nextTahun = bulan == 12 ? parseInt(tahun) + 1 : parseInt(tahun);
+    const nextBulan = targetBulan === 12 ? 1 : targetBulan + 1;
+    const nextTahun = targetBulan === 12 ? targetTahun + 1 : targetTahun;
 
     for (const cat of categories) {
       // Ambil Saldo Awal Bulan Ini (jika ada)
       const currentSaldoAwalRes = await SaldoBulanan.findOne({
-        where: { kategori_id: cat.kategori_id, bulan, tahun }
+        where: { kategori_id: cat.kategori_id, bulan: targetBulan, tahun: targetTahun }
       });
       
       // Jika tidak ada di SaldoBulanan, gunakan saldo_awal global sebagai fallback (untuk bulan pertama sistem)
       const openingBalance = currentSaldoAwalRes ? parseFloat(currentSaldoAwalRes.saldo_awal) : parseFloat(cat.saldo_awal || 0);
 
       // Hitung Mutasi Bulan Ini
-      const startDate = moment(`${tahun}-${bulan}-01`, "YYYY-MM-DD").startOf("month").toDate();
-      const endDate = moment(`${tahun}-${bulan}-01`, "YYYY-MM-DD").endOf("month").toDate();
+      const strBulan = String(targetBulan).padStart(2, '0');
+      const startDate = moment(`${targetTahun}-${strBulan}-01`, "YYYY-MM-DD").startOf("month").toDate();
+      const endDate = moment(`${targetTahun}-${strBulan}-01`, "YYYY-MM-DD").endOf("month").toDate();
 
-      const mutasi = await ArusKas.findAll({
-        where: {
-          kategori_id: cat.kategori_id,
-          tanggal: { [Op.between]: [startDate, endDate] }
-        }
-      });
+      let totalDebit = 0;
+      let totalKredit = 0;
 
-      let totalMutasi = 0;
-      mutasi.forEach(m => {
-        const nominal = parseFloat(m.nominal);
-        // Logika Arus Kas: Kredit Menambah, Debit Mengurangi
-        if (m.jenis === 'Kredit') totalMutasi += nominal;
-        else totalMutasi -= nominal;
-      });
+      if (cat.nama_kategori === 'CASH' || cat.nama_kategori === 'BANK') {
+        const mutasi = await ArusKas.findAll({
+          where: {
+            metode_pembayaran: cat.nama_kategori,
+            tanggal: { [Op.between]: [startDate, endDate] }
+          }
+        });
+        mutasi.forEach(m => {
+          const nominal = parseFloat(m.nominal);
+          if (m.jenis === 'Kredit') totalKredit += nominal;
+          else totalDebit += nominal;
+        });
+      } else {
+        const mutasi = await ArusKas.findAll({
+          where: {
+            kategori_id: cat.kategori_id,
+            tanggal: { [Op.between]: [startDate, endDate] }
+          }
+        });
+        mutasi.forEach(m => {
+          const nominal = parseFloat(m.nominal);
+          if (m.jenis === 'Kredit') totalKredit += nominal;
+          else totalDebit += nominal;
+        });
+      }
 
-      const closingBalance = openingBalance + totalMutasi;
+      let closingBalance = openingBalance;
+      if (cat.nama_kategori === 'CASH' || cat.nama_kategori === 'BANK' || cat.tipe_neraca === 'Asset') {
+        // CASH/BANK & Aset lainnya: Awal + Debit (Masuk) - Kredit (Keluar)
+        closingBalance = openingBalance + totalDebit - totalKredit;
+      } else {
+        // Pasiva (Liability/Equity): Awal - Debit (tambah pasiva negatif) + Kredit (kurang pasiva negatif)
+        closingBalance = openingBalance - totalDebit + totalKredit;
+      }
 
       // 4. Simpan sebagai Saldo Awal Bulan Depan
       await SaldoBulanan.upsert({
@@ -85,6 +110,20 @@ exports.tutupBuku = async (req, res) => {
         tahun: nextTahun,
         saldo_awal: closingBalance
       }, { transaction });
+
+      // 4.5 Simpan snapshot ke NeracaSaldo
+      await NeracaSaldo.upsert({
+        kategori_id: cat.kategori_id,
+        bulan: targetBulan,
+        tahun: targetTahun,
+        saldo_awal: openingBalance,
+        total_debit: totalDebit,
+        total_kredit: totalKredit,
+        saldo_akhir: closingBalance,
+        status_tutup_buku: true,
+        tgl_tutup_buku: new Date(),
+        bendahara_id: bendaharaId
+      }, { transaction });
     }
 
     // 5. Tandai Periode Ini Sebagai Tutup
@@ -92,12 +131,97 @@ exports.tutupBuku = async (req, res) => {
       await existing.update({ is_closed: true, closed_at: new Date(), closed_by: bendaharaId }, { transaction });
     } else {
       await PeriodeKeuangan.create({
-        bulan, tahun, is_closed: true, closed_at: new Date(), closed_by: bendaharaId
+        bulan: targetBulan, tahun: targetTahun, is_closed: true, closed_at: new Date(), closed_by: bendaharaId
       }, { transaction });
     }
 
     await transaction.commit();
+
+    // Emit Socket events untuk real-time update
+    const io = req.io || req.app.get("io");
+    if (io) {
+      io.emit("dashboardUpdate");
+      io.emit("arus-kas-updated");
+    }
+
     res.json({ success: true, message: `Berhasil tutup buku periode ${bulan}/${tahun}` });
+  } catch (error) {
+    await transaction.rollback();
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /api/keuangan/cancel-tutup-buku
+ * Membuka kembali periode akuntansi yang telah ditutup.
+ */
+exports.cancelTutupBuku = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { bulan, tahun } = req.body;
+
+    const targetBulan = parseInt(bulan);
+    const targetTahun = parseInt(tahun);
+
+    // 1. Cek apakah ada periode setelahnya yang sudah ditutup
+    const subsequentClosed = await PeriodeKeuangan.findOne({
+      where: {
+        is_closed: true,
+        [Op.or]: [
+          { tahun: { [Op.gt]: targetTahun } },
+          {
+            tahun: targetTahun,
+            bulan: { [Op.gt]: targetBulan }
+          }
+        ]
+      }
+    });
+
+    if (subsequentClosed) {
+      throw new Error(`Tidak dapat membuka kembali periode ini karena periode setelahnya (${subsequentClosed.bulan}/${subsequentClosed.tahun}) sudah ditutup.`);
+    }
+
+    // 2. Cek apakah periode saat ini memang ditutup
+    const existing = await PeriodeKeuangan.findOne({
+      where: { bulan: targetBulan, tahun: targetTahun }
+    });
+
+    if (!existing || !existing.is_closed) {
+      throw new Error("Periode ini belum ditutup.");
+    }
+
+    // 3. Hapus snapshot NeracaSaldo untuk periode ini
+    await NeracaSaldo.destroy({
+      where: { bulan: targetBulan, tahun: targetTahun },
+      transaction
+    });
+
+    // 4. Hapus SaldoBulanan untuk periode bulan depan (nextBulan, nextTahun)
+    const nextBulan = targetBulan === 12 ? 1 : targetBulan + 1;
+    const nextTahun = targetBulan === 12 ? targetTahun + 1 : targetTahun;
+    
+    await SaldoBulanan.destroy({
+      where: { bulan: nextBulan, tahun: nextTahun },
+      transaction
+    });
+
+    // 5. Tandai Periode Ini Sebagai Terbuka
+    await existing.update({
+      is_closed: false,
+      closed_at: null,
+      closed_by: null
+    }, { transaction });
+
+    await transaction.commit();
+
+    // 6. Emit Socket events untuk real-time update
+    const io = req.io || req.app.get("io");
+    if (io) {
+      io.emit("dashboardUpdate");
+      io.emit("arus-kas-updated");
+    }
+
+    res.json({ success: true, message: `Berhasil membuka kembali periode ${targetBulan}/${targetTahun}` });
   } catch (error) {
     await transaction.rollback();
     res.status(500).json({ success: false, message: error.message });
@@ -373,7 +497,7 @@ exports.getSaldoKas = async (req, res) => {
         const pDebit = parseFloat(prevMutasi[0].totalDebit || 0);
         const pKredit = parseFloat(prevMutasi[0].totalKredit || 0);
         
-        openingBalance = initialGlobal + pKredit - pDebit;
+        openingBalance = initialGlobal + pDebit - pKredit;
       }
       
       // 3. Ambil Mutasi bulan berjalan (untuk dashboard live)
@@ -392,7 +516,7 @@ exports.getSaldoKas = async (req, res) => {
         raw: true
       });
 
-      const mutation = parseFloat(currMutasi[0].totalKredit || 0) - parseFloat(currMutasi[0].totalDebit || 0);
+      const mutation = parseFloat(currMutasi[0].totalDebit || 0) - parseFloat(currMutasi[0].totalKredit || 0);
       result[cat.nama_kategori] = openingBalance + mutation;
     }
 
@@ -459,57 +583,57 @@ exports.getAllKategori = async (req, res) => {
   try {
     // Auto-init important categories if they don't exist
     const importantCategories = [
-      { nama_kategori: "CASH", jenis: "Kredit", tipe_neraca: "Asset" },
-      { nama_kategori: "BANK", jenis: "Kredit", tipe_neraca: "Asset" },
+      { nama_kategori: "CASH", jenis: "Debit", tipe_neraca: "Asset" },
+      { nama_kategori: "BANK", jenis: "Debit", tipe_neraca: "Asset" },
       {
         nama_kategori: "PENDAPATAN RENTAL",
-        jenis: "Kredit",
+        jenis: "Debit",
         tipe_neraca: "Income",
-      }, // Kredit = Masuk
-      { nama_kategori: "BEBAN RENTAL", jenis: "Debit", tipe_neraca: "Expense" }, // Debit = Keluar
+      }, // Debit = Masuk
+      { nama_kategori: "BEBAN RENTAL", jenis: "Kredit", tipe_neraca: "Expense" }, // Kredit = Keluar
       {
         nama_kategori: "PENDAPATAN BUNGA",
-        jenis: "Kredit",
+        jenis: "Debit",
         tipe_neraca: "Income",
-      }, // Kredit = Masuk
+      }, // Debit = Masuk
       {
         nama_kategori: "BEBAN OPERASIONAL",
-        jenis: "Debit",
+        jenis: "Kredit",
         tipe_neraca: "Expense",
-      }, // Debit = Keluar
+      }, // Kredit = Keluar
       {
         nama_kategori: "BEBAN CREDIT BARANG",
-        jenis: "Debit",
+        jenis: "Kredit",
         tipe_neraca: "Expense",
-      }, // Debit = Keluar
+      }, // Kredit = Keluar
       {
         nama_kategori: "BEBAN PINJAMAN",
-        jenis: "Debit",
+        jenis: "Kredit",
         tipe_neraca: "Expense",
       },
       {
         nama_kategori: "TAGIHAN PINJAMAN",
-        jenis: "Debit",
+        jenis: "Kredit",
         tipe_neraca: "Asset",
       },
       {
         nama_kategori: "TAGIHAN CREDIT BARANG",
-        jenis: "Debit",
+        jenis: "Kredit",
         tipe_neraca: "Asset",
       },
-      { nama_kategori: "TAGIHAN RENTAL", jenis: "Debit", tipe_neraca: "Asset" },
+      { nama_kategori: "TAGIHAN RENTAL", jenis: "Kredit", tipe_neraca: "Asset" },
       {
         nama_kategori: "PERSEDIAAN BARANG",
-        jenis: "Debit",
+        jenis: "Kredit",
         tipe_neraca: "Asset",
       },
-      { nama_kategori: "ALAT KANTOR", jenis: "Debit", tipe_neraca: "Asset" },
-      { nama_kategori: "INVESTASI", jenis: "Debit", tipe_neraca: "Asset" },
-      { nama_kategori: "PROFIT/LOSS", jenis: "Kredit", tipe_neraca: "Equity" },
-      { nama_kategori: "LABA DITAHAN", jenis: "Kredit", tipe_neraca: "Equity" },
+      { nama_kategori: "ALAT KANTOR", jenis: "Kredit", tipe_neraca: "Asset" },
+      { nama_kategori: "INVESTASI", jenis: "Kredit", tipe_neraca: "Asset" },
+      { nama_kategori: "PROFIT/LOSS", jenis: "Debit", tipe_neraca: "Equity" },
+      { nama_kategori: "LABA DITAHAN", jenis: "Debit", tipe_neraca: "Equity" },
       {
         nama_kategori: "SIMPANAN ANGGOTA",
-        jenis: "Kredit",
+        jenis: "Debit",
         tipe_neraca: "Liability",
       },
     ];
@@ -593,8 +717,8 @@ exports.updateKategori = async (req, res) => {
         .json({ success: false, message: "Kategori tidak ditemukan." });
 
     const absSaldo = Math.abs(parseFloat(saldo_awal || 0));
-    // Tanda (+/-) ditentukan sepenuhnya oleh pilihan Debit/Kredit (Kredit = +, Debit = -)
-    const finalSaldoAwal = jenis === "Kredit" ? absSaldo : absSaldo * -1;
+    // Tanda (+/-) ditentukan sepenuhnya oleh pilihan Debit/Kredit (Debit = +, Kredit = -)
+    const finalSaldoAwal = jenis === "Debit" ? absSaldo : absSaldo * -1;
 
     await kategori.update(
       {

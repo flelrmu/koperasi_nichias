@@ -26,7 +26,8 @@ import {
   ChevronRight,
   Eye,
   Trash2,
-  Activity
+  Activity,
+  ArrowUpDown
 } from 'lucide-react';
 import { BiChevronLeft, BiChevronRight } from 'react-icons/bi';
 import Button from '../../components/atoms/Button';
@@ -49,6 +50,9 @@ export default function SimpanPinjam() {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLoanFilter, setActiveLoanFilter] = useState('Semua');
+  const [loanSortOrder, setLoanSortOrder] = useState('newest'); // 'newest' or 'oldest'
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [highlightedId, setHighlightedId] = useState(null);
@@ -234,10 +238,18 @@ export default function SimpanPinjam() {
           return priorityA - priorityB;
         }
         
-        // Secondary sort by date (newest first)
-        return new Date(b.tanggal_pengajuan) - new Date(a.tanggal_pengajuan);
+        // Secondary sort by date / submission order
+        if (loanSortOrder === 'oldest') {
+          // Pertama masuk (oldest first)
+          const dateDiff = new Date(a.tanggal_pengajuan) - new Date(b.tanggal_pengajuan);
+          return dateDiff !== 0 ? dateDiff : a.pinjaman_id - b.pinjaman_id;
+        } else {
+          // Terakhir masuk (newest first)
+          const dateDiff = new Date(b.tanggal_pengajuan) - new Date(a.tanggal_pengajuan);
+          return dateDiff !== 0 ? dateDiff : b.pinjaman_id - a.pinjaman_id;
+        }
       });
-  }, [loansData, searchQuery, activeLoanFilter]);
+  }, [loansData, searchQuery, activeLoanFilter, loanSortOrder]);
 
   // Pagination logic
   const activeData = activeTab === 'simpanan' ? filteredSavings : filteredLoans;
@@ -251,6 +263,18 @@ export default function SimpanPinjam() {
     setCurrentPage(1);
     setSelectedItems([]);
   }, [activeTab, searchQuery, activeLoanFilter]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+        setIsSortDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const formatCurrency = (val, compact = false) => {
     if (compact) {
@@ -966,7 +990,6 @@ export default function SimpanPinjam() {
                         <div className="relative">
                           <p className="text-2xl font-black text-gray-900 tracking-tighter">
                             {stat.isCount ? stat.value : formatCurrency(stat.value, true)}
-                            {stat.isCount && <span className="text-[10px] ml-1 opacity-50 font-bold uppercase tracking-widest">Kasus</span>}
                           </p>
                           {!stat.isCount && (
                             <AnimatePresence>
@@ -1006,6 +1029,60 @@ export default function SimpanPinjam() {
                             {f}
                           </button>
                         ))}
+                      </div>
+
+                      {/* Sorting Controls */}
+                      <div className="relative z-20" ref={sortDropdownRef}>
+                        <button
+                          onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                          className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50 hover:bg-gray-50 hover:text-gray-700 px-4 py-2.5 rounded-2xl border border-gray-100 transition-all duration-300 shadow-sm"
+                        >
+                          <ArrowUpDown size={14} className="text-[#004A9C]" />
+                          <span>Urutkan</span>
+                        </button>
+
+                        <AnimatePresence>
+                          {isSortDropdownOpen && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute right-0 mt-2 w-56 bg-white rounded-2xl border border-gray-100 shadow-xl shadow-blue-900/10 overflow-hidden z-50"
+                            >
+                              <div className="p-2 space-y-1">
+                                <button
+                                  onClick={() => {
+                                    setLoanSortOrder('newest');
+                                    setIsSortDropdownOpen(false);
+                                  }}
+                                  className={`w-full text-left px-4 py-3 text-xs font-bold rounded-xl transition-all flex items-center justify-between ${
+                                    loanSortOrder === 'newest'
+                                      ? 'bg-blue-50 text-[#004A9C]'
+                                      : 'text-gray-600 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  <span>Terakhir Masuk (Terbaru)</span>
+                                  {loanSortOrder === 'newest' && <div className="w-1.5 h-1.5 rounded-full bg-[#004A9C]" />}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setLoanSortOrder('oldest');
+                                    setIsSortDropdownOpen(false);
+                                  }}
+                                  className={`w-full text-left px-4 py-3 text-xs font-bold rounded-xl transition-all flex items-center justify-between ${
+                                    loanSortOrder === 'oldest'
+                                      ? 'bg-blue-50 text-[#004A9C]'
+                                      : 'text-gray-600 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  <span>Pertama Masuk (Terlama)</span>
+                                  {loanSortOrder === 'oldest' && <div className="w-1.5 h-1.5 rounded-full bg-[#004A9C]" />}
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                   </div>
                   

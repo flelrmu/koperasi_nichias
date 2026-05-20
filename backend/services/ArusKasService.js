@@ -38,7 +38,7 @@ class ArusKasService {
 
     let totalMutation = 0;
     transactions.forEach(t => {
-      if (t.jenis === 'Kredit') totalMutation += parseFloat(t.nominal);
+      if (t.jenis === 'Debit') totalMutation += parseFloat(t.nominal);
       else totalMutation -= parseFloat(t.nominal);
     });
 
@@ -78,7 +78,7 @@ class ArusKasService {
 
     for (let r of trx) {
       const nom = parseFloat(r.nominal);
-      if (r.jenis === 'Kredit') {
+      if (r.jenis === 'Debit') {
         currentSaldo += nom; 
       } else {
         currentSaldo -= nom; 
@@ -129,8 +129,8 @@ class ArusKasService {
     const finalNominal = parseFloat(nominal);
     const finalMetode = metode_pembayaran || 'CASH';
 
-    // 2. VALIDASI SALDO (Hanya untuk Debit / Uang Keluar di Spreadsheet ini)
-    if (finalJenis === 'Debit') {
+    // 2. VALIDASI SALDO (Hanya untuk Kredit / Uang Keluar)
+    if (finalJenis === 'Kredit') {
       const currentSaldoMetode = await this.getSaldoPerMetode(finalMetode, options);
       if (currentSaldoMetode < finalNominal) {
         throw new Error(`Saldo ${finalMetode} tidak mencukupi. Saldo saat ini: ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(currentSaldoMetode)}`);
@@ -144,7 +144,7 @@ class ArusKasService {
     const prevSaldo = await this.getSaldoGabungan(options);
 
     const newSaldo =
-      finalJenis === "Kredit"
+      finalJenis === "Debit"
         ? prevSaldo + finalNominal
         : prevSaldo - finalNominal;
 

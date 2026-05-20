@@ -505,9 +505,8 @@ export default function TambahUser() {
                   <Button 
                     id="btn-cancel"
                     type="button" 
-                    variant="outline"
                     onClick={() => navigate('/admin/users')}
-                    className="hover:bg-gray-50 !py-3 !px-8 border-gray-200 text-gray-500 font-bold"
+                    className="!py-3 !px-8 font-bold"
                   >
                     Batal
                   </Button>

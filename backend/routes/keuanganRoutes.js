@@ -26,7 +26,7 @@ router.get('/neraca', authorizeRoles('Bendahara', 'Ketua', 'Wakil_Ketua', 'Sekre
 router.get('/neraca/tahunan', authorizeRoles('Bendahara', 'Ketua', 'Wakil_Ketua', 'Sekretaris', 'Koordinator_Simpan_Pinjam'), neracaController.getNeracaTahunan);
 
 // SHU
-router.get('/shu/preview', authorizeRoles('Bendahara'), shuController.getPreview);
+router.get('/shu/preview', authorizeRoles('Bendahara', 'Ketua', 'Wakil_Ketua', 'Sekretaris', 'Koordinator_Simpan_Pinjam'), shuController.getPreview);
 router.post('/shu/proses', authorizeRoles('Bendahara'), shuController.prosesSHU);
 router.put('/shu/finalize', authorizeRoles('Bendahara'), shuController.finalizeSHU);
 router.put('/shu/cancel-finalize', authorizeRoles('Bendahara'), shuController.cancelFinalizeSHU);
@@ -35,5 +35,6 @@ router.delete('/shu/:tahun', authorizeRoles('Bendahara'), shuController.cancelSH
 // Periode & Tutup Buku
 router.get('/periode-status', authorizeRoles('Bendahara', 'Ketua', 'Wakil_Ketua', 'Sekretaris', 'Koordinator_Simpan_Pinjam'), keuanganController.getPeriodeStatus);
 router.post('/tutup-buku', authorizeRoles('Bendahara'), keuanganController.tutupBuku);
+router.post('/cancel-tutup-buku', authorizeRoles('Bendahara'), keuanganController.cancelTutupBuku);
 
 module.exports = router;

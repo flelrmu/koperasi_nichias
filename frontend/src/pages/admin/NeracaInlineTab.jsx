@@ -4,14 +4,23 @@ import { Calendar, RefreshCcw, ChevronDown, ChevronUp, Lock, Unlock, Download, C
 import Button from '../../components/atoms/Button';
 import moment from 'moment';
 import 'moment/locale/id';
+import Modal from '../../components/molecules/Modal';
+import { useAuth } from '../../context/AuthContext';
 
 const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
-export default function NeracaInlineTab({ api, showNotification }) {
+export default function NeracaInlineTab({ api, showNotification, exportTrigger }) {
+  const { user } = useAuth();
   const [yearlyData, setYearlyData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tahun, setTahun] = useState(String(new Date().getFullYear()));
   const [expandedMonth, setExpandedMonth] = useState(new Date().getMonth() + 1);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null
+  });
 
   const now = new Date();
   const yearOptions = Array.from({ length: now.getFullYear() - 2024 + 2 }, (_, i) => 2024 + i);
@@ -38,20 +47,300 @@ export default function NeracaInlineTab({ api, showNotification }) {
     return num < 0 ? `(${formatted})` : formatted;
   };
 
-  const handleTutupBuku = async (bulan) => {
+  const handleExportExcel = (monthItem) => {
+    try {
+      const monthName = MONTHS[monthItem.bulan - 1];
+      const filename = `Neraca_${monthName}_${tahun}.xls`;
+      
+      const totalDebitCol = monthItem.data.filter(d => !d.isTotalRow).reduce((a, c) => a + parseFloat(c.debit || 0), 0);
+      const totalKreditCol = monthItem.data.filter(d => !d.isTotalRow).reduce((a, c) => a + parseFloat(c.kredit || 0), 0);
+
+      let htmlContent = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="utf-8">
+          <!--[if gte mso 9]>
+          <xml>
+            <x:ExcelWorkbook>
+              <x:ExcelWorksheets>
+                <x:ExcelWorksheet>
+                  <x:Name>Neraca ${monthName}</x:Name>
+                  <x:WorksheetOptions>
+                    <x:DisplayGridlines/>
+                  </x:WorksheetOptions>
+                </x:ExcelWorksheet>
+              </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+          </xml>
+          <![endif]-->
+          <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; }
+            table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+            th { background-color: #004A9C; color: #ffffff; font-weight: bold; border: 1px solid #cccccc; padding: 10px 12px; text-align: left; font-size: 13px; text-transform: uppercase; }
+            td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; font-size: 12px; color: #4a5568; }
+            .title-cell { font-size: 18px; font-weight: bold; color: #004A9C; text-align: center; }
+            .subtitle-cell { font-size: 12px; color: #718096; text-align: center; font-style: italic; }
+            .total-row { font-weight: bold; background-color: #f7fafc; border-top: 2px solid #cbd5e0; }
+            .footer-row { background-color: #004A9C; color: #ffffff; font-weight: bold; border-top: 2px solid #003B7D; }
+            .footer-cell { color: #ffffff !important; }
+            .number-cell { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <tr>
+              <td colspan="5" class="title-cell">KOPERASI NICHIAS</td>
+            </tr>
+            <tr>
+              <td colspan="5" class="title-cell">LAPORAN NERACA KEUANGAN BULANAN</td>
+            </tr>
+            <tr>
+              <td colspan="5" class="subtitle-cell">Periode: ${monthName} ${tahun}</td>
+            </tr>
+            <tr style="height: 15px;"></tr>
+            <thead>
+              <tr>
+                <th>DESKRIPSI</th>
+                <th style="text-align: right;">SALDO AWAL</th>
+                <th style="text-align: right;">DEBIT</th>
+                <th style="text-align: right;">CREDIT</th>
+                <th style="text-align: right;">SALDO AKHIR</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      monthItem.data.filter(item => !item.nama_kategori.includes('CHECK')).forEach((item) => {
+        const isTotal = item.isTotalRow || item.nama_kategori === 'TOTAL ASSET';
+        const rowClass = isTotal ? 'class="total-row"' : '';
+        
+        htmlContent += `
+          <tr ${rowClass}>
+            <td style="font-weight: ${isTotal ? 'bold' : 'normal'}; color: ${isTotal ? '#ef4444' : '#2d3748'};">
+              ${item.nama_kategori}
+            </td>
+            <td class="number-cell" style="font-weight: ${isTotal ? 'bold' : 'normal'};">
+              ${item.saldo_awal === 0 ? '-' : formatRupiah(item.saldo_awal)}
+            </td>
+            <td class="number-cell" style="font-weight: ${isTotal ? 'bold' : 'normal'}; color: ${isTotal ? '#2d3748' : '#2563eb'};">
+              ${item.debit === 0 ? '-' : formatRupiah(item.debit)}
+            </td>
+            <td class="number-cell" style="font-weight: ${isTotal ? 'bold' : 'normal'}; color: ${isTotal ? '#2d3748' : '#ef4444'};">
+              ${item.kredit === 0 ? '-' : formatRupiah(item.kredit)}
+            </td>
+            <td class="number-cell" style="font-weight: bold; background-color: ${isTotal ? '#EBF3FC' : 'transparent'}; color: ${isTotal ? '#004A9C' : '#2d3748'};">
+              ${item.saldo_akhir === 0 ? '-' : formatRupiah(item.saldo_akhir)}
+            </td>
+          </tr>
+        `;
+      });
+
+      htmlContent += `
+            <tr style="background-color: #004A9C; color: #ffffff; font-weight: bold;">
+              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: center; border: 1px solid #003B7D;">${moment(`${tahun}-${String(monthItem.bulan).padStart(2, '0')}-01`).format('MMM-YY')}</td>
+              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; border: 1px solid #003B7D;"></td>
+              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${formatRupiah(totalDebitCol)}</td>
+              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${formatRupiah(totalKreditCol)}</td>
+              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; border: 1px solid #003B7D;"></td>
+            </tr>
+          </tbody>
+        </table>
+      </body>
+      </html>
+      `;
+
+      const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showNotification('Gagal mengekspor laporan ke Excel', 'error');
+    }
+  };
+
+  const handleExportYearlyExcel = () => {
+    try {
+      const filename = `Neraca_Tahunan_${tahun}.xls`;
+      
+      let xmlContent = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="utf-8">
+          <!--[if gte mso 9]>
+          <xml>
+            <x:ExcelWorkbook>
+              <x:ExcelWorksheets>
+                <x:ExcelWorksheet>
+                  <x:Name>Neraca ${tahun}</x:Name>
+                  <x:WorksheetOptions>
+                    <x:DisplayGridlines/>
+                  </x:WorksheetOptions>
+                </x:ExcelWorksheet>
+              </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+          </xml>
+          <![endif]-->
+          <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; }
+            table { border-collapse: collapse; width: 100%; margin-top: 10px; margin-bottom: 40px; }
+            th { background-color: #004A9C; color: #ffffff; font-weight: bold; border: 1px solid #cccccc; padding: 10px 12px; text-align: left; font-size: 13px; text-transform: uppercase; }
+            td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; font-size: 12px; color: #4a5568; }
+            .title-cell { font-size: 18px; font-weight: bold; color: #004A9C; text-align: center; }
+            .subtitle-cell { font-size: 12px; color: #718096; text-align: center; font-style: italic; }
+            .total-row { font-weight: bold; background-color: #f7fafc; border-top: 2px solid #cbd5e0; }
+            .number-cell { text-align: right; }
+          </style>
+        </head>
+        <body>
+      `;
+
+      yearlyData.forEach((monthItem, idx) => {
+        const monthName = MONTHS[monthItem.bulan - 1];
+        const totalDebitCol = monthItem.data.filter(d => !d.isTotalRow).reduce((a, c) => a + parseFloat(c.debit || 0), 0);
+        const totalKreditCol = monthItem.data.filter(d => !d.isTotalRow).reduce((a, c) => a + parseFloat(c.kredit || 0), 0);
+
+        xmlContent += `
+          <!-- Table for ${monthName} -->
+          <table>
+            <tr>
+              <td colspan="5" class="title-cell" style="border: none;">KOPERASI NICHIAS</td>
+            </tr>
+            <tr>
+              <td colspan="5" class="title-cell" style="border: none;">LAPORAN NERACA KEUANGAN BULANAN</td>
+            </tr>
+            <tr>
+              <td colspan="5" class="subtitle-cell" style="border: none;">Periode: ${monthName} ${tahun}</td>
+            </tr>
+            <tr style="height: 15px; border: none;"><td colspan="5" style="border: none;"></td></tr>
+            <thead>
+              <tr>
+                <th style="background-color: #004A9C; color: #ffffff; font-weight: bold; border: 1px solid #003B7D;">DESKRIPSI</th>
+                <th style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">SALDO AWAL</th>
+                <th style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">DEBIT</th>
+                <th style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">CREDIT</th>
+                <th style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">SALDO AKHIR</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        monthItem.data.filter(item => !item.nama_kategori.includes('CHECK')).forEach((item) => {
+          const isTotal = item.isTotalRow || item.nama_kategori === 'TOTAL ASSET';
+          const rowClass = isTotal ? 'class="total-row"' : '';
+          
+          xmlContent += `
+            <tr ${rowClass}>
+              <td style="font-weight: ${isTotal ? 'bold' : 'normal'}; color: ${isTotal ? '#ef4444' : '#2d3748'};">
+                ${item.nama_kategori}
+              </td>
+              <td class="number-cell" style="font-weight: ${isTotal ? 'bold' : 'normal'};">
+                ${item.saldo_awal === 0 ? '-' : formatRupiah(item.saldo_awal)}
+              </td>
+              <td class="number-cell" style="font-weight: ${isTotal ? 'bold' : 'normal'}; color: ${isTotal ? '#2d3748' : '#2563eb'};">
+                ${item.debit === 0 ? '-' : formatRupiah(item.debit)}
+              </td>
+              <td class="number-cell" style="font-weight: ${isTotal ? 'bold' : 'normal'}; color: ${isTotal ? '#2d3748' : '#ef4444'};">
+                ${item.kredit === 0 ? '-' : formatRupiah(item.kredit)}
+              </td>
+              <td class="number-cell" style="font-weight: bold; background-color: ${isTotal ? '#EBF3FC' : 'transparent'}; color: ${isTotal ? '#004A9C' : '#2d3748'};">
+                ${item.saldo_akhir === 0 ? '-' : formatRupiah(item.saldo_akhir)}
+              </td>
+            </tr>
+          `;
+        });
+
+        xmlContent += `
+              <tr style="background-color: #004A9C; color: #ffffff; font-weight: bold;">
+                <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: center; border: 1px solid #003B7D;">${moment(`${tahun}-${String(monthItem.bulan).padStart(2, '0')}-01`).format('MMM-YY')}</td>
+                <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; border: 1px solid #003B7D;"></td>
+                <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${formatRupiah(totalDebitCol)}</td>
+                <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${formatRupiah(totalKreditCol)}</td>
+                <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; border: 1px solid #003B7D;"></td>
+              </tr>
+            </tbody>
+          </table>
+          <br/>
+          <br/>
+        `;
+      });
+
+      xmlContent += `
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob([xmlContent], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showNotification('Gagal mengekspor laporan tahunan', 'error');
+    }
+  };
+
+  useEffect(() => {
+    if (exportTrigger > 0 && yearlyData.length > 0) {
+      handleExportYearlyExcel();
+    }
+  }, [exportTrigger]);
+
+  const handleTutupBuku = (bulan) => {
     const monthData = yearlyData.find(m => m.bulan === bulan);
     if (!monthData) return;
-    if (!window.confirm(`Apakah Anda yakin ingin melakukan TUTUP BUKU untuk periode ${MONTHS[bulan - 1]} ${tahun}? Setelah ditutup, transaksi di bulan ini TIDAK DAPAT diubah lagi.`)) return;
     
+    setConfirmModal({
+      isOpen: true,
+      title: 'Tutup Buku Neraca',
+      message: `Apakah Anda yakin ingin melakukan TUTUP BUKU untuk periode ${MONTHS[bulan - 1]} ${tahun}? Setelah ditutup, transaksi di bulan ini TIDAK DAPAT diubah lagi.`,
+      onConfirm: () => executeTutupBuku(bulan)
+    });
+  };
+
+  const executeTutupBuku = async (bulan) => {
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
     try {
       await api.post('/keuangan/tutup-buku', {
         bulan: parseInt(bulan), 
         tahun: parseInt(tahun)
       });
-      showNotification(`Berhasil tutup buku periode ${MONTHS[bulan - 1]} ${tahun}`, 'success');
       fetchData();
     } catch (error) {
       showNotification(error.response?.data?.message || 'Gagal tutup buku', 'error');
+    }
+  };
+
+  const handleCancelTutupBuku = (bulan) => {
+    const monthData = yearlyData.find(m => m.bulan === bulan);
+    if (!monthData) return;
+    
+    setConfirmModal({
+      isOpen: true,
+      title: 'Buka Kembali Buku Neraca',
+      message: `Apakah Anda yakin ingin membatalkan TUTUP BUKU untuk periode ${MONTHS[bulan - 1]} ${tahun}? Ini akan membuka kembali periode dan menghapus snapshot saldo.`,
+      onConfirm: () => executeCancelTutupBuku(bulan)
+    });
+  };
+
+  const executeCancelTutupBuku = async (bulan) => {
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+    try {
+      await api.post('/keuangan/cancel-tutup-buku', {
+        bulan: parseInt(bulan), 
+        tahun: parseInt(tahun)
+      });
+      fetchData();
+    } catch (error) {
+      showNotification(error.response?.data?.message || 'Gagal membuka kembali buku', 'error');
     }
   };
 
@@ -72,7 +361,7 @@ export default function NeracaInlineTab({ api, showNotification }) {
           <Calendar size={18} className="text-gray-400" />
           <span className="text-sm font-bold text-gray-600">Laporan Neraca Tahun:</span>
           <select
-            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none"
+            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none cursor-pointer"
             value={tahun}
             onChange={(e) => setTahun(e.target.value)}
           >
@@ -129,12 +418,12 @@ export default function NeracaInlineTab({ api, showNotification }) {
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-[#FFFF00] border-b-2 border-gray-300">
-                            <th className="px-6 py-4 text-xs font-black text-gray-900 uppercase tracking-tight border-r border-gray-300">DESKRIPSI</th>
-                            <th className="px-6 py-4 text-xs font-black text-gray-900 uppercase tracking-tight text-right border-r border-gray-300">SALDO AWAL</th>
-                            <th className="px-6 py-4 text-xs font-black text-gray-900 uppercase tracking-tight text-right border-r border-gray-300">DEBIT</th>
-                            <th className="px-6 py-4 text-xs font-black text-gray-900 uppercase tracking-tight text-right border-r border-gray-300">CREDIT</th>
-                            <th className="px-6 py-4 text-xs font-black text-gray-900 uppercase tracking-tight text-right bg-blue-50/30">SALDO AKHIR</th>
+                          <tr className="bg-[#004A9C] border-b-2 border-[#003B7D] text-white">
+                            <th className="px-6 py-4 text-xs font-black uppercase tracking-tight border-r border-white/10 text-white">DESKRIPSI</th>
+                            <th className="px-6 py-4 text-xs font-black uppercase tracking-tight text-right border-r border-white/10 text-white">SALDO AWAL</th>
+                            <th className="px-6 py-4 text-xs font-black uppercase tracking-tight text-right border-r border-white/10 text-white">DEBIT</th>
+                            <th className="px-6 py-4 text-xs font-black uppercase tracking-tight text-right border-r border-white/10 text-white">CREDIT</th>
+                            <th className="px-6 py-4 text-xs font-black uppercase tracking-tight text-right text-white">SALDO AKHIR</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
@@ -177,20 +466,20 @@ export default function NeracaInlineTab({ api, showNotification }) {
                             </tr>
                           ))}
                           {/* Footer */}
-                          <tr className="bg-[#FFFF00] border-t-2 border-gray-300">
-                            <td className="px-6 py-3 text-xs font-black text-center border-r border-gray-300 uppercase">
+                          <tr className="bg-[#004A9C] border-t-2 border-[#003B7D] text-white">
+                            <td className="px-6 py-3 text-xs font-black text-center border-r border-white/10 uppercase text-white">
                               {moment(`${tahun}-${String(monthItem.bulan).padStart(2, '0')}-01`).format('MMM-YY')}
                             </td>
-                            <td className="px-6 py-3 text-xs font-black text-right border-r border-gray-300">
+                            <td className="px-6 py-3 text-xs font-black text-right border-r border-white/10 text-white">
                               {formatRupiah(monthItem.data.filter(d => !d.isTotalRow).reduce((a, c) => a + parseFloat(c.saldo_awal || 0), 0))}
                             </td>
-                            <td className="px-6 py-3 text-xs font-black text-right border-r border-gray-300">
+                            <td className="px-6 py-3 text-xs font-black text-right border-r border-white/10 text-white">
                               {formatRupiah(monthItem.data.filter(d => !d.isTotalRow).reduce((a, c) => a + parseFloat(c.debit || 0), 0))}
                             </td>
-                            <td className="px-6 py-3 text-xs font-black text-right border-r border-gray-300">
+                            <td className="px-6 py-3 text-xs font-black text-right border-r border-white/10 text-white">
                               {formatRupiah(monthItem.data.filter(d => !d.isTotalRow).reduce((a, c) => a + parseFloat(c.kredit || 0), 0))}
                             </td>
-                            <td className="px-6 py-3 text-xs font-black text-right bg-blue-50/20">
+                            <td className="px-6 py-3 text-xs font-black text-right text-white">
                               {formatRupiah(monthItem.data.filter(d => !d.isTotalRow).reduce((a, c) => a + parseFloat(c.saldo_akhir || 0), 0))}
                             </td>
                           </tr>
@@ -228,14 +517,25 @@ export default function NeracaInlineTab({ api, showNotification }) {
                         })()}
                       </div>
 
-                      {!monthItem.isClosed && (
-                        <Button
-                          onClick={() => handleTutupBuku(monthItem.bulan)}
-                          className="flex items-center gap-2 !px-6 text-xs bg-red-500 hover:bg-red-600"
-                        >
-                          <Unlock size={14} /> Tutup Buku {MONTHS[monthItem.bulan - 1]}
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {monthItem.isClosed ? (
+                          user?.role === 'Bendahara' && (
+                            <Button
+                              onClick={() => handleCancelTutupBuku(monthItem.bulan)}
+                              className="flex items-center gap-2 !px-6 text-xs bg-orange-500 hover:bg-orange-600 text-white font-bold"
+                            >
+                              <Unlock size={14} /> Batal Tutup Buku {MONTHS[monthItem.bulan - 1]}
+                            </Button>
+                          )
+                        ) : (
+                          <Button
+                            onClick={() => handleTutupBuku(monthItem.bulan)}
+                            className="flex items-center gap-2 !px-6 text-xs bg-red-500 hover:bg-red-600 text-white font-bold"
+                          >
+                            <Unlock size={14} /> Tutup Buku {MONTHS[monthItem.bulan - 1]}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -244,6 +544,17 @@ export default function NeracaInlineTab({ api, showNotification }) {
           </motion.div>
         );
       })}
+      {/* Confirm Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type="warning"
+        onConfirm={confirmModal.onConfirm}
+        confirmText={confirmModal.title?.includes('Buka') ? 'Ya, Buka Buku' : 'Ya, Tutup Buku'}
+        cancelText="Batal"
+      />
     </div>
   );
 }

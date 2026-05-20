@@ -459,7 +459,7 @@ const adminCreateUser = async (req, res) => {
       await ArusKasService.recordTransaction({
         user_id: detailInstance.user_id,
         nama_kategori: 'Simpanan Pokok',
-        jenis: 'Kredit',
+        jenis: 'Debit',
         nominal: nominalPokok,
         keterangan: 'Simpanan Pokok Awal (Dibuat oleh Admin)',
         kode_transaksi: `ADM-PKK-${detailInstance.anggota_id}`,

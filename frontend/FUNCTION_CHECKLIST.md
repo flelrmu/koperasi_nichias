@@ -16,6 +16,8 @@ Fungsi-fungsi dasar yang dapat diakses oleh Anggota maupun Pengurus.
 - [ ] **Real-time Notifikasi (Frontend)**: Toast & badge notifikasi muncul instan via Socket.IO.
 - [ ] **Form Validasi Client-side**: Pengecekan input (email, password, nominal) sebelum submit.
 - [ ] **Fitur "Terbilang"**: Konversi angka nominal ke format teks di kuitansi/invoice.
+- [ ] **Get Secretary Contact (`getSecretaryContact`)**: Mengambil kontak WhatsApp sekretaris untuk pertanyaan umum.
+- [ ] **Halaman Peraturan**: Tampilan katalog interaktif untuk melihat kebijakan koperasi (Tamu/Anggota).
 
 ---
 
@@ -53,6 +55,8 @@ Fungsi terkait administrasi keanggotaan dan manajemen user.
 - [ ] **Update User (`updateUser`)**: Mengoreksi data user lain (Email, Role, Nama, dll).
 - [ ] **Delete User (`deleteUser`)**: Menghapus user beserta seluruh data terkait (Simpanan, Pinjaman, dll).
 - [ ] **Approve Keluar (`approveKeluar`)**: Menyetujui pengunduran diri anggota.
+- [ ] **Manage Peraturan (`createPeraturan`, `updatePeraturan`, `deletePeraturan`)**: Membuat, mengedit, dan menghapus kebijakan koperasi.
+- [ ] **Get Peraturan Detail (`getPeraturanById`)**: Melihat detail langkah prosedur peraturan spesifik.
 
 ---
 
@@ -69,6 +73,14 @@ Fungsi terkait manajemen arus kas, keuangan, dan pembukuan.
 - [ ] **Create Transaksi Simpanan (`createTransaksiSimpanan`)**: Mencatat setoran/penarikan sukarela.
 - [ ] **Bulk Simpanan Wajib (`bulkCreateSimpananWajib`)**: Input setoran wajib masal per bulan.
 - [ ] **Tarik Semua Simpanan (`tarikSemuaSimpanan`)**: Proses penarikan seluruh dana saat anggota keluar.
+- [ ] **Get Saldo Kas (`getSaldoKas`)**: Melihat ketersediaan dana kas utama (CASH/BANK) secara real-time.
+- [ ] **Get Periode Status (`getPeriodeStatus`)**: Mengecek status aktif atau tutup buku dari periode keuangan bulan berjalan.
+- [ ] **Cancel Tutup Buku (`cancelTutupBuku`)**: Membatalkan tutup buku laporan bulanan yang sudah dikunci.
+- [ ] **SHU Preview (`getPreview`)**: Melihat simulasi draf pembagian alokasi Sisa Hasil Usaha.
+- [ ] **SHU Process (`prosesSHU`)**: Menghitung dan menyimpan draf pembagian SHU untuk tahun operasional berjalan.
+- [ ] **SHU Finalize (`finalizeSHU`)**: Mengunci draf SHU menjadi final dan membagikan porsi ke saldo anggota.
+- [ ] **SHU Cancel Finalize & Delete (`cancelFinalizeSHU`, `cancelSHU`)**: Membatalkan finalisasi SHU atau menghapus draf.
+- [ ] **Ekspor Laporan Excel**: Mengunduh rekapitulasi Laporan Neraca (Bulanan/Tahunan) dan SHU.
 
 ---
 
@@ -81,6 +93,12 @@ Fungsi terkait operasional pinjaman dan angsuran.
 - [ ] **Pelunasan Pinjaman (`lunaskanPinjaman`)**: Melakukan pelunasan sisa tagihan sekaligus.
 - [ ] **Delete Pinjaman (`deletePinjaman`)**: Menghapus data pengajuan pinjaman.
 - [ ] **Update Peraturan/Konfigurasi**: Mengubah nilai bunga, limit pinjaman, dll.
+- [ ] **Get All Simpanan (`getAllSimpanan`)**: Memantau daftar dan nominal seluruh simpanan anggota koperasi.
+- [ ] **Get Transaksi By Anggota (`getTransaksiByAnggota`)**: Melihat detail history mutasi simpanan dari satu anggota.
+- [ ] **Update Transaksi Simpanan (`updateTransaksiSimpanan`)**: Memperbaiki nominal transaksi simpanan tertentu jika terjadi kesalahan input.
+- [ ] **Get Pinjaman By ID (`getPinjamanById`)**: Melihat detail lengkap, jaminan, dan histori angsuran dari satu ID pinjaman.
+- [ ] **Get Konfigurasi Simpanan (`getKonfigurasiSimpanan`)**: Mengambil detail konfigurasi operasional modul simpanan.
+- [ ] **Cetak Invoice Pinjaman**: Men-generate laporan cetak PDF untuk pencairan/angsuran pinjaman.
 
 ---
 

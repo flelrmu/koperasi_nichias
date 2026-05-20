@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Simpanan, Pinjaman, Anggota, User, TransaksiSimpanan, Konfigurasi, Notifikasi, Pengurus } = db;
+const { Simpanan, Pinjaman, Anggota, User, TransaksiSimpanan, Konfigurasi, Notifikasi, Pengurus, KategoriKas } = db;
 const { Op } = db.Sequelize;
 const angkaKeTerbilang = require('../utils/terbilang');
 const ArusKasService = require('../services/ArusKasService');
@@ -8,16 +8,54 @@ const ArusKasService = require('../services/ArusKasService');
 
 exports.getAllSimpanan = async (req, res) => {
   try {
-    const simpananData = await Simpanan.findAll({
+    const anggotaList = await Anggota.findAll({
       include: [
         {
-          model: Anggota,
-          as: 'anggota',
-          include: [{ model: User, as: 'user', attributes: ['email'] }]
+          model: User,
+          as: 'user',
+          attributes: ['email']
+        },
+        {
+          model: Simpanan,
+          as: 'simpanan'
         }
       ],
-      order: [[{ model: Anggota, as: 'anggota' }, 'no_anggota', 'ASC']]
+      order: [['no_anggota', 'ASC']]
     });
+
+    const simpananData = anggotaList.map(agt => {
+      if (agt.simpanan) {
+        const simpJson = agt.simpanan.toJSON();
+        simpJson.anggota = {
+          anggota_id: agt.anggota_id,
+          no_anggota: agt.no_anggota,
+          nama_lengkap: agt.nama_lengkap,
+          jabatan: agt.jabatan,
+          status_keanggotaan: agt.status_keanggotaan,
+          user: agt.user ? { email: agt.user.email } : null
+        };
+        return simpJson;
+      }
+      
+      return {
+        simpanan_id: `v-${agt.anggota_id}`,
+        anggota_id: agt.anggota_id,
+        saldo_pokok: 0,
+        saldo_wajib: 0,
+        saldo_sukarela: 0,
+        createdAt: agt.createdAt,
+        updatedAt: agt.updatedAt,
+        anggota: {
+          anggota_id: agt.anggota_id,
+          no_anggota: agt.no_anggota,
+          nama_lengkap: agt.nama_lengkap,
+          jabatan: agt.jabatan,
+          status_keanggotaan: agt.status_keanggotaan,
+          user: agt.user ? { email: agt.user.email } : null
+        }
+      };
+    });
+
     res.json({ success: true, data: simpananData });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -30,10 +68,35 @@ exports.updateSimpanan = async (req, res) => {
     const { id } = req.params;
     const { saldo_pokok, saldo_wajib, saldo_sukarela, metode_pembayaran } = req.body;
     
-    const simpanan = await Simpanan.findByPk(id, {
-      include: [{ model: Anggota, as: 'anggota' }],
-      transaction
-    });
+    let simpanan;
+    if (id.toString().startsWith('v-')) {
+      const anggotaId = parseInt(id.replace('v-', ''));
+      simpanan = await Simpanan.findOne({
+        where: { anggota_id: anggotaId },
+        include: [{ model: Anggota, as: 'anggota' }],
+        transaction
+      });
+      if (!simpanan) {
+        simpanan = await Simpanan.create({
+          anggota_id: anggotaId,
+          saldo_pokok: 0,
+          saldo_wajib: 0,
+          saldo_sukarela: 0,
+          last_updated: new Date()
+        }, { transaction });
+        
+        // Refetch untuk memuat relasi anggota
+        simpanan = await Simpanan.findByPk(simpanan.simpanan_id, {
+          include: [{ model: Anggota, as: 'anggota' }],
+          transaction
+        });
+      }
+    } else {
+      simpanan = await Simpanan.findByPk(id, {
+        include: [{ model: Anggota, as: 'anggota' }],
+        transaction
+      });
+    }
     
     if (!simpanan) {
       await transaction.rollback();
@@ -54,27 +117,39 @@ exports.updateSimpanan = async (req, res) => {
     const diffWajib = newWajib - oldWajib;
     const diffSukarela = newSukarela - oldSukarela;
 
-    const userId = simpanan.anggota.user_id;
-
-    // Helper function to record difference
-    const recordDiff = async (diff, categoryName) => {
+    // Helper function to adjust starting balances in KategoriKas instead of recording Arus Kas transactions
+    const adjustSaldoAwal = async (diff, categoryName) => {
       if (diff !== 0) {
-        await ArusKasService.recordTransaction({
-          user_id: userId,
-          nama_kategori: `Simpanan ${categoryName}`,
-          jenis: diff > 0 ? 'Kredit' : 'Debit', // Kredit=Masuk, Debit=Keluar
-          nominal: Math.abs(diff),
-          keterangan: `Penyesuaian Manual (Manajemen Saldo) - Simpanan ${categoryName}`,
-          kode_transaksi: `ADJ-${categoryName.substring(0,3).toUpperCase()}-${simpanan.anggota_id}-${Date.now()}`,
-          metode_pembayaran: targetMetode
-        }, { transaction }); // Removed req.io to prevent early emission
+        // 1. Update CASH/BANK starting balance in KategoriKas (Asset = +diff)
+        const paymentCat = await KategoriKas.findOne({
+          where: { nama_kategori: targetMetode },
+          transaction
+        });
+        if (paymentCat) {
+          const currentAwal = parseFloat(paymentCat.saldo_awal || 0);
+          await paymentCat.update({
+            saldo_awal: currentAwal + diff
+          }, { transaction });
+        }
+
+        // 2. Update Simpanan Category starting balance in KategoriKas (Liability = -diff because it is stored negatively)
+        const savingsCat = await KategoriKas.findOne({
+          where: { nama_kategori: `Simpanan ${categoryName}` },
+          transaction
+        });
+        if (savingsCat) {
+          const currentAwal = parseFloat(savingsCat.saldo_awal || 0);
+          await savingsCat.update({
+            saldo_awal: currentAwal - diff
+          }, { transaction });
+        }
       }
     };
 
-    // Record any differences to Arus Kas
-    await recordDiff(diffPokok, 'Pokok');
-    await recordDiff(diffWajib, 'Wajib');
-    await recordDiff(diffSukarela, 'Sukarela');
+    // Adjust Kategori Kas starting balances
+    await adjustSaldoAwal(diffPokok, 'Pokok');
+    await adjustSaldoAwal(diffWajib, 'Wajib');
+    await adjustSaldoAwal(diffSukarela, 'Sukarela');
 
     await simpanan.update({
       saldo_pokok: newPokok,
@@ -85,7 +160,7 @@ exports.updateSimpanan = async (req, res) => {
 
     await transaction.commit();
 
-    const updated = await Simpanan.findByPk(id, {
+    const updated = await Simpanan.findByPk(simpanan.simpanan_id, {
       include: [
         {
           model: Anggota,
@@ -214,7 +289,7 @@ exports.createTransaksiSimpanan = async (req, res) => {
     await ArusKasService.recordTransaction({
       user_id: anggota.user_id,
       nama_kategori: `Simpanan ${jenis_simpanan}`,
-      jenis: jenis_transaksi === 'Setor' ? 'Kredit' : 'Debit', // Kredit=Masuk, Debit=Keluar
+      jenis: jenis_transaksi === 'Setor' ? 'Debit' : 'Kredit', // Debit=Masuk, Kredit=Keluar
       nominal: finalNominal,
       keterangan: autoKeterangan,
       kode_transaksi: `TXS-${newTransaksi.transaksi_id}`,
@@ -495,7 +570,7 @@ exports.bulkCreateSimpananWajib = async (req, res) => {
       await ArusKasService.recordTransaction({
         user_id: anggota.user_id,
         nama_kategori: 'Simpanan Wajib',
-        jenis: 'Kredit', // Kredit = Masuk (simpanan wajib masuk kas)
+        jenis: 'Debit', // Debit = Masuk (simpanan wajib masuk kas)
         nominal: nominalWajib,
         keterangan: autoKeterangan,
         kode_transaksi: `BLK-WJB-${anggota.anggota_id}-${today}`,
@@ -596,7 +671,7 @@ exports.tarikSemuaSimpanan = async (req, res) => {
     await ArusKasService.recordTransaction({
       user_id: anggota.user_id,
       nama_kategori: 'Penarikan Simpanan',
-      jenis: 'Debit', // Debit = Keluar (penarikan simpanan keluar dari kas)
+      jenis: 'Kredit', // Kredit = Keluar (penarikan simpanan keluar dari kas)
       nominal: totalTarik,
       keterangan: keterangan || `Penarikan Seluruh Simpanan - ${bulanTahun}`,
       kode_transaksi: `WDR-${newTransaksi.transaksi_id}`,
@@ -849,7 +924,7 @@ exports.updatePinjamanStatus = async (req, res) => {
           await ArusKasService.recordTransaction({
             user_id: anggota.user_id,
             nama_kategori: kategoriPencairan,
-            jenis: 'Debit', // Debit = Keluar (pencairan keluar dari kas)
+            jenis: 'Kredit', // Kredit = Keluar (pencairan keluar dari kas)
             nominal: updateData.pinjaman_disetujui,
             keterangan: `Pencairan Pinjaman ${pinjaman.jenis_pinjaman} - ${updateData.nomor_invoice}`,
             kode_transaksi: updateData.nomor_invoice,
@@ -1112,7 +1187,7 @@ exports.bulkProcessAngsuran = async (req, res) => {
       await ArusKasService.recordTransaction({
         user_id: loan.anggota.user_id,
         nama_kategori: kategoriPokok,
-        jenis: 'Kredit',
+        jenis: 'Debit',
         nominal: porsiPokok,
         keterangan: `Angsuran Pokok ke-${existingCount + 1} - ${loan.nomor_invoice}`,
         kode_transaksi: `ANG-PKK-${loan.pinjaman_id}-${existingCount + 1}`,
@@ -1123,7 +1198,7 @@ exports.bulkProcessAngsuran = async (req, res) => {
       await ArusKasService.recordTransaction({
         user_id: loan.anggota.user_id,
         nama_kategori: kategoriJasa,
-        jenis: 'Kredit',
+        jenis: 'Debit',
         nominal: porsiBunga,
         keterangan: `Jasa/Bunga Pinjaman ke-${existingCount + 1} - ${loan.nomor_invoice}`,
         kode_transaksi: `ANG-JSA-${loan.pinjaman_id}-${existingCount + 1}`,
@@ -1249,7 +1324,7 @@ exports.lunaskanPinjaman = async (req, res) => {
     await ArusKasService.recordTransaction({
       user_id: pinjaman.anggota.user_id,
       nama_kategori: kategoriPokok,
-      jenis: 'Kredit',
+      jenis: 'Debit',
       nominal: porsiPokok,
       keterangan: `Pelunasan Pokok Pinjaman - ${pinjaman.nomor_invoice}`,
       kode_transaksi: `LNS-PKK-${pinjaman.pinjaman_id}`,
@@ -1260,7 +1335,7 @@ exports.lunaskanPinjaman = async (req, res) => {
     await ArusKasService.recordTransaction({
       user_id: pinjaman.anggota.user_id,
       nama_kategori: kategoriJasa,
-      jenis: 'Kredit',
+      jenis: 'Debit',
       nominal: porsiBunga,
       keterangan: `Pelunasan Jasa/Bunga Pinjaman - ${pinjaman.nomor_invoice}`,
       kode_transaksi: `LNS-JSA-${pinjaman.pinjaman_id}`,

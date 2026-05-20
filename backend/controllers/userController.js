@@ -613,7 +613,7 @@ const approveMember = async (req, res) => {
       {
         user_id: anggota.user_id,
         nama_kategori: "Simpanan Pokok",
-        jenis: "Kredit",
+        jenis: "Debit",
         nominal: nominalPokok,
         keterangan: "Simpanan Pokok Awal (Pendaftaran Diterima)",
         kode_transaksi: `REG-PKK-${anggota.anggota_id}`,

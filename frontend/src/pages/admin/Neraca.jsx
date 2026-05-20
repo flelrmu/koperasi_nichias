@@ -12,7 +12,9 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/atoms/Button';
+import Modal from '../../components/molecules/Modal';
 import axios from 'axios';
 import moment from 'moment';
 import 'moment/locale/id';
@@ -21,6 +23,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function Neraca() {
   const { showNotification } = useNotification();
+  const { user } = useAuth();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewType, setViewType] = useState('monthly'); // 'monthly' or 'yearly'
@@ -29,6 +32,12 @@ export default function Neraca() {
     tahun: moment().format('YYYY')
   });
   const [meta, setMeta] = useState({ isClosed: false });
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null
+  });
 
   const fetchData = async () => {
     setLoading(true);
@@ -52,24 +61,169 @@ export default function Neraca() {
     fetchData();
   }, [filter]);
 
-  const handleTutupBuku = async () => {
-    if (!window.confirm(`Apakah Anda yakin ingin melakukan TUTUP BUKU untuk bulan ${moment(`${filter.tahun}-${filter.bulan}-01`).format('MMMM YYYY')}? Action ini akan menyimpan snapshot saldo final.`)) return;
+  const handleCancelTutupBuku = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Buka Kembali Buku Neraca',
+      message: `Apakah Anda yakin ingin membatalkan TUTUP BUKU untuk bulan ${moment(`${filter.tahun}-${filter.bulan}-01`).format('MMMM YYYY')}? Action ini akan membuka kembali periode dan menghapus snapshot saldo.`,
+      onConfirm: executeCancelTutupBuku
+    });
+  };
 
+  const executeCancelTutupBuku = async () => {
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
     try {
-      const res = await axios.post(`${API_URL}/keuangan/neraca/tutup-buku`, {
+      const res = await axios.post(`${API_URL}/keuangan/cancel-tutup-buku`, {
         bulan: parseInt(filter.bulan),
-        tahun: parseInt(filter.tahun),
-        dataNeraca: data
+        tahun: parseInt(filter.tahun)
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
 
       if (res.data.success) {
-        showNotification(res.data.message, 'success');
+        fetchData();
+      }
+    } catch (error) {
+      showNotification(error.response?.data?.message || 'Gagal membuka kembali buku', 'error');
+    }
+  };
+
+  const handleTutupBuku = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Tutup Buku Neraca',
+      message: `Apakah Anda yakin ingin melakukan TUTUP BUKU untuk bulan ${moment(`${filter.tahun}-${filter.bulan}-01`).format('MMMM YYYY')}? Action ini akan menyimpan snapshot saldo final.`,
+      onConfirm: executeTutupBuku
+    });
+  };
+
+  const executeTutupBuku = async () => {
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+    try {
+      const res = await axios.post(`${API_URL}/keuangan/tutup-buku`, {
+        bulan: parseInt(filter.bulan),
+        tahun: parseInt(filter.tahun)
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (res.data.success) {
         fetchData();
       }
     } catch (error) {
       showNotification(error.response?.data?.message || 'Gagal tutup buku', 'error');
+    }
+  };
+
+  const handleExportExcel = () => {
+    try {
+      const filename = `Neraca_${filter.bulan}_${filter.tahun}.xls`;
+      
+      let htmlContent = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="utf-8">
+          <!--[if gte mso 9]>
+          <xml>
+            <x:ExcelWorkbook>
+              <x:ExcelWorksheets>
+                <x:ExcelWorksheet>
+                  <x:Name>Neraca Bulanan</x:Name>
+                  <x:WorksheetOptions>
+                    <x:DisplayGridlines/>
+                  </x:WorksheetOptions>
+                </x:ExcelWorksheet>
+              </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+          </xml>
+          <![endif]-->
+          <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; }
+            table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+            th { background-color: #004A9C; color: #ffffff; font-weight: bold; border: 1px solid #cccccc; padding: 10px 12px; text-align: left; font-size: 13px; text-transform: uppercase; }
+            td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; font-size: 12px; color: #4a5568; }
+            .title-cell { font-size: 18px; font-weight: bold; color: #004A9C; text-align: center; }
+            .subtitle-cell { font-size: 12px; color: #718096; text-align: center; font-style: italic; }
+            .total-row { font-weight: bold; background-color: #f7fafc; border-top: 2px solid #cbd5e0; }
+            .footer-row { background-color: #004A9C; color: #ffffff; font-weight: bold; border-top: 2px solid #003B7D; }
+            .footer-cell { color: #ffffff !important; }
+            .number-cell { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <tr>
+              <td colspan="5" class="title-cell">KOPERASI NICHIAS</td>
+            </tr>
+            <tr>
+              <td colspan="5" class="title-cell">LAPORAN NERACA KEUANGAN BULANAN</td>
+            </tr>
+            <tr>
+              <td colspan="5" class="subtitle-cell">Periode: ${moment(`${filter.tahun}-${filter.bulan}-01`).format('MMMM YYYY')}</td>
+            </tr>
+            <tr style="height: 15px;"></tr>
+            <thead>
+              <tr>
+                <th>DESKRIPSI</th>
+                <th style="text-align: right;">SALDO AWAL</th>
+                <th style="text-align: right;">DEBIT</th>
+                <th style="text-align: right;">CREDIT</th>
+                <th style="text-align: right;">SALDO AKHIR</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      data.forEach((item) => {
+        const isTotal = item.isTotalRow || item.nama_kategori === 'TOTAL ASSET';
+        const rowClass = isTotal ? 'class="total-row"' : '';
+        
+        htmlContent += `
+          <tr ${rowClass}>
+            <td style="font-weight: ${isTotal ? 'bold' : 'normal'}; color: ${isTotal ? '#ef4444' : '#2d3748'};">
+              ${item.nama_kategori}
+            </td>
+            <td class="number-cell" style="font-weight: ${isTotal ? 'bold' : 'normal'};">
+              ${item.saldo_awal === 0 ? '-' : formatRupiah(item.saldo_awal)}
+            </td>
+            <td class="number-cell" style="font-weight: ${isTotal ? 'bold' : 'normal'}; color: ${isTotal ? '#2d3748' : '#2563eb'};">
+              ${item.debit === 0 ? '-' : formatRupiah(item.debit)}
+            </td>
+            <td class="number-cell" style="font-weight: ${isTotal ? 'bold' : 'normal'}; color: ${isTotal ? '#2d3748' : '#ef4444'};">
+              ${item.kredit === 0 ? '-' : formatRupiah(item.kredit)}
+            </td>
+            <td class="number-cell" style="font-weight: bold; background-color: ${isTotal ? '#EBF3FC' : 'transparent'}; color: ${isTotal ? '#004A9C' : '#2d3748'};">
+              ${item.saldo_akhir === 0 ? '-' : formatRupiah(item.saldo_akhir)}
+            </td>
+          </tr>
+        `;
+      });
+
+      htmlContent += `
+            <tr style="background-color: #004A9C; color: #ffffff; font-weight: bold;">
+              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: center; border: 1px solid #003B7D;">${moment(`${filter.tahun}-${filter.bulan}-01`).format('MMM-YY')}</td>
+              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; border: 1px solid #003B7D;"></td>
+              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${formatRupiah(totalDebitCol)}</td>
+              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${formatRupiah(totalKreditCol)}</td>
+              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; border: 1px solid #003B7D;"></td>
+            </tr>
+          </tbody>
+        </table>
+      </body>
+      </html>
+      `;
+
+      const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showNotification('Gagal mengekspor laporan ke Excel', 'error');
     }
   };
 
@@ -150,14 +304,35 @@ export default function Neraca() {
               </select>
             </div>
 
-            <Button 
-              onClick={handleTutupBuku} 
-              disabled={meta.isClosed || loading}
-              className={`flex items-center gap-2 !px-6 ${meta.isClosed ? '!bg-gray-100 !text-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
-            >
-              {meta.isClosed ? <Lock size={18} /> : <Unlock size={18} />}
-              {meta.isClosed ? 'Buku Ditutup' : 'Tutup Buku'}
-            </Button>
+            {meta.isClosed ? (
+              user?.role === 'Bendahara' ? (
+                <Button 
+                  onClick={handleCancelTutupBuku} 
+                  disabled={loading}
+                  className="flex items-center gap-2 !px-6 bg-orange-500 hover:bg-orange-600 text-white font-bold"
+                >
+                  <Unlock size={18} />
+                  Batal Tutup Buku
+                </Button>
+              ) : (
+                <Button 
+                  disabled={true}
+                  className="flex items-center gap-2 !px-6 !bg-gray-100 !text-gray-400 cursor-not-allowed"
+                >
+                  <Lock size={18} />
+                  Buku Ditutup
+                </Button>
+              )
+            ) : (
+              <Button 
+                onClick={handleTutupBuku} 
+                disabled={loading}
+                className="flex items-center gap-2 !px-6 bg-red-500 hover:bg-red-600 text-white font-bold"
+              >
+                <Unlock size={18} />
+                Tutup Buku
+              </Button>
+            )}
           </div>
         </div>
 
@@ -175,12 +350,12 @@ export default function Neraca() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#FFFF00] border-b-2 border-gray-300">
-                    <th className="px-8 py-5 text-sm font-black text-gray-900 uppercase tracking-tight border-r border-gray-300">DESKRIPSI</th>
-                    <th className="px-8 py-5 text-sm font-black text-gray-900 uppercase tracking-tight text-right border-r border-gray-300">SALDO AWAL</th>
-                    <th className="px-8 py-5 text-sm font-black text-gray-900 uppercase tracking-tight text-right border-r border-gray-300">DEBIT</th>
-                    <th className="px-8 py-5 text-sm font-black text-gray-900 uppercase tracking-tight text-right border-r border-gray-300">CREDIT</th>
-                    <th className="px-8 py-5 text-sm font-black text-gray-900 uppercase tracking-tight text-right bg-blue-50/30">SALDO AKHIR</th>
+                  <tr className="bg-[#004A9C] border-b-2 border-[#003B7D] text-white">
+                    <th className="px-8 py-5 text-sm font-black uppercase tracking-tight border-r border-white/10 text-white">DESKRIPSI</th>
+                    <th className="px-8 py-5 text-sm font-black uppercase tracking-tight text-right border-r border-white/10 text-white">SALDO AWAL</th>
+                    <th className="px-8 py-5 text-sm font-black uppercase tracking-tight text-right border-r border-white/10 text-white">DEBIT</th>
+                    <th className="px-8 py-5 text-sm font-black uppercase tracking-tight text-right border-r border-white/10 text-white">CREDIT</th>
+                    <th className="px-8 py-5 text-sm font-black uppercase tracking-tight text-right text-white">SALDO AKHIR</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -211,15 +386,15 @@ export default function Neraca() {
                     </tr>
                   ))}
                   {/* Empty Footer Row for Month-Year label like in image */}
-                  <tr className="bg-[#FFFF00] border-t-2 border-gray-300">
-                    <td className="px-8 py-4 text-sm font-black text-center border-r border-gray-300 uppercase">
+                  <tr className="bg-[#004A9C] border-t-2 border-[#003B7D] text-white">
+                    <td className="px-8 py-4 text-sm font-black text-center border-r border-white/10 uppercase text-white">
                       {moment(`${filter.tahun}-${filter.bulan}-01`).format('MMM-YY')}
                     </td>
-                    <td className="border-r border-gray-300"></td>
-                    <td className="px-8 py-4 text-sm font-black text-right border-r border-gray-300">
+                    <td className="border-r border-white/10"></td>
+                    <td className="px-8 py-4 text-sm font-black text-right border-r border-white/10 text-white">
                       {formatRupiah(totalDebitCol)}
                     </td>
-                    <td className="px-8 py-4 text-sm font-black text-right border-r border-gray-300">
+                    <td className="px-8 py-4 text-sm font-black text-right border-r border-white/10 text-white">
                       {formatRupiah(totalKreditCol)}
                     </td>
                     <td></td>
@@ -237,10 +412,16 @@ export default function Neraca() {
             <h4 className="text-lg font-bold mb-2">Export Laporan</h4>
             <p className="text-blue-100 text-xs mb-6 leading-relaxed">Unduh laporan neraca dalam format PDF atau Excel untuk keperluan dokumentasi rapat tahunan.</p>
             <div className="flex gap-2">
-              <button className="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-xl text-xs font-bold transition-all flex items-center gap-2">
+              <button 
+                onClick={() => showNotification('Fitur ekspor PDF sedang disiapkan.', 'info')}
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-xl text-xs font-bold transition-all flex items-center gap-2"
+              >
                 <Download size={14} /> PDF
               </button>
-              <button className="px-4 py-2 bg-white text-blue-600 hover:bg-blue-50 rounded-xl text-xs font-bold transition-all flex items-center gap-2">
+              <button 
+                onClick={handleExportExcel}
+                className="px-4 py-2 bg-white text-blue-600 hover:bg-blue-50 rounded-xl text-xs font-bold transition-all flex items-center gap-2"
+              >
                 <Download size={14} /> Excel
               </button>
             </div>
@@ -275,6 +456,17 @@ export default function Neraca() {
             </div>
           </div>
         </div>
+      {/* Confirm Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type="warning"
+        onConfirm={confirmModal.onConfirm}
+        confirmText={confirmModal.title?.includes('Buka') ? 'Ya, Buka Buku' : 'Ya, Tutup Buku'}
+        cancelText="Batal"
+      />
     </div>
   );
 }

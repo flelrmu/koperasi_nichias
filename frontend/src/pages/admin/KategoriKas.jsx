@@ -26,7 +26,7 @@ export default function KategoriKas() {
   const [editData, setEditData] = useState(null);
   const [formData, setFormData] = useState({ 
     nama_kategori: '', 
-    jenis: 'Kredit', 
+    jenis: 'Debit', 
     kode_akun: '', 
     tipe_neraca: 'Asset',
     saldo_awal: 0 
@@ -67,7 +67,7 @@ export default function KategoriKas() {
         showNotification('Kategori berhasil ditambahkan', 'success');
       }
       setShowModal(false);
-      setFormData({ nama_kategori: '', jenis: 'Kredit', kode_akun: '', tipe_neraca: 'Asset', saldo_awal: 0 });
+      setFormData({ nama_kategori: '', jenis: 'Debit', kode_akun: '', tipe_neraca: 'Asset', saldo_awal: 0 });
       setEditData(null);
       fetchData();
     } catch (error) {
@@ -110,7 +110,7 @@ export default function KategoriKas() {
           </div>
           <Button onClick={() => { 
             setEditData(null); 
-            setFormData({nama_kategori: '', jenis: 'Kredit', kode_akun: '', tipe_neraca: 'Asset', saldo_awal: 0}); 
+            setFormData({nama_kategori: '', jenis: 'Debit', kode_akun: '', tipe_neraca: 'Asset', saldo_awal: 0}); 
             setShowModal(true); 
           }} className="flex items-center gap-2 !px-6 bg-[#004A9C]">
             <Plus size={18} /> Tambah Akun
@@ -165,7 +165,7 @@ export default function KategoriKas() {
                           <span className="text-sm text-gray-600">{formatRupiah(item.saldo_awal)}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <StatusBadge status={item.jenis}>{item.jenis === 'Kredit' ? 'Pemasukan' : 'Pengeluaran'}</StatusBadge>
+                          <StatusBadge status={item.jenis}>{item.jenis === 'Debit' ? 'Pemasukan' : 'Pengeluaran'}</StatusBadge>
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-2">
@@ -262,17 +262,17 @@ export default function KategoriKas() {
                     <div className="grid grid-cols-2 gap-3">
                       <button 
                         type="button"
-                        onClick={() => setFormData({...formData, jenis: 'Kredit'})}
-                        className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formData.jenis === 'Kredit' ? 'border-[#27AE60] bg-[#27AE60]/5 text-[#27AE60]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
+                        onClick={() => setFormData({...formData, jenis: 'Debit'})}
+                        className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formData.jenis === 'Debit' ? 'border-[#27AE60] bg-[#27AE60]/5 text-[#27AE60]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
                       >
-                        Pemasukan (Kredit)
+                        Pemasukan (Debit)
                       </button>
                       <button 
                         type="button"
-                        onClick={() => setFormData({...formData, jenis: 'Debit'})}
-                        className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formData.jenis === 'Debit' ? 'border-[#EB5757] bg-[#EB5757]/5 text-[#EB5757]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
+                        onClick={() => setFormData({...formData, jenis: 'Kredit'})}
+                        className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formData.jenis === 'Kredit' ? 'border-[#EB5757] bg-[#EB5757]/5 text-[#EB5757]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
                       >
-                        Pengeluaran (Debit)
+                        Pengeluaran (Kredit)
                       </button>
                     </div>
                   </div>

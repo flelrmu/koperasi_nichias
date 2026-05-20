@@ -217,6 +217,50 @@ export function NotificationProvider({ children }) {
       setTimeout(() => fetchNotifications(), 1500);
     };
 
+    const handleSHUProsesSukses = (data) => {
+      console.log('🔔 Real-time notifikasi:shu-proses-sukses received:', data);
+      const { isAuthenticated: authed, user: currentUser } = authRef.current;
+      if (!authed || currentUser?.role !== 'Bendahara') return;
+
+      const newNotif = {
+        id: `temp_shu_proses_${Date.now()}`,
+        judul: data.notifikasi?.judul || 'SHU Berhasil Diproses 📊',
+        pesan: data.notifikasi?.pesan || 'Data SHU berhasil diproses oleh Bendahara.',
+        tipe: 'sistem',
+        link: '/admin/simpan-pinjam',
+        is_read: false,
+        created_at: new Date().toISOString(),
+      };
+
+      setNotifications(prev => [newNotif, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
+      
+      setTimeout(() => fetchNotifications(), 1500);
+    };
+
+    const handleSHUFinalSukses = (data) => {
+      console.log('🔔 Real-time notifikasi:shu-final-sukses received:', data);
+      const { isAuthenticated: authed, user: currentUser } = authRef.current;
+      if (!authed || currentUser?.role !== 'Bendahara') return;
+
+      const newNotif = {
+        id: `temp_shu_final_${Date.now()}`,
+        judul: data.notifikasi?.judul || 'SHU Berhasil Dibagikan 🎉',
+        pesan: data.notifikasi?.pesan || 'Distribusi SHU berhasil diselesaikan.',
+        tipe: 'sistem',
+        link: '/admin/simpan-pinjam',
+        is_read: false,
+        created_at: new Date().toISOString(),
+      };
+
+      setNotifications(prev => [newNotif, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
+      
+      setTimeout(() => fetchNotifications(), 1500);
+    };
+
     const handleReconnect = () => {
       console.log('🔄 Socket reconnected, refetching notifications...');
       const { isAuthenticated: authed } = authRef.current;
@@ -230,6 +274,8 @@ export function NotificationProvider({ children }) {
     socket.on('notifikasi:anggota-keluar', handleAnggotaKeluarNotif);
     socket.on('notifikasi:pinjaman', handlePinjamanNotif);
     socket.on('notifikasi:shu', handleSHUNotif);
+    socket.on('notifikasi:shu-proses-sukses', handleSHUProsesSukses);
+    socket.on('notifikasi:shu-final-sukses', handleSHUFinalSukses);
     socket.on('member:approved', handleMemberApproved);
     socket.on('user:updated', handleUserUpdated);
     socket.on('connect', handleReconnect);
@@ -240,6 +286,8 @@ export function NotificationProvider({ children }) {
       socket.off('notifikasi:anggota-keluar', handleAnggotaKeluarNotif);
       socket.off('notifikasi:pinjaman', handlePinjamanNotif);
       socket.off('notifikasi:shu', handleSHUNotif);
+      socket.off('notifikasi:shu-proses-sukses', handleSHUProsesSukses);
+      socket.off('notifikasi:shu-final-sukses', handleSHUFinalSukses);
       socket.off('member:approved', handleMemberApproved);
       socket.off('user:updated', handleUserUpdated);
       socket.off('connect', handleReconnect);

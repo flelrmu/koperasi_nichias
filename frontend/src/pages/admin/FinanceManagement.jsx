@@ -52,6 +52,7 @@ export default function FinanceManagement() {
   const { showNotification } = useNotification();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("arus-kas");
+  const [exportTrigger, setExportTrigger] = useState(0);
   const isBendahara = user?.role === "Bendahara";
 
   // Helper for current date
@@ -410,31 +411,51 @@ export default function FinanceManagement() {
 
   return (
     <div className="space-y-6 pb-10">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[24px] shadow-sm border border-gray-100">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            Manajemen Keuangan
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
+      {/* Premium Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 relative overflow-hidden">
+        {/* Decorative background blurs */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#DFEAF4] rounded-full -mr-32 -mt-32 opacity-50 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#004A9C]/5 rounded-full -ml-24 -mb-24 opacity-40 blur-3xl"></div>
+        
+        <div className="space-y-3 relative z-10">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#DFEAF4] text-[#004A9C] rounded-full text-xs font-bold uppercase tracking-widest"
+          >
+            <TrendingUp size={14} />
+            <span>Keuangan</span>
+          </motion.div>
+          <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">Manajemen <span className="text-[#004A9C]">Keuangan</span></h2>
+          <p className="text-gray-500 text-lg font-medium">
             {isBendahara
               ? "Kelola arus kas, kategori, dan pantau laporan keuangan real-time."
               : "Pantau laporan keuangan dan posisi neraca koperasi."}
           </p>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
+        
+        <div className="relative z-10 shrink-0 flex flex-wrap gap-3 items-center w-full md:w-auto">
           {activeTab === "arus-kas" && isBendahara && (
             <Button
               onClick={handleAddKas}
-              className="flex items-center gap-2 !px-6 text-sm"
+              className="flex items-center gap-2 px-8 py-4 rounded-2xl shadow-lg shadow-[#004A9C]/20 hover:scale-105 transition-all bg-[#004A9C] text-white"
               disabled={isClosed}
             >
-              <Plus size={18} /> Update Kas
+              <Plus size={22} />
+              <span className="font-bold text-lg">Update Kas</span>
             </Button>
           )}
-          <Button className="bg-[#DFEAF4] !text-[#004A9C] border border-[#004A9C]/20 flex items-center gap-2 !px-6 text-sm hover:bg-[#d0e1f0]">
-            <Download size={18} /> Export Laporan
-          </Button>
+          {activeTab === "neraca" && (
+            <Button 
+              onClick={() => {
+                setExportTrigger(prev => prev + 1);
+              }}
+              className="bg-[#DFEAF4] !text-[#004A9C] border border-[#004A9C]/20 flex items-center gap-2 px-8 py-4 rounded-2xl hover:bg-[#d0e1f0] hover:scale-105 transition-all font-bold text-lg"
+            >
+              <Download size={22} />
+              <span>Export Laporan</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -486,7 +507,7 @@ export default function FinanceManagement() {
                   </div>
                   <div>
                     <p className="text-blue-100 text-sm font-medium mb-1">
-                      Saldo Kas Saat Ini (Real-time)
+                      Saldo Kas Saat Ini
                     </p>
                     <h2 className="text-3xl font-black tracking-tight">
                       {formatCurrency(currentKasBalance)}
@@ -503,7 +524,7 @@ export default function FinanceManagement() {
                           const mutasiBulanIni = arusKasData
                             .filter((item) => item.metode_pembayaran === metode)
                             .reduce((acc, item) => {
-                              return item.jenis === "Kredit"
+                              return item.jenis === "Debit"
                                 ? acc + parseFloat(item.nominal)
                                 : acc - parseFloat(item.nominal);
                             }, 0);
@@ -691,16 +712,16 @@ export default function FinanceManagement() {
                             </td>
                             <td className="py-5 px-8">
                               <StatusBadge status={row.jenis}>
-                                {row.jenis === "Kredit"
+                                {row.jenis === "Debit"
                                   ? "Pemasukan"
                                   : "Pengeluaran"}
                               </StatusBadge>
                             </td>
                             <td className="py-5 px-8 text-right">
                               <span
-                                className={`text-xs font-black ${row.jenis === "Kredit" ? "text-green-600" : "text-red-500"}`}
+                                className={`text-xs font-black ${row.jenis === "Debit" ? "text-green-600" : "text-red-500"}`}
                               >
-                                {row.jenis === "Kredit" ? "+" : "-"}{" "}
+                                {row.jenis === "Debit" ? "+" : "-"}{" "}
                                 {formatCurrency(row.nominal)}
                               </span>
                             </td>
@@ -1032,10 +1053,14 @@ export default function FinanceManagement() {
           )}
 
           {activeTab === "shu" && (
-            <SHUTab api={api} showNotification={showNotification} />
+            <SHUTab api={api} showNotification={showNotification} user={user} />
           )}
           {activeTab === "neraca" && (
-            <NeracaInlineTab api={api} showNotification={showNotification} />
+            <NeracaInlineTab 
+              api={api} 
+              showNotification={showNotification} 
+              exportTrigger={exportTrigger}
+            />
           )}
         </motion.div>
       </AnimatePresence>
@@ -1206,20 +1231,20 @@ export default function FinanceManagement() {
                     <button
                       type="button"
                       onClick={() =>
-                        setFormDataKas({ ...formDataKas, jenis: "Kredit" })
+                        setFormDataKas({ ...formDataKas, jenis: "Debit" })
                       }
-                      className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formDataKas.jenis === "Kredit" ? "border-[#27AE60] bg-[#27AE60]/5 text-[#27AE60]" : "border-gray-100 text-gray-400 hover:bg-gray-50"}`}
+                      className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formDataKas.jenis === "Debit" ? "border-[#27AE60] bg-[#27AE60]/5 text-[#27AE60]" : "border-gray-100 text-gray-400 hover:bg-gray-50"}`}
                     >
-                      UANG MASUK (KREDIT)
+                      UANG MASUK (DEBIT)
                     </button>
                     <button
                       type="button"
                       onClick={() =>
-                        setFormDataKas({ ...formDataKas, jenis: "Debit" })
+                        setFormDataKas({ ...formDataKas, jenis: "Kredit" })
                       }
-                      className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formDataKas.jenis === "Debit" ? "border-[#EB5757] bg-[#EB5757]/5 text-[#EB5757]" : "border-gray-100 text-gray-400 hover:bg-gray-50"}`}
+                      className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formDataKas.jenis === "Kredit" ? "border-[#EB5757] bg-[#EB5757]/5 text-[#EB5757]" : "border-gray-100 text-gray-400 hover:bg-gray-50"}`}
                     >
-                      UANG KELUAR (DEBIT)
+                      UANG KELUAR (KREDIT)
                     </button>
                   </div>
                 </div>
@@ -1253,7 +1278,7 @@ export default function FinanceManagement() {
                     type="submit"
                     className="flex-1"
                     disabled={
-                      formDataKas.jenis === "Debit" &&
+                      formDataKas.jenis === "Kredit" &&
                       parseFloat(formDataKas.nominal || 0) > 0 &&
                       parseFloat(formDataKas.nominal || 0) >
                         (realtimeSaldo[
@@ -1362,20 +1387,20 @@ export default function FinanceManagement() {
                     <button
                       type="button"
                       onClick={() =>
-                        setFormDataCat({ ...formDataCat, jenis: "Kredit" })
+                        setFormDataCat({ ...formDataCat, jenis: "Debit" })
                       }
-                      className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formDataCat.jenis === "Kredit" ? "border-[#27AE60] bg-[#27AE60]/5 text-[#27AE60]" : "border-gray-100 text-gray-400 hover:bg-gray-50"}`}
+                      className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formDataCat.jenis === "Debit" ? "border-[#27AE60] bg-[#27AE60]/5 text-[#27AE60]" : "border-gray-100 text-gray-400 hover:bg-gray-50"}`}
                     >
-                      Uang Masuk (Kredit)
+                      Uang Masuk (Debit)
                     </button>
                     <button
                       type="button"
                       onClick={() =>
-                        setFormDataCat({ ...formDataCat, jenis: "Debit" })
+                        setFormDataCat({ ...formDataCat, jenis: "Kredit" })
                       }
-                      className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formDataCat.jenis === "Debit" ? "border-[#EB5757] bg-[#EB5757]/5 text-[#EB5757]" : "border-gray-100 text-gray-400 hover:bg-gray-50"}`}
+                      className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${formDataCat.jenis === "Kredit" ? "border-[#EB5757] bg-[#EB5757]/5 text-[#EB5757]" : "border-gray-100 text-gray-400 hover:bg-gray-50"}`}
                     >
-                      Uang Keluar (Debit)
+                      Uang Keluar (Kredit)
                     </button>
                   </div>
                 </div>

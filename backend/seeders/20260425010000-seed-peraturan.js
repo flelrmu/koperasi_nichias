@@ -122,25 +122,122 @@ module.exports = {
       },
       {
         judul: 'Pengunduran Diri',
-        deskripsi: 'Syarat bagi anggota yang ingin mengundurkan diri dari koperasi.',
+        deskripsi: 'Kebijakan pengunduran diri anggota koperasi secara sukarela melalui sistem dengan syarat penyelesaian seluruh kewajiban keuangan.',
         kategori: 'Keanggotaan',
-        ketentuan_utama: 'Min. 12 bln Keanggotaan',
-        nilai_numerik: 12,
-        tujuan: 'Mengatur hak dan kewajiban anggota yang ingin mengakhiri masa keanggotaannya.',
+        ketentuan_utama: 'Tanpa Hutang Aktif',
+        nilai_numerik: 0,
+        tujuan: 'Menjamin seluruh kewajiban pinjaman dan sisa tagihan anggota telah diselesaikan secara penuh sebelum keanggotaan dinonaktifkan.',
         syarat_ketentuan: JSON.stringify([
-          'Telah melunasi seluruh kewajiban pinjaman.',
-          'Mengisi form pengunduran diri di menu Profil.',
-          'Pengembalian simpanan dilakukan maksimal 30 hari setelah permohonan disetujui.'
+          'Tidak memiliki pinjaman aktif (status Approved/Pending dengan sisa tagihan > 0).',
+          'Telah melunasi seluruh kewajiban keuangan di koperasi.',
+          'Mengisi form pengajuan keluar koperasi digital dengan menyertakan alasan tertulis.',
+          'Persetujuan akhir wajib divalidasi oleh Sekretaris atau Ketua Koperasi.'
         ]),
         prosedur: JSON.stringify([
-          'Mengajukan permohonan melalui sistem (Menu Profil > Keluar Koperasi).',
-          'Proses verifikasi oleh Sekretaris dan Bendahara.',
-          'Wawancara singkat jika diperlukan.',
-          'Penerbitan Surat Keterangan Selesai Keanggotaan.'
+          'Anggota mengajukan pengunduran diri melalui Menu Profil > Keluar Koperasi.',
+          'Sistem secara otomatis melakukan validasi tagihan pinjaman aktif.',
+          'Sekretaris menerima notifikasi real-time dan melakukan verifikasi administratif.',
+          'Sekretaris/Ketua memberikan persetujuan (Approval) atas pengajuan keluar.',
+          'Keanggotaan dinyatakan nonaktif (Status: Keluar) dan dana simpanan dapat dikembalikan.'
         ]),
         icon_name: 'ShieldCheck',
         icon_color: 'text-purple-600',
         icon_bg_color: 'bg-purple-50',
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        judul: 'Alokasi SHU Tahunan',
+        deskripsi: 'Mengatur proporsi pembagian keuntungan bersih (laba usaha) tahunan koperasi secara adil dan berkekuatan hukum.',
+        kategori: 'Keanggotaan',
+        ketentuan_utama: '80% Anggota | 15% Pengurus | 5% Laba Ditahan',
+        nilai_numerik: 80,
+        tujuan: 'Mengatur proporsi pembagian keuntungan bersih (laba usaha) tahunan koperasi secara adil dan berkekuatan hukum.',
+        syarat_ketentuan: JSON.stringify([
+          'Alokasi wajib disahkan secara resmi melalui Rapat Anggota Tahunan (RAT).',
+          'Laba Ditahan (5%) akan dipindahkan ke neraca tahun buku berikutnya sebagai modal cadangan.',
+          'Jatah Pengurus (15%) dibagikan kepada pengurus aktif yang menjabat pada tahun buku terkait.'
+        ]),
+        prosedur: JSON.stringify([
+          'Sistem secara otomatis mengalkulasi total laba bersih operasional tahunan.',
+          'Bendahara menyesuaikan persentase alokasi di Menu SHU.',
+          'Bendahara mengunci pembagian secara final (Finalize SHU).',
+          'Sistem memindahkan alokasi jatah dan laba ditahan secara otomatis ke pos neraca.'
+        ]),
+        icon_name: 'PieChart',
+        icon_color: 'text-green-600',
+        icon_bg_color: 'bg-green-50',
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        judul: 'Pembulatan Distribusi SHU',
+        deskripsi: 'Menyederhanakan penyaluran dana tunai jatah SHU kepada anggota dan mencegah pecahan desimal yang rumit.',
+        kategori: 'Simpanan',
+        ketentuan_utama: 'Kelipatan Rp 100 (Bawah)',
+        nilai_numerik: 100,
+        tujuan: 'Menyederhanakan penyaluran dana tunai jatah SHU kepada anggota dan mencegah pecahan desimal yang rumit.',
+        syarat_ketentuan: JSON.stringify([
+          'Sistem melakukan pembulatan ke bawah pada kelipatan Rp 100 terdekat.',
+          'Selisih pembulatan (pecahan rupiah) disimpan kembali sebagai laba ditahan koperasi.',
+          'Diterapkan pada semua kalkulasi nominal akhir SHU yang diterima anggota.'
+        ]),
+        prosedur: JSON.stringify([
+          'Sistem menghitung SHU proporsional berdasarkan total simpanan.',
+          'Formula pembulatan kelipatan Rp 100 diterapkan otomatis pada hasil bagi.',
+          'Anggota menerima nominal bersih yang sudah dibulatkan.'
+        ]),
+        icon_name: 'Wallet',
+        icon_color: 'text-blue-600',
+        icon_bg_color: 'bg-blue-50',
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        judul: 'Tutup Buku Neraca Bulanan',
+        deskripsi: 'Membekukan data transaksi bulanan guna menjaga integritas laporan keuangan dari mutasi sepihak.',
+        kategori: 'Keanggotaan',
+        ketentuan_utama: 'Akhir Periode Bulanan',
+        nilai_numerik: 1,
+        tujuan: 'Membekukan data transaksi bulanan guna menjaga integritas laporan keuangan dari mutasi sepihak.',
+        syarat_ketentuan: JSON.stringify([
+          'Tutup Buku dilakukan oleh Bendahara di akhir periode bulan berjalan.',
+          'Seluruh pencatatan transaksi (debit/kredit) pada bulan yang ditutup akan dikunci secara permanen.',
+          'Saldo akhir bulan berjalan otomatis menjadi saldo awal bulan berikutnya.',
+          'Batal Tutup Buku (Unlock) memerlukan persetujuan dari Ketua Koperasi.'
+        ]),
+        prosedur: JSON.stringify([
+          'Bendahara merampungkan seluruh input mutasi arus kas harian.',
+          'Bendahara meninjau keseimbangan laporan neraca bulanan.',
+          'Bendahara mengeksekusi aksi Tutup Buku di tab Neraca.',
+          'Sistem mengunci jurnal kas dan mencatatkan snapshot saldo akhir ke database.'
+        ]),
+        icon_name: 'Lock',
+        icon_color: 'text-red-600',
+        icon_bg_color: 'bg-red-50',
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        judul: 'Kas Overdraft Protection',
+        deskripsi: 'Mencegah terjadinya saldo kas negatif (minus) baik pada kas fisik (CASH) maupun rekening bank (BANK).',
+        kategori: 'Simpanan',
+        ketentuan_utama: 'Maksimal 100% Saldo Aktif',
+        nilai_numerik: 100,
+        tujuan: 'Mencegah terjadinya saldo kas negatif (minus) baik pada kas fisik (CASH) maupun rekening bank (BANK).',
+        syarat_ketentuan: JSON.stringify([
+          'Dilarang mencatatkan transaksi pengeluaran (Debit) yang melebihi total saldo kas berjalan.',
+          'Transaksi yang melebihi limit saldo kas otomatis diblokir oleh sistem.',
+          'Penyesuaian saldo awal bulan wajib dilakukan melalui verifikasi buku kas fisik.'
+        ]),
+        prosedur: JSON.stringify([
+          'Bendahara menginput transaksi pengeluaran baru di menu Update Kas.',
+          'Sistem melakukan pengecekan ketersediaan dana secara real-time.',
+          'Jika saldo tidak mencukupi, tombol simpan dinonaktifkan secara otomatis.'
+        ]),
+        icon_name: 'AlertTriangle',
+        icon_color: 'text-orange-600',
+        icon_bg_color: 'bg-orange-50',
         created_at: new Date(),
         updated_at: new Date(),
       },

@@ -29,6 +29,20 @@ import Modal from '../../components/molecules/Modal';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import angkaKeTerbilang from '../../utils/terbilang';
+const months = [
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+];
 
 export default function SimpanPinjam() {
   const { api, user } = useAuth();
@@ -39,6 +53,11 @@ export default function SimpanPinjam() {
   const [isLoading, setIsLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterMonth, setFilterMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
+  const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()));
+  const [installmentMonth, setInstallmentMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
+  const [installmentYear, setInstallmentYear] = useState(String(new Date().getFullYear()));
+  const [installmentSearchQuery, setInstallmentSearchQuery] = useState('');
   const [hoveredCard, setHoveredCard] = useState(null);
   
   // Pagination
@@ -189,17 +208,26 @@ export default function SimpanPinjam() {
   const filteredTransactions = useMemo(() => {
     if (!profileData?.transaksiSimpanan) return [];
     return profileData.transaksiSimpanan
-      .filter(trx => 
-        trx.jenis_transaksi?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        trx.keterangan?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      .filter(trx => {
+        const matchesSearch = trx.jenis_transaksi?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            trx.keterangan?.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        const trxDate = new Date(trx.tanggal);
+        const trxMonth = String(trxDate.getMonth() + 1).padStart(2, '0');
+        const trxYear = String(trxDate.getFullYear());
+        
+        const matchesMonth = filterMonth === 'all' || trxMonth === filterMonth;
+        const matchesYear = filterYear === 'all' || trxYear === filterYear;
+        
+        return matchesSearch && matchesMonth && matchesYear;
+      })
       .sort((a, b) => {
         const dateA = new Date(a.tanggal);
         const dateB = new Date(b.tanggal);
         if (dateB - dateA !== 0) return dateB - dateA;
         return (b.transaksi_id || 0) - (a.transaksi_id || 0);
       });
-  }, [profileData, searchQuery]);
+  }, [profileData, searchQuery, filterMonth, filterYear]);
 
   const filteredLoans = useMemo(() => {
     if (!profileData?.pinjaman) return [];
@@ -212,10 +240,19 @@ export default function SimpanPinjam() {
     };
 
     return profileData.pinjaman
-      .filter(loan => 
-        loan.jenis_pinjaman?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        loan.keperluan?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      .filter(loan => {
+        const matchesSearch = loan.jenis_pinjaman?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            loan.keperluan?.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        const loanDate = new Date(loan.tanggal_pengajuan);
+        const loanMonth = String(loanDate.getMonth() + 1).padStart(2, '0');
+        const loanYear = String(loanDate.getFullYear());
+        
+        const matchesMonth = filterMonth === 'all' || loanMonth === filterMonth;
+        const matchesYear = filterYear === 'all' || loanYear === filterYear;
+        
+        return matchesSearch && matchesMonth && matchesYear;
+      })
       .sort((a, b) => {
         const priorityA = statusPriority[a.status] || 99;
         const priorityB = statusPriority[b.status] || 99;
@@ -229,7 +266,7 @@ export default function SimpanPinjam() {
         if (dateB - dateA !== 0) return dateB - dateA;
         return (b.pinjaman_id || 0) - (a.pinjaman_id || 0);
       });
-  }, [profileData, searchQuery]);
+  }, [profileData, searchQuery, filterMonth, filterYear]);
 
   const allInstallments = useMemo(() => {
     if (!profileData?.pinjaman) return [];
@@ -238,12 +275,24 @@ export default function SimpanPinjam() {
     profileData.pinjaman.forEach(loan => {
       if (loan.angsuran && Array.isArray(loan.angsuran)) {
         loan.angsuran.forEach(ang => {
-          installments.push({
-            ...ang,
-            loan_type: loan.jenis_pinjaman,
-            loan_id: loan.pinjaman_id,
-            nomor_invoice: loan.nomor_invoice
-          });
+          const payDate = new Date(ang.tanggal_bayar);
+          const payMonth = String(payDate.getMonth() + 1).padStart(2, '0');
+          const payYear = String(payDate.getFullYear());
+          
+          const matchesMonth = installmentMonth === 'all' || payMonth === installmentMonth;
+          const matchesYear = installmentYear === 'all' || payYear === installmentYear;
+          const matchesSearch = !installmentSearchQuery || 
+                                loan.nomor_invoice?.toLowerCase().includes(installmentSearchQuery.toLowerCase()) ||
+                                loan.jenis_pinjaman?.toLowerCase().includes(installmentSearchQuery.toLowerCase());
+          
+          if (matchesMonth && matchesYear && matchesSearch) {
+            installments.push({
+              ...ang,
+              loan_type: loan.jenis_pinjaman,
+              loan_id: loan.pinjaman_id,
+              nomor_invoice: loan.nomor_invoice
+            });
+          }
         });
       }
     });
@@ -254,7 +303,7 @@ export default function SimpanPinjam() {
       if (dateB - dateA !== 0) return dateB - dateA;
       return (b.angsuran_id || 0) - (a.angsuran_id || 0);
     });
-  }, [profileData]);
+  }, [profileData, installmentMonth, installmentYear, installmentSearchQuery]);
 
   const activeData = activeTab === 'simpanan' ? filteredTransactions : filteredLoans;
   const totalPages = Math.ceil(activeData.length / itemsPerPage);
@@ -271,7 +320,11 @@ export default function SimpanPinjam() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, searchQuery]);
+  }, [activeTab, searchQuery, filterMonth, filterYear]);
+
+  useEffect(() => {
+    setCurrentInstallmentPage(1);
+  }, [installmentMonth, installmentYear, installmentSearchQuery]);
 
   const formatToRupiah = useCallback((value) => {
     if (!value && value !== 0) return '';
@@ -850,38 +903,27 @@ export default function SimpanPinjam() {
           </motion.div>
         ) : (
           <>
-            {/* Tabs & Search */}
-            <motion.div variants={itemVariants} className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 flex flex-col lg:flex-row gap-6 items-center justify-between">
-              <div className="flex p-1.5 bg-gray-50 rounded-2xl w-full lg:w-auto">
+            {/* Tabs Bar */}
+            <motion.div variants={itemVariants} className="bg-white p-3 rounded-2xl border border-gray-100 shadow-xl shadow-blue-900/5 flex justify-start items-center">
+              <div className="flex p-1 bg-gray-50 rounded-xl w-full lg:w-auto">
                 <button
                   onClick={() => setActiveTab('simpanan')}
-                  className={`flex-1 lg:flex-none px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                    activeTab === 'simpanan' ? 'bg-[#004A9C] text-white shadow-lg' : 'text-gray-400 hover:text-gray-900'
+                  className={`flex-1 lg:flex-none px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                    activeTab === 'simpanan' ? 'bg-[#004A9C] text-white shadow-md' : 'text-gray-400 hover:text-gray-900'
                   }`}
                 >
-                  <Wallet size={16} />
+                  <Wallet size={14} />
                   <span>Simpanan</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('pinjaman')}
-                  className={`flex-1 lg:flex-none px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                    activeTab === 'pinjaman' ? 'bg-[#004A9C] text-white shadow-lg' : 'text-gray-400 hover:text-gray-900'
+                  className={`flex-1 lg:flex-none px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                    activeTab === 'pinjaman' ? 'bg-[#004A9C] text-white shadow-md' : 'text-gray-400 hover:text-gray-900'
                   }`}
                 >
-                  <CreditCard size={16} />
+                  <CreditCard size={14} />
                   <span>Pinjaman</span>
                 </button>
-              </div>
-
-              <div className="relative w-full lg:w-96 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#004A9C] transition-colors" size={20} />
-                <input
-                  type="text"
-                  placeholder={activeTab === 'simpanan' ? "Cari transaksi..." : "Cari pengajuan..."}
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#004A9C]/20 transition-all font-medium text-sm"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
               </div>
             </motion.div>
 
@@ -987,7 +1029,6 @@ export default function SimpanPinjam() {
                         <div className="relative inline-block w-full">
                           <p className={`text-2xl font-black transition-all duration-300 ${stat.highlighted ? 'text-[#004A9C]' : 'text-gray-900'} ${hoveredCard === stat.id && !stat.isCount ? 'blur-sm opacity-20' : ''}`}>
                             {stat.isCount ? stat.value : formatCompactCurrency(stat.value)}
-                            {stat.isCount && <span className="text-[10px] ml-1 opacity-50 font-bold uppercase tracking-widest">Data</span>}
                           </p>
 
                           <AnimatePresence>
@@ -1012,8 +1053,56 @@ export default function SimpanPinjam() {
                   ))}
                 </div>
 
+                {/* Separate Filter Bar for Savings & Loans */}
+                <motion.div variants={itemVariants} className="mt-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
+                  <div className="relative flex-1 w-full">
+                    <Search
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      size={18}
+                    />
+                    <input
+                      type="text"
+                      placeholder={activeTab === 'simpanan' ? "Cari transaksi..." : "Cari pengajuan..."}
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#004A9C]/20 outline-none text-gray-800"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 w-full md:w-auto">
+                    <select
+                      className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none cursor-pointer focus:ring-2 focus:ring-[#004A9C]/20 text-gray-700 min-w-[120px]"
+                      value={filterMonth}
+                      onChange={(e) => setFilterMonth(e.target.value)}
+                    >
+                      <option value="all">Semua Bulan</option>
+                      {months.map((m, i) => (
+                        <option key={i} value={String(i + 1).padStart(2, "0")}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none cursor-pointer focus:ring-2 focus:ring-[#004A9C]/20 text-gray-700 min-w-[120px]"
+                      value={filterYear}
+                      onChange={(e) => setFilterYear(e.target.value)}
+                    >
+                      <option value="all">Semua Tahun</option>
+                      {Array.from(
+                        { length: new Date().getFullYear() - 2024 + 2 },
+                        (_, i) => 2024 + i,
+                      )
+                        .reverse()
+                        .map((y) => (
+                          <option key={y} value={y}>
+                            {y}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </motion.div>
+
                 {/* Table Section */}
-                <motion.div variants={itemVariants} className="bg-white rounded-[2.5rem] shadow-xl shadow-blue-900/5 border border-gray-100 overflow-hidden flex flex-col min-h-[500px]">
+                <motion.div variants={itemVariants} className="mt-6 bg-white rounded-[2.5rem] shadow-xl shadow-blue-900/5 border border-gray-100 overflow-hidden flex flex-col min-h-[500px]">
                   <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-[#004A9C] text-white rounded-2xl shadow-lg shadow-[#004A9C]/20">
@@ -1184,8 +1273,57 @@ export default function SimpanPinjam() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="mt-12"
+                  className="mt-12 space-y-6"
                 >
+                  {/* Separate Filter Bar for Installment History */}
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
+                    <div className="relative flex-1 w-full">
+                      <Search
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                        size={18}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Cari berdasarkan nomor invoice atau jenis pinjaman..."
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#004A9C]/20 outline-none text-gray-800"
+                        value={installmentSearchQuery}
+                        onChange={(e) => setInstallmentSearchQuery(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                      <select
+                        className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none cursor-pointer focus:ring-2 focus:ring-[#004A9C]/20 text-gray-700 min-w-[120px]"
+                        value={installmentMonth}
+                        onChange={(e) => setInstallmentMonth(e.target.value)}
+                      >
+                        <option value="all">Semua Bulan</option>
+                        {months.map((m, i) => (
+                          <option key={i} value={String(i + 1).padStart(2, "0")}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none cursor-pointer focus:ring-2 focus:ring-[#004A9C]/20 text-gray-700 min-w-[120px]"
+                        value={installmentYear}
+                        onChange={(e) => setInstallmentYear(e.target.value)}
+                      >
+                        <option value="all">Semua Tahun</option>
+                        {Array.from(
+                          { length: new Date().getFullYear() - 2024 + 2 },
+                          (_, i) => 2024 + i,
+                        )
+                          .reverse()
+                          .map((y) => (
+                            <option key={y} value={y}>
+                              {y}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Table Container */}
                   <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 overflow-hidden flex flex-col min-h-[500px]">
                     <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
                       <div className="flex items-center gap-4">
@@ -1309,18 +1447,19 @@ export default function SimpanPinjam() {
     </AnimatePresence>
 
       {/* Info Card */}
-      <motion.div variants={itemVariants} className="bg-orange-50 border border-orange-100 rounded-[2.5rem] p-8 flex items-start gap-6">
-        <div className="p-4 bg-white rounded-2xl text-orange-500 shadow-sm">
-          <AlertCircle size={28} />
-        </div>
-        <div>
-          <h4 className="text-lg font-black text-orange-800 tracking-tight">Catatan Penting</h4>
-          <p className="text-sm text-orange-600 font-medium leading-relaxed mt-2">
-            Seluruh transaksi simpanan akan divalidasi oleh bendahara secara otomatis setiap bulannya. 
-            Untuk pengajuan pinjaman, pastikan sisa plafon Anda masih mencukupi dan lampirkan alasan yang jelas pada kolom keperluan.
-          </p>
-        </div>
-      </motion.div>
+      {activeTab === 'pinjaman' && (
+        <motion.div variants={itemVariants} className="bg-orange-50 border border-orange-100 rounded-[2.5rem] p-8 flex items-start gap-6 mt-12">
+          <div className="p-4 bg-white rounded-2xl text-orange-500 shadow-sm">
+            <AlertCircle size={28} />
+          </div>
+          <div>
+            <h4 className="text-lg font-black text-orange-800 tracking-tight">Catatan Penting</h4>
+            <p className="text-sm text-orange-600 font-medium leading-relaxed mt-2">
+              Harap dicatat bahwa pengajuan pinjaman yang diproses adalah pengajuan dari tanggal 16 sampai tanggal 10 bulan berikutnya. Pastikan sisa plafon Anda mencukupi dan lampirkan alasan yang jelas pada kolom keperluan.
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       <Modal 
         isOpen={statusModal.isOpen} 

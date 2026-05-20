@@ -180,6 +180,19 @@ class SHUService {
 
       // 3. REMOVED AUTO-UPDATE TO NERACA (moved to finalizeSHU)
 
+      // Buat Notifikasi Persisten untuk Bendahara yang memproses
+      await Notifikasi.create(
+        {
+          user_id: processedBy,
+          judul: "SHU Berhasil Diproses 📊",
+          pesan: `Data SHU Tahun ${tahun} berhasil diproses.`,
+          tipe: "sistem",
+          link: "/admin/simpan-pinjam",
+          is_read: false,
+        },
+        { transaction },
+      );
+
       await transaction.commit();
       return rekap;
     } catch (error) {
@@ -221,7 +234,7 @@ class SHUService {
       });
       const pDebit = parseFloat(prevTrx[0]?.dataValues?.totalDebit || 0);
       const pKredit = parseFloat(prevTrx[0]?.dataValues?.totalKredit || 0);
-      sAwalDec = parseFloat(catBank.saldo_awal || 0) + pKredit - pDebit;
+      sAwalDec = parseFloat(catBank.saldo_awal || 0) + pDebit - pKredit;
     }
 
     // 2. Get December transactions
@@ -236,7 +249,7 @@ class SHUService {
     const cDebit = parseFloat(currTrx[0]?.dataValues?.totalDebit || 0);
     const cKredit = parseFloat(currTrx[0]?.dataValues?.totalKredit || 0);
 
-    return sAwalDec + cKredit - cDebit;
+    return sAwalDec + cDebit - cKredit;
   }
 
   /**
@@ -265,7 +278,7 @@ class SHUService {
       });
       const pDebit = parseFloat(prevTrx[0]?.dataValues?.totalDebit || 0);
       const pKredit = parseFloat(prevTrx[0]?.dataValues?.totalKredit || 0);
-      sAwalDec = parseFloat(catLabaDitahan.saldo_awal || 0) + pKredit - pDebit;
+      sAwalDec = parseFloat(catLabaDitahan.saldo_awal || 0) + pDebit - pKredit;
     }
 
     const currTrx = await ArusKas.findAll({
@@ -279,7 +292,7 @@ class SHUService {
     const cDebit = parseFloat(currTrx[0]?.dataValues?.totalDebit || 0);
     const cKredit = parseFloat(currTrx[0]?.dataValues?.totalKredit || 0);
 
-    return sAwalDec + cKredit - cDebit;
+    return sAwalDec + cDebit - cKredit;
   }
 
   /**
@@ -344,7 +357,7 @@ class SHUService {
             tanggal: tglBagi,
             kode_transaksi: `SHU-${tahun}-ANGG`,
             keterangan: `Distribusi SHU Anggota Tahun ${tahun} (Auto-generated)`,
-            jenis: "Debit",
+            jenis: "Kredit",
             nominal: rekap.jatah_anggota,
             metode_pembayaran: "BANK",
           },
@@ -359,7 +372,7 @@ class SHUService {
             tanggal: tglBagi,
             kode_transaksi: `SHU-${tahun}-PENG`,
             keterangan: `Distribusi SHU Pengurus Tahun ${tahun} (Auto-generated)`,
-            jenis: "Debit",
+            jenis: "Kredit",
             nominal: rekap.jatah_pengurus,
             metode_pembayaran: "BANK",
           },
@@ -394,6 +407,19 @@ class SHUService {
           );
         }
       }
+
+      // Buat Notifikasi Persisten untuk Bendahara yang memproses pembagian
+      await Notifikasi.create(
+        {
+          user_id: processedBy,
+          judul: "SHU Berhasil Dibagikan 🎉",
+          pesan: `Distribusi SHU Tahun ${tahun} berhasil diselesaikan.`,
+          tipe: "sistem",
+          link: "/admin/simpan-pinjam",
+          is_read: false,
+        },
+        { transaction },
+      );
 
       await transaction.commit();
       return rekap;
