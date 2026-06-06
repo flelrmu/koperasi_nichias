@@ -742,43 +742,51 @@ export default function FinanceManagement() {
                                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                   {!isClosed && (
                                     <>
-                                      <button
-                                        onClick={() => {
-                                          setEditKasData(row);
-                                          setFormDataKas({
-                                            user_id: row.user_id || "",
-                                            nama_kategori:
-                                              row.kategoriKas?.nama_kategori ||
-                                              "",
-                                            nominal: row.nominal,
-                                            keterangan: row.keterangan || "",
-                                            jenis: row.jenis,
-                                            metode_pembayaran:
-                                              row.metode_pembayaran || "CASH",
-                                          });
-                                          setShowModalKas(true);
-                                        }}
-                                        className="p-2 text-gray-400 hover:text-[#004A9C] hover:bg-blue-50 rounded-lg transition-all"
-                                        title="Edit Transaksi"
-                                      >
-                                        <Edit2 size={16} />
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          setShowConfirmDelete({
-                                            isOpen: true,
-                                            id: row.kas_id,
-                                            name:
-                                              row.keterangan ||
-                                              row.kode_transaksi,
-                                            type: "kas",
-                                          })
-                                        }
-                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                        title="Hapus Transaksi"
-                                      >
-                                        <Trash2 size={16} />
-                                      </button>
+                                      {(!row.kode_transaksi || row.kode_transaksi.startsWith("TRX-")) ? (
+                                        <>
+                                          <button
+                                            onClick={() => {
+                                              setEditKasData(row);
+                                              setFormDataKas({
+                                                user_id: row.user_id || "",
+                                                nama_kategori:
+                                                  row.kategoriKas?.nama_kategori ||
+                                                  "",
+                                                nominal: row.nominal,
+                                                keterangan: row.keterangan || "",
+                                                jenis: row.jenis,
+                                                metode_pembayaran:
+                                                  row.metode_pembayaran || "CASH",
+                                              });
+                                              setShowModalKas(true);
+                                            }}
+                                            className="p-2 text-gray-400 hover:text-[#004A9C] hover:bg-blue-50 rounded-lg transition-all"
+                                            title="Edit Transaksi"
+                                          >
+                                            <Edit2 size={16} />
+                                          </button>
+                                          <button
+                                            onClick={() =>
+                                              setShowConfirmDelete({
+                                                isOpen: true,
+                                                id: row.kas_id,
+                                                name:
+                                                  row.keterangan ||
+                                                  row.kode_transaksi,
+                                                type: "kas",
+                                              })
+                                            }
+                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                            title="Hapus Transaksi"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <span className="text-[9px] font-black px-2.5 py-1 bg-gray-100 text-gray-400 rounded-full uppercase tracking-wider select-none" title="Transaksi otomatis sistem hanya dapat dikelola dari modul asalnya">
+                                          Otomatis
+                                        </span>
+                                      )}
                                     </>
                                   )}
                                   {isClosed && (
@@ -1154,6 +1162,8 @@ export default function FinanceManagement() {
                               "SIMPANAN ANGGOTA",
                               "TAGIHAN PINJAMAN",
                               "TAGIHAN CREDIT BARANG",
+                              "PEMBAGIAN SHU ANGGOTA",
+                              "PEMBAGIAN SHU PENGURUS",
                               "CASH",
                               "BANK",
                             ].includes(c.nama_kategori),
@@ -1549,6 +1559,7 @@ export default function FinanceManagement() {
                     });
                     setShowModalAdjust(false);
                     fetchArusKas();
+                    fetchSetupData();
                   } catch (err) {
                     showNotification("Gagal menyesuaikan saldo awal", "error");
                   } finally {

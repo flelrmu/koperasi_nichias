@@ -114,11 +114,13 @@ export default function Topbar({ toggleSidebar }) {
             if (path.includes('/simpanan')) return 'Simpanan';
             if (path.includes('/pinjaman')) return 'Pinjaman';
             if (path.includes('/admin/users')) return 'Manajemen Users';
-            if (path.includes('/admin/simpan-pinjam')) return 'Simpan Pinjam';
+            if (path.includes('/simpan-pinjam')) return 'Simpan Pinjam';
             if (path.includes('/admin/keuangan')) return 'Keuangan';
             if (path.includes('/admin/konfigurasi')) return 'Konfigurasi';
             if (path.includes('/profile')) return 'Profil Saya';
             if (path.includes('/koperasi-rules')) return 'Peraturan Koperasi';
+            if (path.includes('/notifikasi')) return 'Notifikasi';
+            if (path.includes('/pengajuan-keluar')) return 'Pengajuan Keluar';
             return `Dashboard ${user?.role === 'Anggota' ? 'Anggota' : 'Pengurus'}`;
           })()}
         </h1>

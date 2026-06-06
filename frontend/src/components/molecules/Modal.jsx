@@ -83,10 +83,10 @@ export default function Modal({
               
               {onConfirm ? (
                 <div className="flex gap-3 w-full">
-                  <Button onClick={onClose} className="flex-1 !bg-white !text-gray-700 border border-gray-200 hover:!bg-gray-50 shadow-sm">
+                  <Button onClick={onClose} className="flex-1 !px-4 !bg-white !text-gray-700 border border-gray-200 hover:!bg-gray-50 shadow-sm">
                     {cancelText}
                   </Button>
-                  <Button onClick={onConfirm} className={`flex-1 shadow-md ${type === 'error' ? '!bg-[#EB5757] hover:!bg-[#c24646] shadow-[#EB5757]/20' : type === 'warning' ? '!bg-[#F2994A] hover:!bg-[#e0893f] shadow-[#F2994A]/20' : 'shadow-[#004A9C]/20'}`}>
+                  <Button onClick={onConfirm} className={`flex-1 !px-4 shadow-md ${type === 'error' ? '!bg-[#EB5757] hover:!bg-[#c24646] shadow-[#EB5757]/20' : type === 'warning' ? '!bg-[#F2994A] hover:!bg-[#e0893f] shadow-[#F2994A]/20' : 'shadow-[#004A9C]/20'}`}>
                     {confirmText}
                   </Button>
                 </div>

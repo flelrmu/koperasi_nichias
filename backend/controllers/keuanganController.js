@@ -1,4 +1,4 @@
-const { ArusKas, KategoriKas, User, Anggota, PeriodeKeuangan, SaldoBulanan, NeracaSaldo, sequelize } = require("../models");
+const { ArusKas, KategoriKas, User, Anggota, PeriodeKeuangan, SaldoBulanan, sequelize } = require("../models");
 const { Op } = require("sequelize");
 const ArusKasService = require("../services/ArusKasService");
 const moment = require("moment");
@@ -95,9 +95,12 @@ exports.tutupBuku = async (req, res) => {
       }
 
       let closingBalance = openingBalance;
-      if (cat.nama_kategori === 'CASH' || cat.nama_kategori === 'BANK' || cat.tipe_neraca === 'Asset') {
-        // CASH/BANK & Aset lainnya: Awal + Debit (Masuk) - Kredit (Keluar)
+      if (cat.nama_kategori === 'CASH' || cat.nama_kategori === 'BANK') {
+        // CASH/BANK: Awal + Debit (Masuk) - Kredit (Keluar)
         closingBalance = openingBalance + totalDebit - totalKredit;
+      } else if (cat.tipe_neraca === 'Asset') {
+        // Non-Cash Asset: Awal + Kredit (Keluar/Tambah Aset) - Debit (Masuk/Kurang Aset)
+        closingBalance = openingBalance + totalKredit - totalDebit;
       } else {
         // Pasiva (Liability/Equity): Awal - Debit (tambah pasiva negatif) + Kredit (kurang pasiva negatif)
         closingBalance = openingBalance - totalDebit + totalKredit;
@@ -111,19 +114,6 @@ exports.tutupBuku = async (req, res) => {
         saldo_awal: closingBalance
       }, { transaction });
 
-      // 4.5 Simpan snapshot ke NeracaSaldo
-      await NeracaSaldo.upsert({
-        kategori_id: cat.kategori_id,
-        bulan: targetBulan,
-        tahun: targetTahun,
-        saldo_awal: openingBalance,
-        total_debit: totalDebit,
-        total_kredit: totalKredit,
-        saldo_akhir: closingBalance,
-        status_tutup_buku: true,
-        tgl_tutup_buku: new Date(),
-        bendahara_id: bendaharaId
-      }, { transaction });
     }
 
     // 5. Tandai Periode Ini Sebagai Tutup
@@ -134,6 +124,9 @@ exports.tutupBuku = async (req, res) => {
         bulan: targetBulan, tahun: targetTahun, is_closed: true, closed_at: new Date(), closed_by: bendaharaId
       }, { transaction });
     }
+
+    // Hitung ulang saldo setelah tutup buku
+    await ArusKasService.recalculateSaldo({ transaction });
 
     await transaction.commit();
 
@@ -190,11 +183,7 @@ exports.cancelTutupBuku = async (req, res) => {
       throw new Error("Periode ini belum ditutup.");
     }
 
-    // 3. Hapus snapshot NeracaSaldo untuk periode ini
-    await NeracaSaldo.destroy({
-      where: { bulan: targetBulan, tahun: targetTahun },
-      transaction
-    });
+
 
     // 4. Hapus SaldoBulanan untuk periode bulan depan (nextBulan, nextTahun)
     const nextBulan = targetBulan === 12 ? 1 : targetBulan + 1;
@@ -211,6 +200,9 @@ exports.cancelTutupBuku = async (req, res) => {
       closed_at: null,
       closed_by: null
     }, { transaction });
+
+    // Hitung ulang saldo setelah pembatalan tutup buku
+    await ArusKasService.recalculateSaldo({ transaction });
 
     await transaction.commit();
 
@@ -282,10 +274,10 @@ exports.getAllArusKas = async (req, res) => {
       ],
     });
 
-    // Hitung saldo gabungan real-time (Saldo Awal + Mutasi)
+    // Hitung saldo gabungan real-time (Saldo Awal + Mutasi) untuk bulan/tahun yang dipilih
     const [saldoCash, saldoBank] = await Promise.all([
-      ArusKasService.getSaldoPerMetode("CASH"),
-      ArusKasService.getSaldoPerMetode("BANK"),
+      ArusKasService.getSaldoPerMetode("CASH", bulan, tahun),
+      ArusKasService.getSaldoPerMetode("BANK", bulan, tahun),
     ]);
     const currentBalance = saldoCash + saldoBank;
 
@@ -463,42 +455,7 @@ exports.getSaldoKas = async (req, res) => {
 
     const result = {};
     for (const cat of categories) {
-      let openingBalance = 0;
-      
-      // 1. Cari apakah sudah ada saldo yang "DIKUNCI" via Tutup Buku
-      const monthly = await SaldoBulanan.findOne({
-        where: { 
-          kategori_id: cat.kategori_id, 
-          bulan: parseInt(bulan), 
-          tahun: parseInt(tahun) 
-        }
-      });
-
-      if (monthly) {
-        openingBalance = parseFloat(monthly.saldo_awal);
-      } else {
-        // 2. Jika BELUM TUTUP BUKU, hitung secara dinamis (Selalu Nyambung)
-        // Rumus: Saldo Awal Global + Mutasi dari awal waktu s/d akhir bulan SEBELUMNYA
-        const targetDate = moment(`${tahun}-${bulan}-01`, "YYYY-MM-DD").startOf("month").toDate();
-        
-        const prevMutasi = await ArusKas.findAll({
-          where: {
-            metode_pembayaran: cat.nama_kategori,
-            tanggal: { [Op.lt]: targetDate }
-          },
-          attributes: [
-            [sequelize.fn('SUM', sequelize.literal("CASE WHEN jenis = 'Debit' THEN nominal ELSE 0 END")), 'totalDebit'],
-            [sequelize.fn('SUM', sequelize.literal("CASE WHEN jenis = 'Kredit' THEN nominal ELSE 0 END")), 'totalKredit']
-          ],
-          raw: true
-        });
-
-        const initialGlobal = parseFloat(cat.saldo_awal || 0);
-        const pDebit = parseFloat(prevMutasi[0].totalDebit || 0);
-        const pKredit = parseFloat(prevMutasi[0].totalKredit || 0);
-        
-        openingBalance = initialGlobal + pDebit - pKredit;
-      }
+      const openingBalance = await ArusKasService.getOpeningBalance(cat, bulan, tahun);
       
       // 3. Ambil Mutasi bulan berjalan (untuk dashboard live)
       const startDate = moment(`${tahun}-${bulan}-01`, "YYYY-MM-DD").startOf("month").toDate();
@@ -559,9 +516,13 @@ exports.editSaldoKas = async (req, res) => {
       saldo_awal: saldoBaru
     }, { transaction });
 
+    // Hitung ulang saldo setelah adjustment
+    await ArusKasService.recalculateSaldo({ transaction });
+
     await transaction.commit();
     
     if (req.io) {
+      req.io.emit("arus-kas-updated");
       req.io.emit("dashboardUpdate");
     }
 

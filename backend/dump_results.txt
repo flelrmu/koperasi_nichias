@@ -1,0 +1,42 @@
+--- KATEGORI KAS ---
+ID: 1 | Name: Simpanan Pokok | Kode: null | Tipe: Liability | Saldo Awal: -1500000.00
+ID: 2 | Name: Simpanan Wajib | Kode: null | Tipe: Liability | Saldo Awal: -34000000.00
+ID: 3 | Name: Simpanan Sukarela | Kode: null | Tipe: Liability | Saldo Awal: -62000000.00
+ID: 6 | Name: Biaya Operasional | Kode: null | Tipe: Expense | Saldo Awal: 0.00
+ID: 7 | Name: Penarikan Simpanan | Kode: null | Tipe: Asset | Saldo Awal: 0.00
+ID: 9 | Name: PINJAMAN UANG | Kode: 11013 | Tipe: Asset | Saldo Awal: 0.00
+ID: 10 | Name: CREDIT BARANG | Kode: 11014 | Tipe: Asset | Saldo Awal: 0.00
+ID: 11 | Name: TAGIHAN RENTAL | Kode: 11015 | Tipe: Asset | Saldo Awal: 0.00
+ID: 12 | Name: PERSEDIAAN BARANG | Kode: 11016 | Tipe: Asset | Saldo Awal: 0.00
+ID: 13 | Name: ALAT KANTOR | Kode: 11017 | Tipe: Asset | Saldo Awal: 0.00
+ID: 14 | Name: INVESTASI | Kode: 11018 | Tipe: Asset | Saldo Awal: 0.00
+ID: 15 | Name: INCOME TAX | Kode: 11019 | Tipe: Asset | Saldo Awal: 0.00
+ID: 17 | Name: DP - PENERIMAAN DIMUKA | Kode: 21011 | Tipe: Liability | Saldo Awal: 0.00
+ID: 18 | Name: HUTANG USAHA | Kode: 21012 | Tipe: Liability | Saldo Awal: 0.00
+ID: 19 | Name: HUTANG BIAYA | Kode: 21013 | Tipe: Liability | Saldo Awal: 0.00
+ID: 20 | Name: TAX LIABILITY | Kode: 21014 | Tipe: Liability | Saldo Awal: 0.00
+ID: 27 | Name: LOAN | Kode: 21015 | Tipe: Liability | Saldo Awal: -1000000.00
+ID: 30 | Name: ANGSURAN PINJAMAN UANG | Kode: 11013A | Tipe: Asset | Saldo Awal: 0.00
+ID: 31 | Name: ANGSURAN CREDIT BARANG | Kode: 11014A | Tipe: Asset | Saldo Awal: 0.00
+ID: 34 | Name: BUNGA/PROFIT | Kode: 41011 | Tipe: Income | Saldo Awal: 0.00
+ID: 35 | Name: PENDAPATAN RENTAL | Kode: null | Tipe: Income | Saldo Awal: 0.00
+ID: 36 | Name: BEBAN RENTAL | Kode: null | Tipe: Expense | Saldo Awal: 0.00
+ID: 37 | Name: PENDAPATAN BUNGA | Kode: null | Tipe: Income | Saldo Awal: 0.00
+ID: 38 | Name: BEBAN OPERASIONAL | Kode: null | Tipe: Expense | Saldo Awal: 0.00
+ID: 39 | Name: BEBAN CREDIT BARANG | Kode: null | Tipe: Expense | Saldo Awal: 0.00
+ID: 40 | Name: BEBAN PINJAMAN | Kode: null | Tipe: Expense | Saldo Awal: 0.00
+ID: 41 | Name: TAGIHAN PINJAMAN | Kode: null | Tipe: Asset | Saldo Awal: 0.00
+ID: 42 | Name: TAGIHAN CREDIT BARANG | Kode: null | Tipe: Asset | Saldo Awal: 0.00
+ID: 43 | Name: PROFIT/LOSS | Kode: null | Tipe: Equity | Saldo Awal: 0.00
+ID: 44 | Name: LABA DITAHAN | Kode: null | Tipe: Equity | Saldo Awal: 0.00
+ID: 45 | Name: SIMPANAN ANGGOTA | Kode: null | Tipe: Liability | Saldo Awal: 0.00
+ID: 46 | Name: CASH | Kode: null | Tipe: Asset | Saldo Awal: 1400000.00
+ID: 47 | Name: BANK | Kode: null | Tipe: Asset | Saldo Awal: 96100000.00
+ID: 48 | Name: PEMBAGIAN SHU ANGGOTA | Kode: 3-200 | Tipe: Equity | Saldo Awal: 0.00
+ID: 49 | Name: PEMBAGIAN SHU PENGURUS | Kode: 3-201 | Tipe: Equity | Saldo Awal: 0.00
+
+--- PENDING MEMBERS ---
+ID: 40 | Name: wakaka | Simpanan Balance: 0
+
+--- ACTIVE MEMBERS TOTAL SAVINGS ---
+Total: 99300000

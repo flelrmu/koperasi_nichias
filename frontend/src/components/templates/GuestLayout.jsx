@@ -70,13 +70,8 @@ export default function GuestLayout() {
 
       {/* Basic Footer */}
       <footer className="bg-white border-t border-gray-100 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-center items-center text-sm text-gray-500">
           <p>© 2026 Koperasi Karyawan Nichias Sunijaya. All rights reserved.</p>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-[#004A9C] transition-colors">Syarat & Ketentuan</a>
-            <a href="#" className="hover:text-[#004A9C] transition-colors">Kebijakan Privasi</a>
-            <a href="#" className="hover:text-[#004A9C] transition-colors">Hubungi Kami</a>
-          </div>
         </div>
       </footer>
     </div>

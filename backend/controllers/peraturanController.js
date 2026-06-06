@@ -15,26 +15,37 @@ const syncWithKonfigurasi = async (peraturan, io = null, transaction = null) => 
     'Maksimal Pinjaman Uang': 'MAX_PINJAMAN_UANG',
     'Limit Angsuran Staff': 'LIMIT_ANGSURAN_STAFF',
     'Limit Angsuran Asst Manager': 'LIMIT_ANGSURAN_ASST_MGR',
+    'Limit Angsuran Asisten Manager': 'LIMIT_ANGSURAN_ASST_MGR',
     'Limit Angsuran Manager': 'LIMIT_ANGSURAN_MGR',
     'Bunga 10 Bulan': 'BUNGA_10_BULAN',
     'Bunga 15 Bulan': 'BUNGA_15_BULAN',
-    'Bunga 20 Bulan': 'BUNGA_20_BULAN'
+    'Bunga 20 Bulan': 'BUNGA_20_BULAN',
+    'Bank Koperasi': 'BANK_KOPERASI',
+    'No Rekening Koperasi': 'NOREK_KOPERASI',
+    'Atas Nama Koperasi': 'ATAS_NAMA_KOPERASI'
   };
 
   const configKey = mapping[peraturan.judul];
-  if (configKey && peraturan.nilai_numerik !== null) {
-    console.log(`🔄 Syncing Peraturan "${peraturan.judul}" to Konfigurasi "${configKey}" with value ${peraturan.nilai_numerik}`);
-    await Konfigurasi.update(
-      { nilai: peraturan.nilai_numerik.toString(), updated_by: peraturan.updated_by },
-      { where: { nama_config: configKey }, transaction }
-    );
-    
-    // Emit config update for real-time frontend refresh
-    if (io) {
-      io.emit('konfigurasi:updated', { 
-        nama_config: configKey, 
-        nilai: peraturan.nilai_numerik 
-      });
+  if (configKey) {
+    const isBankConfig = ['BANK_KOPERASI', 'NOREK_KOPERASI', 'ATAS_NAMA_KOPERASI'].includes(configKey);
+    const valueToSync = isBankConfig 
+      ? peraturan.ketentuan_utama 
+      : (peraturan.nilai_numerik !== null ? peraturan.nilai_numerik.toString() : null);
+
+    if (valueToSync !== null && valueToSync !== undefined) {
+      console.log(`🔄 Syncing Peraturan "${peraturan.judul}" to Konfigurasi "${configKey}" with value ${valueToSync}`);
+      await Konfigurasi.update(
+        { nilai: valueToSync, updated_by: peraturan.updated_by },
+        { where: { nama_config: configKey }, transaction }
+      );
+      
+      // Emit config update for real-time frontend refresh
+      if (io) {
+        io.emit('konfigurasi:updated', { 
+          nama_config: configKey, 
+          nilai: valueToSync 
+        });
+      }
     }
   }
 };

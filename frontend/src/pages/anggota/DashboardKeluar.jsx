@@ -6,13 +6,39 @@ import {
   Mail, 
   Download,
   Info,
-  ShieldCheck
+  ShieldCheck,
+  MessageCircle
 } from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import { useAuth } from '../../context/AuthContext';
 
 const DashboardKeluar = () => {
-  const { logout, user } = useAuth();
+  const { logout, user, api } = useAuth();
+  const [secretary, setSecretary] = React.useState(null);
+
+  React.useEffect(() => {
+    const fetchSecretary = async () => {
+      try {
+        const res = await api.get('/user/contact/sekretaris');
+        if (res.data.success) {
+          setSecretary(res.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching secretary contact:', error);
+      }
+    };
+    fetchSecretary();
+  }, [api]);
+
+  const getWhatsAppLink = () => {
+    if (!secretary?.no_hp) return '#';
+    let phone = secretary.no_hp.replace(/\D/g, '');
+    if (phone.startsWith('0')) {
+      phone = '62' + phone.substring(1);
+    }
+    const message = encodeURIComponent(`Halo Sekretaris Koperasi Nichias, saya ${user?.nama_lengkap || ''} ingin bertanya terkait pengunduran diri saya.`);
+    return `https://wa.me/${phone}?text=${message}`;
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -97,10 +123,30 @@ const DashboardKeluar = () => {
           variants={itemVariants}
           className="bg-white/60 backdrop-blur-md p-6 rounded-[2rem] border border-white flex items-center justify-between gap-6 px-10 shadow-sm"
         >
-          <div className="flex items-center gap-4">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Mail size={20} /></div>
-            <p className="text-xs font-medium text-gray-500">Pertanyaan? Hubungi admin@koperasinichias.com</p>
-          </div>
+          {secretary?.no_hp ? (
+            <a
+              href={getWhatsAppLink()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-4 hover:text-[#004A9C] transition-colors group"
+            >
+              <div className="p-2 bg-green-50 text-green-600 rounded-lg group-hover:scale-105 transition-transform">
+                <MessageCircle size={20} />
+              </div>
+              <p className="text-xs font-semibold text-gray-600 group-hover:text-[#004A9C] transition-colors">
+                Pertanyaan? Hubungi Sekretaris
+              </p>
+            </a>
+          ) : (
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <Mail size={20} />
+              </div>
+              <p className="text-xs font-medium text-gray-500">
+                Pertanyaan? Hubungi admin@koperasinichias.com
+              </p>
+            </div>
+          )}
           <div className="hidden md:block h-1 w-20 bg-gray-200 rounded-full"></div>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Koperasi Nichias Indonesia</p>
         </motion.div>

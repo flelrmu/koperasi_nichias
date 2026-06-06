@@ -53,7 +53,7 @@ export default function AuthLayout({ children, headerRight }) {
             transition={{ delay: 0.8 }}
             className="text-blue-100/40 text-sm font-medium"
           >
-            &copy; 2024 Koperasi Karyawan Nichias Sunijaya. All rights reserved.
+            &copy; 2026 Koperasi Karyawan Nichias Sunijaya. All rights reserved.
           </motion.p>
         </div>
 

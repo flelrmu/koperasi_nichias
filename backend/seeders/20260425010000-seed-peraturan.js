@@ -218,29 +218,6 @@ module.exports = {
         created_at: new Date(),
         updated_at: new Date(),
       },
-      {
-        judul: 'Kas Overdraft Protection',
-        deskripsi: 'Mencegah terjadinya saldo kas negatif (minus) baik pada kas fisik (CASH) maupun rekening bank (BANK).',
-        kategori: 'Simpanan',
-        ketentuan_utama: 'Maksimal 100% Saldo Aktif',
-        nilai_numerik: 100,
-        tujuan: 'Mencegah terjadinya saldo kas negatif (minus) baik pada kas fisik (CASH) maupun rekening bank (BANK).',
-        syarat_ketentuan: JSON.stringify([
-          'Dilarang mencatatkan transaksi pengeluaran (Debit) yang melebihi total saldo kas berjalan.',
-          'Transaksi yang melebihi limit saldo kas otomatis diblokir oleh sistem.',
-          'Penyesuaian saldo awal bulan wajib dilakukan melalui verifikasi buku kas fisik.'
-        ]),
-        prosedur: JSON.stringify([
-          'Bendahara menginput transaksi pengeluaran baru di menu Update Kas.',
-          'Sistem melakukan pengecekan ketersediaan dana secara real-time.',
-          'Jika saldo tidak mencukupi, tombol simpan dinonaktifkan secara otomatis.'
-        ]),
-        icon_name: 'AlertTriangle',
-        icon_color: 'text-orange-600',
-        icon_bg_color: 'bg-orange-50',
-        created_at: new Date(),
-        updated_at: new Date(),
-      },
     ]);
   },
 

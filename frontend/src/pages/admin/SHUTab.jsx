@@ -722,7 +722,7 @@ export default function SHUTab({ api, showNotification, user }) {
             onClose={() => setConfirmCancelFinalize(false)}
             title="Batalkan Finalisasi SHU"
             message="Apakah Anda yakin ingin membatalkan finalisasi SHU? Laba ditahan akan dikeluarkan kembali dari Neraca dan status data akan kembali menjadi draft (belum final)."
-            type="error"
+            type="warning"
             onConfirm={handleCancelFinalizeSHU}
             confirmText="Ya, Batalkan Finalisasi"
           />

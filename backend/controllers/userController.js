@@ -420,6 +420,86 @@ const deleteUser = async (req, res) => {
       }
       userId = anggota.user_id;
 
+      // Cek apakah anggota masih memiliki pinjaman aktif / belum lunas
+      const activeLoans = await Pinjaman.findAll({
+        where: {
+          anggota_id: id,
+          status: ["Approved", "Pending"],
+          sisa_tagihan: { [Op.gt]: 0 },
+        },
+        transaction,
+      });
+
+      if (activeLoans.length > 0) {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: "Anggota tidak dapat dihapus karena masih memiliki pinjaman yang belum lunas.",
+        });
+      }
+
+      // 1. Ambil list TransaksiSimpanan untuk mencari ID transaksi yang dihapus
+      const transaksiSimpananList = await TransaksiSimpanan.findAll({
+        where: { anggota_id: id },
+        transaction,
+      });
+      const transaksiIds = transaksiSimpananList.map((t) => t.transaksi_id);
+
+      // 2. Ambil list Pinjaman untuk mencari invoice / ID pinjaman yang dihapus
+      const pinjamanList = await Pinjaman.findAll({
+        where: { anggota_id: id },
+        transaction,
+      });
+      const pinjamanIds = pinjamanList.map((p) => p.pinjaman_id);
+      const invoiceNumbers = pinjamanList.map((p) => p.nomor_invoice).filter(Boolean);
+
+      // 3. Tentukan kondisi pencarian ArusKas terkait
+      const arusKasConditions = [];
+
+      // Kondisi Simpanan
+      if (transaksiIds.length > 0) {
+        arusKasConditions.push(
+          { kode_transaksi: { [Op.in]: transaksiIds.map((tid) => `TXS-${tid}`) } },
+          { kode_transaksi: { [Op.in]: transaksiIds.map((tid) => `WDR-${tid}`) } }
+        );
+      }
+      arusKasConditions.push(
+        { kode_transaksi: `REG-PKK-${id}` },
+        { kode_transaksi: `ADM-PKK-${id}` },
+        { kode_transaksi: { [Op.like]: `BLK-WJB-${id}-%` } }
+      );
+
+      // Kondisi Pinjaman & Angsuran
+      if (invoiceNumbers.length > 0) {
+        invoiceNumbers.forEach((inv) => {
+          arusKasConditions.push({ kode_transaksi: inv });
+          if (inv.length > 20) {
+            arusKasConditions.push({ kode_transaksi: inv.substring(0, 20) });
+          }
+        });
+      }
+      if (pinjamanIds.length > 0) {
+        pinjamanIds.forEach((pid) => {
+          arusKasConditions.push(
+            { kode_transaksi: { [Op.like]: `ANG-PKK-${pid}-%` } },
+            { kode_transaksi: { [Op.like]: `ANG-JSA-${pid}-%` } },
+            { kode_transaksi: `LNS-PKK-${pid}` },
+            { kode_transaksi: `LNS-JSA-${pid}` }
+          );
+        });
+      }
+
+      // Hapus data ArusKas terkait
+      await db.ArusKas.destroy({
+        where: {
+          [Op.or]: arusKasConditions,
+        },
+        transaction,
+      });
+
+      // Recalculate saldo akhir kas
+      await ArusKasService.recalculateSaldo({ transaction });
+
       // Hapus data terkait di tabel lain (Cascade manual)
       await db.TransaksiSimpanan.destroy({
         where: { anggota_id: id },
@@ -428,16 +508,16 @@ const deleteUser = async (req, res) => {
       await db.Simpanan.destroy({ where: { anggota_id: id }, transaction });
 
       // Ambil ID pinjaman untuk menghapus angsuran
-      const pinjamanList = await db.Pinjaman.findAll({
+      const pinjamanListToDestroy = await db.Pinjaman.findAll({
         where: { anggota_id: id },
         attributes: ["pinjaman_id"],
         transaction,
       });
-      const pinjamanIds = pinjamanList.map((p) => p.pinjaman_id);
+      const pinjamanIdsToDestroy = pinjamanListToDestroy.map((p) => p.pinjaman_id);
 
-      if (pinjamanIds.length > 0) {
+      if (pinjamanIdsToDestroy.length > 0) {
         await db.Angsuran.destroy({
-          where: { pinjaman_id: pinjamanIds },
+          where: { pinjaman_id: pinjamanIdsToDestroy },
           transaction,
         });
         await db.Pinjaman.destroy({ where: { anggota_id: id }, transaction });
@@ -468,6 +548,7 @@ const deleteUser = async (req, res) => {
     const globalIo = req.app.get("io") || req.io;
     globalIo.emit("user:deleted", { type: type.toLowerCase(), id: String(id) });
     globalIo.emit("dashboardUpdate");
+    globalIo.emit("arus-kas-updated");
 
     return res.status(200).json({
       success: true,

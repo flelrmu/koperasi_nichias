@@ -1,0 +1,18 @@
+--- DB TABLE SUM ---
+Total Simpanan from Simpanan table: 99300000
+Pokok: 1600000
+Wajib: 34700000
+Sukarela: 63000000
+
+--- NERACA DATA FOR 06/2026 ---
+Simpanan Anggota row in Neraca: {
+  "nama_kategori": "SIMPANAN ANGGOTA",
+  "tipe_neraca": "Liability",
+  "isTotalRow": false,
+  "isCalculated": false,
+  "isPasiva": true,
+  "saldo_awal": -97800000,
+  "debit": 0,
+  "kredit": 1600000,
+  "saldo_akhir": -99400000
+}

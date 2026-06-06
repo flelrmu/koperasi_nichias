@@ -1,0 +1,23 @@
+--- ALL SIMPANAN RECORDS ---
+Member: KOP-2026-001 - Agus Pratama (Status: Aktif) | Pokok: 100000 | Wajib: 10300000 | Sukarela: 21000000 | Total: 31400000
+Member: KOP-2026-010 - Joko Widodo (Status: Aktif) | Pokok: 100000 | Wajib: 6200000 | Sukarela: 10000000 | Total: 16300000
+Member: KOP-2026-011 - Kurnia Mega (Status: Aktif) | Pokok: 100000 | Wajib: 2000000 | Sukarela: 2000000 | Total: 4100000
+Member: KOP-2026-012 - Linda Sari (Status: Aktif) | Pokok: 100000 | Wajib: 2000000 | Sukarela: 5000000 | Total: 7100000
+Member: KOP-2026-013 - Muhammad Ali (Status: Aktif) | Pokok: 100000 | Wajib: 3000000 | Sukarela: 7000000 | Total: 10100000
+Member: KOP-2026-014 - Nina Zatulini (Status: Aktif) | Pokok: 100000 | Wajib: 2000000 | Sukarela: 5000000 | Total: 7100000
+Member: KOP-2026-015 - Oscar Lawalata (Status: Aktif) | Pokok: 100000 | Wajib: 6000000 | Sukarela: 4000000 | Total: 10100000
+Member: KOP-2026-016 - Putri Tanjung (Status: Aktif) | Pokok: 100000 | Wajib: 3000000 | Sukarela: 9000000 | Total: 12100000
+Member: KOP-2026-018 - Raffi Ahmad (Status: Aktif) | Pokok: 100000 | Wajib: 0 | Sukarela: 0 | Total: 100000
+Member: KOP-2026-024 - Pratama Farhan (Status: Aktif) | Pokok: 100000 | Wajib: 0 | Sukarela: 0 | Total: 100000
+Member: KOP-2026-026 - Anin Ana (Status: Aktif) | Pokok: 100000 | Wajib: 200000 | Sukarela: 0 | Total: 300000
+Member: KOP-2026-027 - Abinan (Status: Aktif) | Pokok: 100000 | Wajib: 0 | Sukarela: 0 | Total: 100000
+Member: KOP-2026-028 - Ahmad Dani (Status: Aktif) | Pokok: 100000 | Wajib: 0 | Sukarela: 0 | Total: 100000
+Member: KOP-2026-029 - Kirk (Status: Aktif) | Pokok: 100000 | Wajib: 0 | Sukarela: 0 | Total: 100000
+Member: KOP-2026-030 - Delima (Status: Aktif) | Pokok: 100000 | Wajib: 0 | Sukarela: 0 | Total: 100000
+Member: KOP-2026-031 - Wandala (Status: Aktif) | Pokok: 100000 | Wajib: 0 | Sukarela: 0 | Total: 100000
+
+Totals:
+  - Pokok: 1600000
+  - Wajib: 34700000
+  - Sukarela: 63000000
+  - Combined Total: 99300000

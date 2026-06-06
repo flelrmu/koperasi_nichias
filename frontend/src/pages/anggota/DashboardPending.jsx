@@ -215,9 +215,6 @@ export default function DashboardPending() {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
               Pembayaran Sedang Diverifikasi ⏳
             </h1>
-            <p className="text-gray-500 max-w-md mx-auto">
-              Terima kasih telah melakukan konfirmasi. Admin kami sedang memverifikasi pembayaran Anda. Mohon tunggu beberapa saat.
-            </p>
           </motion.div>
         )}
 
@@ -343,17 +340,19 @@ export default function DashboardPending() {
                         <p className="text-xs text-gray-500">Bank Tujuan</p>
                         <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                           <Building2 size={14} className="text-[#004A9C]" />
-                          {PAYMENT_INFO.bank}
+                          {configs.BANK_KOPERASI || PAYMENT_INFO.bank}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl group hover:bg-gray-100 transition-colors">
                       <div>
                         <p className="text-xs text-gray-500">No. Rekening</p>
-                        <p className="text-sm font-semibold text-gray-800 font-mono tracking-wider">{PAYMENT_INFO.noRekening}</p>
+                        <p className="text-sm font-semibold text-gray-800 font-mono tracking-wider">
+                          {configs.NOREK_KOPERASI || PAYMENT_INFO.noRekening}
+                        </p>
                       </div>
                       <button
-                        onClick={() => handleCopy(PAYMENT_INFO.noRekening, 'rekening')}
+                        onClick={() => handleCopy(configs.NOREK_KOPERASI || PAYMENT_INFO.noRekening, 'rekening')}
                         className="p-2 bg-white group-hover:bg-gray-200 border border-gray-200 rounded-lg transition-colors shadow-sm"
                       >
                         {copiedField === 'rekening' ? <Check size={16} className="text-[#27AE60]" /> : <Copy size={16} className="text-gray-400 group-hover:text-[#004A9C]" />}
@@ -362,7 +361,9 @@ export default function DashboardPending() {
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                       <div>
                         <p className="text-xs text-gray-500">Atas Nama</p>
-                        <p className="text-sm font-semibold text-gray-800">{PAYMENT_INFO.atasNama}</p>
+                        <p className="text-sm font-semibold text-gray-800">
+                          {configs.ATAS_NAMA_KOPERASI || PAYMENT_INFO.atasNama}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl group hover:bg-gray-100 transition-colors">
@@ -424,10 +425,7 @@ export default function DashboardPending() {
                   >
                     <Clock size={40} className="text-[#004A9C]" />
                   </motion.div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-3">Menunggu Verifikasi Admin</h3>
-                  <p className="text-gray-600 text-sm max-w-md mx-auto leading-relaxed mb-8">
-                    Proses verifikasi biasanya memakan waktu 1x24 jam kerja. Kami akan mengirimkan notifikasi setelah akun Anda aktif.
-                  </p>
+                  <h3 className="text-xl font-bold text-gray-800 mb-6">Menunggu Verifikasi Sekretaris</h3>
                   <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6 text-left">
                     <h4 className="font-semibold text-[#004A9C] text-sm mb-2">Detail Pendaftaran:</h4>
                     <ul className="space-y-2 text-sm text-gray-600">

@@ -391,7 +391,7 @@ export default function SimpanPinjam() {
     }
 
     const tenors = formData.jenis_pinjaman === 'Uang' ? [10] : [10, 15, 20];
-    const baseLimit = getAngsuranLimit(user?.jabatan || profileData?.anggota?.jabatan || 'Staff');
+    const baseLimit = getAngsuranLimit(profileData?.jabatan || 'Staff');
     const usedLimit = profileData?.pinjaman?.filter(p => p.status === 'Approved').reduce((acc, curr) => acc + parseFloat(curr.angsuran_per_bulan || 0), 0) || 0;
     const remainingLimit = Math.max(0, baseLimit - usedLimit);
 
@@ -554,7 +554,7 @@ export default function SimpanPinjam() {
             <span>Financial Services</span>
           </motion.div>
           <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">Simpan <span className="text-[#004A9C]">Pinjam</span></h2>
-          <p className="text-gray-500 text-lg font-medium">Kelola simpanan dan ajukan pinjaman Anda dengan mudah.</p>
+          <p className="text-gray-500 text-lg font-medium">Pantau simpanan dan ajukan pinjaman Anda dengan mudah.</p>
         </div>
 
         {!isFormOpen && !isDetailOpen && activeTab === 'pinjaman' && isEligibleForLoan && (
@@ -992,7 +992,7 @@ export default function SimpanPinjam() {
                         { id: 'lk', 
                           label: 'Sisa Limit Angsuran', 
                           value: (() => {
-                            const base = getAngsuranLimit(user?.jabatan || profileData?.anggota?.jabatan || 'Staff');
+                            const base = getAngsuranLimit(profileData?.jabatan || 'Staff');
                             const used = profileData?.pinjaman?.filter(p => p.status === 'Approved').reduce((acc, curr) => acc + parseFloat(curr.angsuran_per_bulan || 0), 0) || 0;
                             return Math.max(0, base - used);
                           })(),

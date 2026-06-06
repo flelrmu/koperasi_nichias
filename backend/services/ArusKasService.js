@@ -1,4 +1,4 @@
-const { ArusKas, KategoriKas, NeracaSaldo, sequelize } = require('../models');
+const { ArusKas, KategoriKas, PeriodeKeuangan, SaldoBulanan, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const moment = require('moment');
 
@@ -11,84 +11,240 @@ class ArusKasService {
     const bulan = m.month() + 1;
     const tahun = m.year();
     
-    const closing = await NeracaSaldo.findOne({
-      where: { bulan, tahun, status_tutup_buku: true },
+    const closing = await PeriodeKeuangan.findOne({
+      where: { bulan, tahun, is_closed: true },
       ...options
     });
     return !!closing;
   }
 
   /**
+   * Helper: Calculate the starting balance of a category for a target month & year.
+   * Handles propagation of intermediate SaldoBulanan adjustments/closed books.
+   */
+  async getOpeningBalance(kategori, targetBulan, targetTahun, options = {}) {
+    const targetBulanInt = parseInt(targetBulan);
+    const targetTahunInt = parseInt(targetTahun);
+    
+    // 1. Cek apakah ada SaldoBulanan untuk bulan & tahun target secara langsung
+    const directSaldo = await SaldoBulanan.findOne({
+      where: {
+        kategori_id: kategori.kategori_id,
+        bulan: targetBulanInt,
+        tahun: targetTahunInt
+      },
+      ...options
+    });
+    if (directSaldo) {
+      return parseFloat(directSaldo.saldo_awal);
+    }
+
+    // 2. Cari SaldoBulanan terdekat sebelum bulan & tahun target
+    const closestSaldo = await SaldoBulanan.findOne({
+      where: {
+        kategori_id: kategori.kategori_id,
+        [Op.or]: [
+          { tahun: { [Op.lt]: targetTahunInt } },
+          {
+            tahun: targetTahunInt,
+            bulan: { [Op.lt]: targetBulanInt }
+          }
+        ]
+      },
+      order: [
+        ['tahun', 'DESC'],
+        ['bulan', 'DESC']
+      ],
+      ...options
+    });
+
+    const targetStartDate = moment(`${targetTahunInt}-${String(targetBulanInt).padStart(2, '0')}-01`, "YYYY-MM-DD").startOf("month").toDate();
+
+    let anchorSaldo = parseFloat(kategori.saldo_awal || 0);
+    let queryStartDate = null;
+
+    if (closestSaldo) {
+      anchorSaldo = parseFloat(closestSaldo.saldo_awal);
+      queryStartDate = moment(`${closestSaldo.tahun}-${String(closestSaldo.bulan).padStart(2, '0')}-01`, "YYYY-MM-DD").startOf("month").toDate();
+    }
+
+    // 3. Hitung mutasi dari queryStartDate (atau awal waktu jika null) s/d targetStartDate (exclusive)
+    const isCashOrBank = ["CASH", "BANK"].includes(kategori.nama_kategori);
+    
+    const whereClause = {};
+    if (isCashOrBank) {
+      whereClause.metode_pembayaran = kategori.nama_kategori;
+    } else {
+      whereClause.kategori_id = kategori.kategori_id;
+    }
+
+    if (queryStartDate) {
+      whereClause.tanggal = {
+        [Op.between]: [queryStartDate, moment(targetStartDate).subtract(1, 'milliseconds').toDate()]
+      };
+    } else {
+      whereClause.tanggal = {
+        [Op.lt]: targetStartDate
+      };
+    }
+
+    const mutasi = await ArusKas.findAll({
+      where: whereClause,
+      attributes: [
+        [sequelize.fn('SUM', sequelize.literal("CASE WHEN jenis = 'Debit' THEN nominal ELSE 0 END")), 'totalDebit'],
+        [sequelize.fn('SUM', sequelize.literal("CASE WHEN jenis = 'Kredit' THEN nominal ELSE 0 END")), 'totalKredit']
+      ],
+      raw: true,
+      ...options
+    });
+
+    const totalDebit = parseFloat(mutasi[0]?.totalDebit || 0);
+    const totalKredit = parseFloat(mutasi[0]?.totalKredit || 0);
+
+    if (isCashOrBank) {
+      // CASH/BANK: Awal + Debit - Kredit
+      return anchorSaldo + totalDebit - totalKredit;
+    } else if (kategori.tipe_neraca === "Asset") {
+      // Non-Cash Asset: Awal + Kredit - Debit
+      return anchorSaldo + totalKredit - totalDebit;
+    } else {
+      // Pasiva: Awal - Debit + Kredit
+      return anchorSaldo - totalDebit + totalKredit;
+    }
+  }
+
+  /**
    * Helper: Get current balance for a specific payment method (CASH/BANK).
    */
-  async getSaldoPerMetode(metode, options = {}) {
-    // 1. Ambil saldo awal dari kategori terkait (CASH/BANK)
+  async getSaldoPerMetode(metode, bulan = null, tahun = null, options = {}) {
+    let opt = options;
+    let b = bulan;
+    let t = tahun;
+    if (typeof bulan === 'object' && bulan !== null) {
+      opt = bulan;
+      b = null;
+      t = null;
+    }
+
     const kategori = await KategoriKas.findOne({
       where: { nama_kategori: metode },
-      ...options
+      ...opt
     });
-    const saldoAwal = kategori ? parseFloat(kategori.saldo_awal || 0) : 0;
+    if (!kategori) return 0;
 
-    // 2. Ambil mutasi dari transaksi ArusKas
-    const transactions = await ArusKas.findAll({
-      where: { metode_pembayaran: metode },
-      attributes: ['jenis', 'nominal'],
-      ...options
+    const targetBulan = b || (moment().month() + 1);
+    const targetTahun = t || moment().year();
+
+    // 1. Get opening balance of the target month
+    const openingBalance = await this.getOpeningBalance(kategori, targetBulan, targetTahun, opt);
+
+    // 2. Get mutations of the target month
+    const strBulan = String(targetBulan).padStart(2, '0');
+    const startDate = moment(`${targetTahun}-${strBulan}-01`, "YYYY-MM-DD").startOf("month").toDate();
+    const endDate = moment(`${targetTahun}-${strBulan}-01`, "YYYY-MM-DD").endOf("month").toDate();
+
+    const currMutasi = await ArusKas.findAll({
+      where: {
+        metode_pembayaran: metode,
+        tanggal: { [Op.between]: [startDate, endDate] }
+      },
+      attributes: [
+        [sequelize.fn('SUM', sequelize.literal("CASE WHEN jenis = 'Debit' THEN nominal ELSE 0 END")), 'totalDebit'],
+        [sequelize.fn('SUM', sequelize.literal("CASE WHEN jenis = 'Kredit' THEN nominal ELSE 0 END")), 'totalKredit']
+      ],
+      raw: true,
+      ...opt
     });
 
-    let totalMutation = 0;
-    transactions.forEach(t => {
-      if (t.jenis === 'Debit') totalMutation += parseFloat(t.nominal);
-      else totalMutation -= parseFloat(t.nominal);
-    });
+    const totalDebit = parseFloat(currMutasi[0]?.totalDebit || 0);
+    const totalKredit = parseFloat(currMutasi[0]?.totalKredit || 0);
 
-    return saldoAwal + totalMutation;
+    return openingBalance + totalDebit - totalKredit;
   }
 
   /**
    * Helper: Get current combined balance (CASH + BANK).
    */
-  async getSaldoGabungan(options = {}) {
+  async getSaldoGabungan(bulan = null, tahun = null, options = {}) {
+    let opt = options;
+    let b = bulan;
+    let t = tahun;
+    if (typeof bulan === 'object' && bulan !== null) {
+      opt = bulan;
+      b = null;
+      t = null;
+    }
     const [saldoCash, saldoBank] = await Promise.all([
-      this.getSaldoPerMetode("CASH", options),
-      this.getSaldoPerMetode("BANK", options),
+      this.getSaldoPerMetode("CASH", b, t, opt),
+      this.getSaldoPerMetode("BANK", b, t, opt),
     ]);
     return (saldoCash || 0) + (saldoBank || 0);
   }
 
   /**
-   * Recalculates `saldo_akhir` for all transactions sequentially.
+   * Recalculates `saldo_akhir` for all transactions sequentially, taking into account monthly starting balances.
    */
   async recalculateSaldo(options = {}) {
-    // 1. Ambil saldo awal gabungan (CASH + BANK)
     const [catCash, catBank] = await Promise.all([
       KategoriKas.findOne({ where: { nama_kategori: 'CASH' }, ...options }),
       KategoriKas.findOne({ where: { nama_kategori: 'BANK' }, ...options })
     ]);
-    
-    const initialCash = catCash ? parseFloat(catCash.saldo_awal || 0) : 0;
-    const initialBank = catBank ? parseFloat(catBank.saldo_awal || 0) : 0;
-    
-    let currentSaldo = initialCash + initialBank;
+
+    if (!catCash || !catBank) {
+      throw new Error("Kategori CASH atau BANK tidak ditemukan.");
+    }
 
     const trx = await ArusKas.findAll({
-      order: [['kas_id', 'ASC']],
+      order: [
+        ['tanggal', 'ASC'],
+        ['kas_id', 'ASC']
+      ],
       ...options
     });
 
-    for (let r of trx) {
-      const nom = parseFloat(r.nominal);
-      if (r.jenis === 'Debit') {
-        currentSaldo += nom; 
-      } else {
-        currentSaldo -= nom; 
+    // Group transactions by month & year
+    const monthlyGroups = {};
+    for (const r of trx) {
+      const m = moment(r.tanggal);
+      const year = m.year();
+      const month = m.month() + 1;
+      const key = `${year}-${month}`;
+      if (!monthlyGroups[key]) {
+        monthlyGroups[key] = {
+          year,
+          month,
+          items: []
+        };
       }
+      monthlyGroups[key].items.push(r);
+    }
+
+    // Process each group
+    for (const key of Object.keys(monthlyGroups)) {
+      const { year, month, items } = monthlyGroups[key];
       
-      if (parseFloat(r.saldo_akhir) !== currentSaldo) {
-        await ArusKas.update(
-          { saldo_akhir: currentSaldo },
-          { where: { kas_id: r.kas_id }, ...options }
-        );
+      // Get opening balance for this month
+      const [openingCash, openingBank] = await Promise.all([
+        this.getOpeningBalance(catCash, month, year, options),
+        this.getOpeningBalance(catBank, month, year, options)
+      ]);
+
+      let currentSaldo = openingCash + openingBank;
+
+      for (const r of items) {
+        const nom = parseFloat(r.nominal);
+        if (r.jenis === 'Debit') {
+          currentSaldo += nom;
+        } else {
+          currentSaldo -= nom;
+        }
+
+        if (parseFloat(r.saldo_akhir) !== currentSaldo) {
+          await ArusKas.update(
+            { saldo_akhir: currentSaldo },
+            { where: { kas_id: r.kas_id }, ...options }
+          );
+        }
       }
     }
   }
@@ -137,17 +293,6 @@ class ArusKasService {
       }
     }
 
-    // 3. Calculate Saldo Akhir (Total Gabungan)
-    // Gunakan saldo riil gabungan saat ini sebagai dasar (Master + Mutasi)
-    // Ini memastikan penyesuaian saldo awal langsung berefek ke transaksi baru
-    // tanpa harus melakukan recalculate pada transaksi lama.
-    const prevSaldo = await this.getSaldoGabungan(options);
-
-    const newSaldo =
-      finalJenis === "Debit"
-        ? prevSaldo + finalNominal
-        : prevSaldo - finalNominal;
-
     // 3. Create Arus Kas entry
     const newEntry = await ArusKas.create({
       user_id: user_id || null,
@@ -157,9 +302,15 @@ class ArusKasService {
       jenis: finalJenis,
       keterangan,
       nominal: finalNominal,
-      saldo_akhir: newSaldo,
+      saldo_akhir: 0, // placeholder, will be recalculated
       metode_pembayaran: metode_pembayaran || 'CASH'
     }, options);
+
+    // Recalculate all balances
+    await this.recalculateSaldo(options);
+
+    // Reload the entry to ensure correct saldo_akhir is returned
+    await newEntry.reload(options);
 
     // 4. Emit Real-Time Event
     if (io && !options.transaction) {
@@ -186,6 +337,11 @@ class ArusKasService {
     const existingRecord = await ArusKas.findByPk(kas_id, options);
     if (!existingRecord) {
       throw new Error('Data kas tidak ditemukan.');
+    }
+
+    // PROTEKSI TRANSAKSI OTOMATIS SISTEM
+    if (existingRecord.kode_transaksi && !existingRecord.kode_transaksi.startsWith('TRX-')) {
+      throw new Error('Transaksi otomatis sistem tidak boleh diubah langsung dari modul Keuangan.');
     }
 
     // PROTEKSI TUTUP BUKU (Cek tanggal lama dan tanggal baru)
@@ -243,6 +399,11 @@ class ArusKasService {
     const existingRecord = await ArusKas.findByPk(kas_id, options);
     if (!existingRecord) {
       throw new Error('Data kas tidak ditemukan.');
+    }
+
+    // PROTEKSI TRANSAKSI OTOMATIS SISTEM
+    if (existingRecord.kode_transaksi && !existingRecord.kode_transaksi.startsWith('TRX-')) {
+      throw new Error('Transaksi otomatis sistem tidak boleh dihapus langsung dari modul Keuangan.');
     }
 
     // PROTEKSI TUTUP BUKU

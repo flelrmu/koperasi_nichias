@@ -1,7 +1,7 @@
 const {
   ArusKas,
   KategoriKas,
-  NeracaSaldo,
+  PeriodeKeuangan,
   User,
   Pengurus,
   SaldoBulanan,
@@ -9,6 +9,7 @@ const {
 } = require("../models");
 const { Op } = require("sequelize");
 const moment = require("moment");
+const ArusKasService = require("../services/ArusKasService");
 
 /**
  * NERACA_MAP: Fixed display order for Neraca.
@@ -244,7 +245,7 @@ async function calculateNeracaForMonth(bulan, tahun) {
       combinedKredit = 0,
       combinedAkhir = 0;
     let foundAny = false;
-    let firstTipeNeraca = "Asset";
+    let firstTipeNeraca = null;
 
     for (const catName of entry.categories) {
       // LOGIKA KHUSUS UNTUK CASH & BANK (Berdasarkan metode_pembayaran di ArusKas)
@@ -252,45 +253,11 @@ async function calculateNeracaForMonth(bulan, tahun) {
         foundAny = true;
         const targetMetode = entry.label; // 'CASH' atau 'BANK'
 
-        // 1. Ambil Saldo Awal (Cek SaldoBulanan atau Hitung Dinamis)
+        // 1. Ambil Saldo Awal (Menggunakan ArusKasService yang meng-handle propagasi)
         const cat = kategoriList.find((c) => c.nama_kategori === targetMetode);
         if (!cat) continue;
 
-        let sAwal = 0;
-        if (saldoMap[cat.kategori_id] !== undefined) {
-          sAwal = saldoMap[cat.kategori_id];
-        } else {
-          // Hitung Dinamis: Global + Mutasi s/d Akhir Bulan Lalu
-          const prevTrx = await ArusKas.findAll({
-            where: {
-              metode_pembayaran: targetMetode,
-              tanggal: { [Op.lt]: startDate },
-            },
-            attributes: [
-              [
-                sequelize.fn(
-                  "SUM",
-                  sequelize.literal(
-                    "CASE WHEN `ArusKas`.`jenis` = 'Debit' THEN `nominal` ELSE 0 END",
-                  ),
-                ),
-                "totalDebit",
-              ],
-              [
-                sequelize.fn(
-                  "SUM",
-                  sequelize.literal(
-                    "CASE WHEN `ArusKas`.`jenis` = 'Kredit' THEN `nominal` ELSE 0 END",
-                  ),
-                ),
-                "totalKredit",
-              ],
-            ],
-          });
-          const pDebit = parseFloat(prevTrx[0]?.dataValues?.totalDebit || 0);
-          const pKredit = parseFloat(prevTrx[0]?.dataValues?.totalKredit || 0);
-          sAwal = parseFloat(cat.saldo_awal || 0) + pDebit - pKredit;
-        }
+        const sAwal = await ArusKasService.getOpeningBalance(cat, bulan, tahun);
 
         // 3. Mutasi bulan ini
         const currTrx = await ArusKas.findAll({
@@ -329,49 +296,17 @@ async function calculateNeracaForMonth(bulan, tahun) {
         combinedDebit += cDebit; // Masuk ke kolom Debit Neraca
         combinedKredit += cKredit; // Keluar ke kolom Kredit Neraca
         combinedAkhir += sAkhir;
+        firstTipeNeraca = "Asset";
         break;
       }
 
       const cat = kategoriList.find((c) => c.nama_kategori === catName);
       if (!cat) continue;
       foundAny = true;
-      firstTipeNeraca = cat.tipe_neraca;
+      if (!firstTipeNeraca) firstTipeNeraca = cat.tipe_neraca;
 
-      // 1. Ambil Saldo Awal (Cek SaldoBulanan atau Hitung Dinamis)
-      let saldoAwalBulan = 0;
-      if (saldoMap[cat.kategori_id] !== undefined) {
-        saldoAwalBulan = saldoMap[cat.kategori_id];
-      } else {
-        const prevTrx = await ArusKas.findAll({
-          where: {
-            kategori_id: cat.kategori_id,
-            tanggal: { [Op.lt]: startDate },
-          },
-          attributes: [
-            [
-              sequelize.fn(
-                "SUM",
-                sequelize.literal(
-                  "CASE WHEN `ArusKas`.`jenis` = 'Debit' THEN `nominal` ELSE 0 END",
-                ),
-              ),
-              "totalDebit",
-            ],
-            [
-              sequelize.fn(
-                "SUM",
-                sequelize.literal(
-                  "CASE WHEN `ArusKas`.`jenis` = 'Kredit' THEN `nominal` ELSE 0 END",
-                ),
-              ),
-              "totalKredit",
-            ],
-          ],
-        });
-        const pDebit = parseFloat(prevTrx[0]?.dataValues?.totalDebit || 0);
-        const pKredit = parseFloat(prevTrx[0]?.dataValues?.totalKredit || 0);
-        saldoAwalBulan = parseFloat(cat.saldo_awal || 0) + pDebit - pKredit;
-      }
+      // 1. Ambil Saldo Awal (Menggunakan ArusKasService yang meng-handle propagasi)
+      const saldoAwalBulan = await ArusKasService.getOpeningBalance(cat, bulan, tahun);
 
       // Current month transactions
       const currentTransactions = await ArusKas.findAll({
@@ -414,9 +349,9 @@ async function calculateNeracaForMonth(bulan, tahun) {
         currentNeracaKredit = cDebit; // Uang Masuk
         currentNeracaDebit = cKredit; // Uang Keluar
       } else {
-        // Asset/Aktiva: Uang Masuk (Debit Arus Kas) ke Debit Neraca, Uang Keluar ke Kredit Neraca
-        currentNeracaDebit = cDebit; // Uang Masuk
-        currentNeracaKredit = cKredit; // Uang Keluar
+        // Non-Cash Asset: Uang Keluar (Kredit Arus Kas) ke Debit Neraca, Uang Masuk (Debit Arus Kas) ke Kredit Neraca
+        currentNeracaDebit = cKredit; // Uang Keluar
+        currentNeracaKredit = cDebit; // Uang Masuk
       }
 
       const saldoAkhirBulan = entry.isPasiva
@@ -432,7 +367,7 @@ async function calculateNeracaForMonth(bulan, tahun) {
     // Final Mapping for the row
     const item = {
       nama_kategori: entry.label,
-      tipe_neraca: firstTipeNeraca,
+      tipe_neraca: firstTipeNeraca || "Asset",
       isTotalRow: entry.isTotal || false,
       isCalculated: entry.isCalculated || false,
       isPasiva: entry.isPasiva || false,
@@ -482,8 +417,8 @@ exports.getNeraca = async (req, res) => {
     const results = await calculateNeracaForMonth(bulan, tahun);
 
     // Cek Status Tutup Buku
-    const closingStatus = await NeracaSaldo.findOne({
-      where: { bulan, tahun, status_tutup_buku: true },
+    const closingStatus = await PeriodeKeuangan.findOne({
+      where: { bulan, tahun, is_closed: true },
     });
 
     res.json({
@@ -493,7 +428,7 @@ exports.getNeraca = async (req, res) => {
         bulan,
         tahun,
         isClosed: !!closingStatus,
-        closedAt: closingStatus ? closingStatus.tgl_tutup_buku : null,
+        closedAt: closingStatus ? closingStatus.closed_at : null,
       },
     });
   } catch (error) {
@@ -522,8 +457,8 @@ exports.getNeracaTahunan = async (req, res) => {
       const results = await calculateNeracaForMonth(bulan, tahun);
 
       // Check closing status for this month
-      const closingStatus = await NeracaSaldo.findOne({
-        where: { bulan: m, tahun, status_tutup_buku: true },
+      const closingStatus = await PeriodeKeuangan.findOne({
+        where: { bulan: m, tahun, is_closed: true },
       });
 
       monthlyData.push({
@@ -533,7 +468,7 @@ exports.getNeracaTahunan = async (req, res) => {
           .format("MMMM"),
         data: results,
         isClosed: !!closingStatus,
-        closedAt: closingStatus ? closingStatus.tgl_tutup_buku : null,
+        closedAt: closingStatus ? closingStatus.closed_at : null,
       });
     }
 

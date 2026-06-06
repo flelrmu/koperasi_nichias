@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Simpanan, Pinjaman, Anggota, User, TransaksiSimpanan, Konfigurasi, Notifikasi, Pengurus, KategoriKas } = db;
+const { Simpanan, Pinjaman, Anggota, User, TransaksiSimpanan, Konfigurasi, Notifikasi, Pengurus, KategoriKas, SaldoBulanan } = db;
 const { Op } = db.Sequelize;
 const angkaKeTerbilang = require('../utils/terbilang');
 const ArusKasService = require('../services/ArusKasService');
@@ -9,6 +9,11 @@ const ArusKasService = require('../services/ArusKasService');
 exports.getAllSimpanan = async (req, res) => {
   try {
     const anggotaList = await Anggota.findAll({
+      where: {
+        status_keanggotaan: {
+          [Op.ne]: 'Pending'
+        }
+      },
       include: [
         {
           model: User,
@@ -117,31 +122,69 @@ exports.updateSimpanan = async (req, res) => {
     const diffWajib = newWajib - oldWajib;
     const diffSukarela = newSukarela - oldSukarela;
 
-    // Helper function to adjust starting balances in KategoriKas instead of recording Arus Kas transactions
+    // Helper function to adjust starting balances in KategoriKas and SaldoBulanan instead of recording Arus Kas transactions
     const adjustSaldoAwal = async (diff, categoryName) => {
       if (diff !== 0) {
-        // 1. Update CASH/BANK starting balance in KategoriKas (Asset = +diff)
+        const now = new Date();
+        const currentBulan = now.getMonth() + 1;
+        const currentTahun = now.getFullYear();
+
+        // 1. Update CASH/BANK starting balance (Asset = +diff)
         const paymentCat = await KategoriKas.findOne({
           where: { nama_kategori: targetMetode },
           transaction
         });
         if (paymentCat) {
+          // A. Update global KategoriKas
           const currentAwal = parseFloat(paymentCat.saldo_awal || 0);
           await paymentCat.update({
             saldo_awal: currentAwal + diff
           }, { transaction });
+
+          // B. Update SaldoBulanan for current month if exists
+          const bulananC = await SaldoBulanan.findOne({
+            where: {
+              kategori_id: paymentCat.kategori_id,
+              bulan: currentBulan,
+              tahun: currentTahun
+            },
+            transaction
+          });
+          if (bulananC) {
+            const currentBulananAwal = parseFloat(bulananC.saldo_awal || 0);
+            await bulananC.update({
+              saldo_awal: currentBulananAwal + diff
+            }, { transaction });
+          }
         }
 
-        // 2. Update Simpanan Category starting balance in KategoriKas (Liability = -diff because it is stored negatively)
+        // 2. Update Simpanan Category starting balance (Liability = -diff because it is stored negatively)
         const savingsCat = await KategoriKas.findOne({
           where: { nama_kategori: `Simpanan ${categoryName}` },
           transaction
         });
         if (savingsCat) {
+          // A. Update global KategoriKas
           const currentAwal = parseFloat(savingsCat.saldo_awal || 0);
           await savingsCat.update({
             saldo_awal: currentAwal - diff
           }, { transaction });
+
+          // B. Update SaldoBulanan for current month if exists
+          const bulananS = await SaldoBulanan.findOne({
+            where: {
+              kategori_id: savingsCat.kategori_id,
+              bulan: currentBulan,
+              tahun: currentTahun
+            },
+            transaction
+          });
+          if (bulananS) {
+            const currentBulananAwal = parseFloat(bulananS.saldo_awal || 0);
+            await bulananS.update({
+              saldo_awal: currentBulananAwal - diff
+            }, { transaction });
+          }
         }
       }
     };
@@ -157,6 +200,9 @@ exports.updateSimpanan = async (req, res) => {
       saldo_sukarela: newSukarela,
       last_updated: new Date()
     }, { transaction });
+
+    // Recalculate transaction running balances after adjustments
+    await ArusKasService.recalculateSaldo({ transaction });
 
     await transaction.commit();
 
@@ -392,6 +438,48 @@ exports.updateTransaksiSimpanan = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Data simpanan tidak ditemukan' });
     }
 
+    // --- SINKRONISASI ARUS KAS ---
+    const conditions = [
+      { kode_transaksi: `TXS-${id}` },
+      { kode_transaksi: `WDR-${id}` }
+    ];
+    if (oldJenisSimpanan === 'Wajib') {
+      conditions.push({
+        kode_transaksi: `BLK-WJB-${transaksi.anggota_id}-${transaksi.tanggal}`
+      });
+    }
+
+    const relatedKas = await db.ArusKas.findOne({
+      where: {
+        [db.Sequelize.Op.or]: conditions
+      },
+      transaction
+    });
+
+    if (relatedKas) {
+      // Validasi Tutup Buku via ArusKasService
+      const isClosed = await ArusKasService.isMonthClosed(relatedKas.tanggal, { transaction });
+      if (isClosed) {
+        await transaction.rollback();
+        return res.status(403).json({
+          success: false,
+          message: 'Transaksi tidak dapat diubah karena periode keuangan sudah ditutup buku.'
+        });
+      }
+
+      await ArusKasService.updateTransaction(
+        relatedKas.kas_id,
+        {
+          nama_kategori: `Simpanan ${newJenisSimpanan}`,
+          jenis: newJenisTransaksi === 'Setor' ? 'Debit' : 'Kredit',
+          nominal: newNominal,
+          keterangan: keterangan || transaksi.keterangan
+        },
+        { transaction },
+        null
+      );
+    }
+
     // Reverse old transaction effect
     const oldSaldoField = oldJenisSimpanan === 'Pokok' ? 'saldo_pokok' 
                         : oldJenisSimpanan === 'Wajib' ? 'saldo_wajib' 
@@ -469,7 +557,7 @@ exports.updateTransaksiSimpanan = async (req, res) => {
       message: 'Transaksi simpanan berhasil diperbarui.' 
     });
   } catch (error) {
-    await transaction.rollback();
+    if (transaction) await transaction.rollback();
     console.error('❌ Error updating transaksi simpanan:', error);
     res.status(500).json({ success: false, message: error.message });
   }
@@ -1070,25 +1158,83 @@ exports.createPinjaman = async (req, res) => {
 };
 
 exports.deletePinjaman = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
     const { id } = req.params;
-    const pinjaman = await Pinjaman.findByPk(id);
+    const pinjaman = await Pinjaman.findByPk(id, { transaction });
     
     if (!pinjaman) {
+      await transaction.rollback();
       return res.status(404).json({ success: false, message: 'Data pinjaman tidak ditemukan' });
     }
 
-    // Only allow deletion if status is Pending, or if requested by admin, maybe allow any status
-    // For now we'll allow deleting any to keep it simple, but typically you might restrict it.
-    await pinjaman.destroy();
+    // 1. Dapatkan daftar transaksi ArusKas terkait
+    const conditions = [];
+    if (pinjaman.nomor_invoice) {
+      conditions.push({ kode_transaksi: pinjaman.nomor_invoice });
+      if (pinjaman.nomor_invoice.length > 20) {
+        conditions.push({ kode_transaksi: pinjaman.nomor_invoice.substring(0, 20) });
+      }
+    }
+    conditions.push(
+      { kode_transaksi: { [Op.like]: `ANG-PKK-${id}-%` } },
+      { kode_transaksi: { [Op.like]: `ANG-JSA-${id}-%` } },
+      { kode_transaksi: `LNS-PKK-${id}` },
+      { kode_transaksi: `LNS-JSA-${id}` }
+    );
 
-    if (req.io) {
-      // Just emit a general update so clients can refetch or remove from array
-      req.io.emit('pinjaman:updated', { pinjaman_id: id, deleted: true });
+    const relatedTransactions = await db.ArusKas.findAll({
+      where: {
+        [Op.or]: conditions
+      },
+      transaction
+    });
+
+    // 2. Cek apakah ada transaksi di bulan yang sudah ditutup buku
+    for (const trx of relatedTransactions) {
+      if (await ArusKasService.isMonthClosed(trx.tanggal, { transaction })) {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: `Tidak dapat menghapus pinjaman karena terdapat transaksi terkait pada periode yang sudah ditutup buku (${trx.tanggal}).`
+        });
+      }
     }
 
-    res.status(200).json({ success: true, message: 'Pinjaman berhasil dihapus' });
+    // 3. Hapus transaksi ArusKas terkait
+    if (relatedTransactions.length > 0) {
+      await db.ArusKas.destroy({
+        where: {
+          [Op.or]: conditions
+        },
+        transaction
+      });
+
+      // Recalculate saldo_akhir untuk transaksi tersisa di ArusKas
+      await ArusKasService.recalculateSaldo({ transaction });
+    }
+
+    // 4. Hapus angsuran terkait
+    await db.Angsuran.destroy({
+      where: { pinjaman_id: id },
+      transaction
+    });
+
+    // 5. Hapus pinjaman itu sendiri
+    await pinjaman.destroy({ transaction });
+
+    await transaction.commit();
+
+    if (req.io) {
+      req.io.emit('pinjaman:updated', { pinjaman_id: id, deleted: true });
+      req.io.emit('dashboardUpdate');
+      req.io.emit('arus-kas-updated');
+    }
+
+    res.status(200).json({ success: true, message: 'Pinjaman dan data keuangan terkait berhasil dihapus.' });
   } catch (error) {
+    if (transaction) await transaction.rollback();
+    console.error('❌ Error deletePinjaman:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -1373,6 +1519,185 @@ exports.lunaskanPinjaman = async (req, res) => {
   } catch (error) {
     if (transaction) await transaction.rollback();
     console.error('❌ Error lunaskan pinjaman:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getAllTransaksiSimpanan = async (req, res) => {
+  try {
+    const { bulan, tahun } = req.query;
+    const { Op } = db.Sequelize;
+    const moment = require('moment');
+
+    const where = {};
+    if (bulan && tahun && bulan !== 'all' && tahun !== 'all') {
+      const startDate = moment(`${tahun}-${bulan}-01`, "YYYY-MM-DD")
+        .startOf("month")
+        .format("YYYY-MM-DD");
+      const endDate = moment(`${tahun}-${bulan}-01`, "YYYY-MM-DD")
+        .endOf("month")
+        .format("YYYY-MM-DD");
+      where.tanggal = { [Op.between]: [startDate, endDate] };
+    } else if (tahun && tahun !== 'all') {
+      const startDate = moment(`${tahun}-01-01`, "YYYY-MM-DD")
+        .startOf("year")
+        .format("YYYY-MM-DD");
+      const endDate = moment(`${tahun}-12-31`, "YYYY-MM-DD")
+        .endOf("year")
+        .format("YYYY-MM-DD");
+      where.tanggal = { [Op.between]: [startDate, endDate] };
+    }
+
+    const data = await TransaksiSimpanan.findAll({
+      where,
+      include: [
+        {
+          model: Anggota,
+          as: 'anggota',
+          attributes: ['anggota_id', 'nama_lengkap', 'no_anggota']
+        }
+      ],
+      order: [
+        ['tanggal', 'DESC'],
+        ['transaksi_id', 'DESC']
+      ]
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("Error getAllTransaksiSimpanan:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.deleteTransaksiSimpanan = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
+  try {
+    const { id } = req.params;
+
+    const transaksi = await TransaksiSimpanan.findByPk(id, { transaction });
+    if (!transaksi) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
+    }
+
+    // 1. Cari transaksi ArusKas terkait
+    const conditions = [
+      { kode_transaksi: `TXS-${id}` },
+      { kode_transaksi: `WDR-${id}` }
+    ];
+    if (transaksi.jenis_simpanan === 'Wajib') {
+      conditions.push({
+        kode_transaksi: `BLK-WJB-${transaksi.anggota_id}-${transaksi.tanggal}`
+      });
+    }
+
+    const relatedKas = await db.ArusKas.findOne({
+      where: {
+        [db.Sequelize.Op.or]: conditions
+      },
+      transaction
+    });
+
+    // 2. Proteksi Tutup Buku
+    if (relatedKas) {
+      const isClosed = await ArusKasService.isMonthClosed(relatedKas.tanggal, { transaction });
+      if (isClosed) {
+        await transaction.rollback();
+        return res.status(403).json({
+          success: false,
+          message: 'Tidak dapat menghapus transaksi karena periode keuangan sudah ditutup buku.'
+        });
+      }
+    } else {
+      const isClosed = await ArusKasService.isMonthClosed(transaksi.tanggal, { transaction });
+      if (isClosed) {
+        await transaction.rollback();
+        return res.status(403).json({
+          success: false,
+          message: 'Tidak dapat menghapus transaksi karena periode keuangan sudah ditutup buku.'
+        });
+      }
+    }
+
+    // 3. Update Saldo Simpanan (Kembalikan efek nominal)
+    const simpanan = await Simpanan.findOne({
+      where: { anggota_id: transaksi.anggota_id },
+      transaction
+    });
+
+    if (simpanan) {
+      const field = transaksi.jenis_simpanan === 'Pokok' ? 'saldo_pokok'
+                  : transaksi.jenis_simpanan === 'Wajib' ? 'saldo_wajib'
+                  : transaksi.jenis_simpanan === 'Sukarela' ? 'saldo_sukarela'
+                  : null;
+
+      if (field) {
+        const currentSaldo = parseFloat(simpanan[field] || 0);
+        let newSaldo = currentSaldo;
+        if (transaksi.jenis_transaksi === 'Setor') {
+          newSaldo = currentSaldo - parseFloat(transaksi.nominal);
+        } else if (transaksi.jenis_transaksi === 'Tarik') {
+          newSaldo = currentSaldo + parseFloat(transaksi.nominal);
+        }
+
+        if (newSaldo < 0) {
+          await transaction.rollback();
+          return res.status(400).json({
+            success: false,
+            message: 'Penghapusan gagal: saldo simpanan anggota tidak boleh kurang dari 0 setelah pengembalian.'
+          });
+        }
+
+        await simpanan.update({
+          [field]: newSaldo,
+          last_updated: new Date()
+        }, { transaction });
+      }
+    }
+
+    // 4. Hapus data ArusKas terkait
+    if (relatedKas) {
+      await db.ArusKas.destroy({
+        where: { kas_id: relatedKas.kas_id },
+        transaction
+      });
+      await ArusKasService.recalculateSaldo({ transaction });
+    }
+
+    // 5. Hapus TransaksiSimpanan
+    await transaksi.destroy({ transaction });
+
+    await transaction.commit();
+
+    // 6. Emit Socket.IO
+    if (req.io) {
+      const updatedSimpanan = await Simpanan.findOne({
+        where: { anggota_id: transaksi.anggota_id },
+        include: [{
+          model: Anggota,
+          as: 'anggota',
+          include: [{ model: User, as: 'user', attributes: ['email'] }]
+        }]
+      });
+
+      req.io.emit('simpanan:updated', updatedSimpanan);
+      req.io.emit('transaksi:deleted', {
+        transaksi_id: id,
+        anggota_id: transaksi.anggota_id
+      });
+      req.io.emit('dashboardUpdate');
+      req.io.emit('arus-kas-updated');
+    }
+
+    res.json({
+      success: true,
+      message: 'Transaksi simpanan berhasil dihapus dan saldo kas/anggota telah disinkronkan.'
+    });
+
+  } catch (error) {
+    if (transaction) await transaction.rollback();
+    console.error('❌ Error deleteTransaksiSimpanan:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

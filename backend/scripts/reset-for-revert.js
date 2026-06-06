@@ -5,7 +5,6 @@ const {
   Angsuran, 
   Simpanan, 
   TransaksiSimpanan, 
-  NeracaSaldo, 
   SaldoBulanan, 
   PembagianShu, 
   RekapShu, 
@@ -30,7 +29,6 @@ async function resetAndRevert() {
     await Notifikasi.destroy({ where: {}, transaction });
     
     await SaldoBulanan.destroy({ where: {}, transaction });
-    await NeracaSaldo.destroy({ where: {}, transaction });
     
     await PembagianShu.destroy({ where: {}, transaction });
     await RekapShu.destroy({ where: {}, transaction });

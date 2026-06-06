@@ -215,27 +215,7 @@ class SHUService {
     if (!catBank) return 0;
 
     // 1. Get starting balance of December
-    const existingSaldoDec = await SaldoBulanan.findOne({
-      where: { kategori_id: catBank.kategori_id, bulan: 12, tahun },
-      transaction,
-    });
-
-    let sAwalDec = 0;
-    if (existingSaldoDec) {
-      sAwalDec = parseFloat(existingSaldoDec.saldo_awal || 0);
-    } else {
-      const prevTrx = await ArusKas.findAll({
-        where: { metode_pembayaran: "BANK", tanggal: { [Op.lt]: startDate } },
-        attributes: [
-          [sequelize.fn('SUM', sequelize.literal("CASE WHEN `ArusKas`.`jenis` = 'Debit' THEN `nominal` ELSE 0 END")), 'totalDebit'],
-          [sequelize.fn('SUM', sequelize.literal("CASE WHEN `ArusKas`.`jenis` = 'Kredit' THEN `nominal` ELSE 0 END")), 'totalKredit']
-        ],
-        transaction
-      });
-      const pDebit = parseFloat(prevTrx[0]?.dataValues?.totalDebit || 0);
-      const pKredit = parseFloat(prevTrx[0]?.dataValues?.totalKredit || 0);
-      sAwalDec = parseFloat(catBank.saldo_awal || 0) + pDebit - pKredit;
-    }
+    const sAwalDec = await ArusKasService.getOpeningBalance(catBank, 12, tahun, { transaction });
 
     // 2. Get December transactions
     const currTrx = await ArusKas.findAll({
@@ -259,27 +239,8 @@ class SHUService {
     const startDate = `${tahun}-12-01`;
     const endDate = `${tahun}-12-31`;
 
-    const existingSaldoDec = await SaldoBulanan.findOne({
-      where: { kategori_id: catLabaDitahan.kategori_id, bulan: 12, tahun },
-      transaction,
-    });
-
-    let sAwalDec = 0;
-    if (existingSaldoDec) {
-      sAwalDec = parseFloat(existingSaldoDec.saldo_awal || 0);
-    } else {
-      const prevTrx = await ArusKas.findAll({
-        where: { kategori_id: catLabaDitahan.kategori_id, tanggal: { [Op.lt]: startDate } },
-        attributes: [
-          [sequelize.fn('SUM', sequelize.literal("CASE WHEN `ArusKas`.`jenis` = 'Debit' THEN `nominal` ELSE 0 END")), 'totalDebit'],
-          [sequelize.fn('SUM', sequelize.literal("CASE WHEN `ArusKas`.`jenis` = 'Kredit' THEN `nominal` ELSE 0 END")), 'totalKredit']
-        ],
-        transaction
-      });
-      const pDebit = parseFloat(prevTrx[0]?.dataValues?.totalDebit || 0);
-      const pKredit = parseFloat(prevTrx[0]?.dataValues?.totalKredit || 0);
-      sAwalDec = parseFloat(catLabaDitahan.saldo_awal || 0) + pDebit - pKredit;
-    }
+    // 1. Get starting balance of December
+    const sAwalDec = await ArusKasService.getOpeningBalance(catLabaDitahan, 12, tahun, { transaction });
 
     const currTrx = await ArusKas.findAll({
       where: { kategori_id: catLabaDitahan.kategori_id, tanggal: { [Op.between]: [startDate, endDate] } },

@@ -3,64 +3,69 @@
 Dokumen ini berisi daftar seluruh fungsi (API Backend & Fitur Frontend) yang dikelompokkan berdasarkan Role untuk proses pengecekan (QA/Testing).
 
 ## 1. Fungsi Umum (Semua Role)
+
 Fungsi-fungsi dasar yang dapat diakses oleh Anggota maupun Pengurus.
 
-- [ ] **Login Multi-Role (`login`)**: Autentikasi dengan JWT, redirect sesuai role.
-- [ ] **Get Profile (`getProfile`)**: Mengambil data profil diri sendiri beserta ringkasan simpanan/pinjaman.
-- [ ] **Update Profile (`updateProfile`)**: Mengubah data mandiri (No HP, Alamat, No Rekening).
-- [ ] **Change Password (`changePassword`)**: Mengganti password dengan validasi password lama.
-- [ ] **Upload Profile Photo (`uploadProfilePhoto`)**: Mengunggah foto profil.
-- [ ] **Get Notifications (`getNotifications`)**: Mengambil daftar notifikasi pribadi (pagination).
-- [ ] **Mark As Read (`markAsRead` / `markAllAsRead`)**: Menandai notifikasi telah dibaca.
-- [ ] **Get Peraturan & Suku Bunga (`getAllPeraturan`, `getSukuBunga`)**: Melihat peraturan koperasi dan bunga pinjaman aktif.
-- [ ] **Real-time Notifikasi (Frontend)**: Toast & badge notifikasi muncul instan via Socket.IO.
-- [ ] **Form Validasi Client-side**: Pengecekan input (email, password, nominal) sebelum submit.
-- [ ] **Fitur "Terbilang"**: Konversi angka nominal ke format teks di kuitansi/invoice.
-- [ ] **Get Secretary Contact (`getSecretaryContact`)**: Mengambil kontak WhatsApp sekretaris untuk pertanyaan umum.
-- [ ] **Halaman Peraturan**: Tampilan katalog interaktif untuk melihat kebijakan koperasi (Tamu/Anggota).
+- [ v] **Login Multi-Role (`login`)**: Autentikasi dengan JWT, redirect sesuai role.
+- [ v] **Get Profile (`getProfile`)**: Mengambil data profil diri sendiri beserta ringkasan simpanan/pinjaman.
+- [ v] **Update Profile (`updateProfile`)**: Mengubah data mandiri (No HP, Alamat, No Rekening).
+- [ v] **Change Password (`changePassword`)**: Mengganti password dengan validasi password lama.
+- [ v] **Upload Profile Photo (`uploadProfilePhoto`)**: Mengunggah foto profil.
+- [v ] **Get Notifications (`getNotifications`)**: Mengambil daftar notifikasi pribadi (pagination).
+- [ v] **Mark As Read (`markAsRead` / `markAllAsRead`)**: Menandai notifikasi telah dibaca.
+- [ v] **Get Peraturan & Suku Bunga (`getAllPeraturan`, `getSukuBunga`)**: Melihat peraturan koperasi dan bunga pinjaman aktif.
+- [ v] **Real-time Notifikasi (Frontend)**: Toast & badge notifikasi muncul instan via Socket.IO.
+- [v ] **Form Validasi Client-side**: Pengecekan input (email, password, nominal) sebelum submit.
+- [ v] **Fitur "Terbilang"**: Konversi angka nominal ke format teks di kuitansi/invoice.
+- [ v] **Get Secretary Contact (`getSecretaryContact`)**: Mengambil kontak WhatsApp sekretaris untuk pertanyaan umum.
+- [v ] **Halaman Peraturan**: Tampilan katalog interaktif untuk melihat kebijakan koperasi (Tamu/Anggota).
 
 ---
 
 ## 2. Role: Anggota
+
 Fitur khusus untuk anggota koperasi yang sudah aktif.
 
-- [ ] **Register Calon Anggota (`register`)**: Pendaftaran mandiri dengan validasi domain email perusahaan.
-- [ ] **Request Pinjaman (`createPinjaman`)**: Mengajukan pinjaman (Uang/Barang) dengan simulasi bunga.
-- [ ] **View Pinjaman Pribadi**: Melihat detail sisa tagihan dan riwayat angsuran sendiri.
-- [ ] **View Simpanan & Transaksi**: Melihat saldo (Pokok, Wajib, Sukarela) dan riwayat mutasi.
-- [ ] **Request Keluar Koperasi (`requestKeluar`)**: Mengajukan pengunduran diri (validasi nol hutang).
-- [ ] **Cancel Request Keluar (`cancelKeluar`)**: Membatalkan pengajuan keluar yang masih pending.
-- [ ] **Preview Invoice/Kuitansi**: Melihat dan mengunduh bukti pinjaman/transaksi.
+- [v ] **Register Calon Anggota (`register`)**: Pendaftaran mandiri dengan validasi domain email perusahaan.
+- [ v] **Request Pinjaman (`createPinjaman`)**: Mengajukan pinjaman (Uang/Barang) dengan simulasi bunga.
+- [ v] **View Pinjaman Pribadi**: Melihat detail sisa tagihan dan riwayat angsuran sendiri.
+- [ v] **View Simpanan & Transaksi**: Melihat saldo (Pokok, Wajib, Sukarela) dan riwayat mutasi.
+- [ V] **Request Keluar Koperasi (`requestKeluar`)**: Mengajukan pengunduran diri (validasi nol hutang).
+- [ V] **Cancel Request Keluar (`cancelKeluar`)**: Membatalkan pengajuan keluar yang masih pending.
+- [ v] **Preview Invoice/Kuitansi**: Melihat dan mengunduh bukti pinjaman/transaksi.
 
 ---
 
 ## 3. Role: Pengurus (Umum)
+
 Berlaku untuk Sekretaris, Bendahara, Ketua, dan Koordinator.
 
-- [ ] **Get Dashboard Stats (`getDashboardStats`)**: Statistik ringkasan (Total Anggota, Dana, Kas).
-- [ ] **Real-time Dashboard Update**: Statistik berubah otomatis tanpa refresh saat ada transaksi baru.
-- [ ] **Get Anggota List (`getAnggotaList`)**: Melihat daftar seluruh anggota koperasi.
-- [ ] **Get Pengurus List (`getPengurusList`)**: Melihat daftar jajaran manajemen.
-- [ ] **Get User Detail (`getUserDetail`)**: Melihat informasi lengkap satu user.
-- [ ] **Sidebar & RBAC Management**: Menu yang muncul otomatis sesuai hak akses role.
-- [ ] **Pencarian & Filter**: Mencari data anggota/pinjaman/kas dengan filter dinamis.
+- [ v] **Get Dashboard Stats (`getDashboardStats`)**: Statistik ringkasan (Total Anggota, Dana, Kas).
+- [ v] **Real-time Dashboard Update**: Statistik berubah otomatis tanpa refresh saat ada transaksi baru.
+- [ v] **Get Anggota List (`getAnggotaList`)**: Melihat daftar seluruh anggota koperasi.
+- [ v] **Get Pengurus List (`getPengurusList`)**: Melihat daftar jajaran manajemen.
+- [ v] **Get User Detail (`getUserDetail`)**: Melihat informasi lengkap satu user.
+- [ v] **Sidebar & RBAC Management**: Menu yang muncul otomatis sesuai hak akses role.
+- [ v] **Pencarian & Filter**: Mencari data anggota/pinjaman/kas dengan filter dinamis.
 
 ---
 
 ## 4. Role Spesifik: Sekretaris
+
 Fungsi terkait administrasi keanggotaan dan manajemen user.
 
-- [ ] **Approve Member (`approveMember`)**: Menyetujui pendaftaran, generate No Anggota, & auto-create Simpanan Pokok.
-- [ ] **Admin Create User (`adminCreateUser`)**: Membuat user baru secara manual (Anggota/Pengurus).
-- [ ] **Update User (`updateUser`)**: Mengoreksi data user lain (Email, Role, Nama, dll).
+- [v ] **Approve Member (`approveMember`)**: Menyetujui pendaftaran, generate No Anggota, & auto-create Simpanan Pokok.
+- [ v] **Admin Create User (`adminCreateUser`)**: Membuat user baru secara manual (Anggota/Pengurus).
+- [ v] **Update User (`updateUser`)**: Mengoreksi data user lain (Email, Role, Nama, dll).
 - [ ] **Delete User (`deleteUser`)**: Menghapus user beserta seluruh data terkait (Simpanan, Pinjaman, dll).
 - [ ] **Approve Keluar (`approveKeluar`)**: Menyetujui pengunduran diri anggota.
-- [ ] **Manage Peraturan (`createPeraturan`, `updatePeraturan`, `deletePeraturan`)**: Membuat, mengedit, dan menghapus kebijakan koperasi.
-- [ ] **Get Peraturan Detail (`getPeraturanById`)**: Melihat detail langkah prosedur peraturan spesifik.
+- [ v] **Manage Peraturan (`createPeraturan`, `updatePeraturan`, `deletePeraturan`)**: Membuat, mengedit, dan menghapus kebijakan koperasi.
+- [ v] **Get Peraturan Detail (`getPeraturanById`)**: Melihat detail langkah prosedur peraturan spesifik.
 
 ---
 
 ## 5. Role Spesifik: Bendahara
+
 Fungsi terkait manajemen arus kas, keuangan, dan pembukuan.
 
 - [ ] **Manage Arus Kas (`create`, `update`, `deleteArusKas`)**: Mencatat transaksi keuangan koperasi.
@@ -85,17 +90,18 @@ Fungsi terkait manajemen arus kas, keuangan, dan pembukuan.
 ---
 
 ## 6. Role Spesifik: Koordinator Simpan Pinjam
+
 Fungsi terkait operasional pinjaman dan angsuran.
 
-- [ ] **View All Pinjaman (`getAllPinjaman`)**: Memantau seluruh pengajuan pinjaman masuk.
-- [ ] **Update Pinjaman Status (`updatePinjamanStatus`)**: Menyetujui/menolak pinjaman & set jadwal angsuran.
-- [ ] **Bulk Process Angsuran (`bulkProcessAngsuran`)**: Memproses pemotongan gaji masal untuk cicilan.
-- [ ] **Pelunasan Pinjaman (`lunaskanPinjaman`)**: Melakukan pelunasan sisa tagihan sekaligus.
-- [ ] **Delete Pinjaman (`deletePinjaman`)**: Menghapus data pengajuan pinjaman.
-- [ ] **Update Peraturan/Konfigurasi**: Mengubah nilai bunga, limit pinjaman, dll.
-- [ ] **Get All Simpanan (`getAllSimpanan`)**: Memantau daftar dan nominal seluruh simpanan anggota koperasi.
-- [ ] **Get Transaksi By Anggota (`getTransaksiByAnggota`)**: Melihat detail history mutasi simpanan dari satu anggota.
-- [ ] **Update Transaksi Simpanan (`updateTransaksiSimpanan`)**: Memperbaiki nominal transaksi simpanan tertentu jika terjadi kesalahan input.
+- [v ] **View All Pinjaman (`getAllPinjaman`)**: Memantau seluruh pengajuan pinjaman masuk.
+- [ v] **Update Pinjaman Status (`updatePinjamanStatus`)**: Menyetujui/menolak pinjaman & set jadwal angsuran.
+- [ v] **Bulk Process Angsuran (`bulkProcessAngsuran`)**: Memproses pemotongan gaji masal untuk cicilan.
+- [ v] **Pelunasan Pinjaman (`lunaskanPinjaman`)**: Melakukan pelunasan sisa tagihan sekaligus.
+- [v ] **Delete Pinjaman (`deletePinjaman`)**: Menghapus data pengajuan pinjaman.
+- [v ] **Update Peraturan/Konfigurasi**: Mengubah nilai bunga, limit pinjaman, dll.
+- [ v] **Get All Simpanan (`getAllSimpanan`)**: Memantau daftar dan nominal seluruh simpanan anggota koperasi.
+- [ v] **Get Transaksi By Anggota (`getTransaksiByAnggota`)**: Melihat detail history mutasi simpanan dari satu anggota.
+- [ v] **Update Transaksi Simpanan (`updateTransaksiSimpanan`)**: Memperbaiki nominal transaksi simpanan tertentu jika terjadi kesalahan input.
 - [ ] **Get Pinjaman By ID (`getPinjamanById`)**: Melihat detail lengkap, jaminan, dan histori angsuran dari satu ID pinjaman.
 - [ ] **Get Konfigurasi Simpanan (`getKonfigurasiSimpanan`)**: Mengambil detail konfigurasi operasional modul simpanan.
 - [ ] **Cetak Invoice Pinjaman**: Men-generate laporan cetak PDF untuk pencairan/angsuran pinjaman.
@@ -103,8 +109,45 @@ Fungsi terkait operasional pinjaman dan angsuran.
 ---
 
 ## 7. Role: Ketua / Wakil Ketua
+
 Fungsi pengawasan dan monitoring tingkat tinggi.
 
 - [ ] **Full Monitoring Dashboard**: Akses visual ke seluruh data statistik koperasi.
 - [ ] **Review Laporan Keuangan**: Memantau Arus Kas dan Neraca tanpa akses modifikasi (read-only monitoring).
 - [ ] **Approval Oversight**: Memastikan proses approval anggota dan pinjaman berjalan sesuai prosedur.
+
+# Daftar Kebutuhan Fungsional Sistem Koperasi Nichias
+
+1. Calon anggota dapat melakukan registrasi. ✅
+2. Calon anggota dapat melihat peraturan koperasi. ✅
+3. Semua aktor dapat melakukan login.✅
+4. Semua aktor dapat melakukan edit profile.✅
+5. Semua aktor dapat melakukan ubah password.✅
+6. Semua aktor dapat melihat peraturan koperasi. ✅
+7. Semua aktor dapat menerima notifikasi.✅
+8. Semua aktor dapat melakukan logout.✅
+9. Anggota dapat melakukan pengajuan pinjaman. ✅
+10. Anggota dapat melihat sisa tagihan dan riwayat angsuran pinjaman. ✅
+11. Anggota dapat melihat saldo dan transaksi simpanan.✅
+12. Anggota dapat mengajukan permohonan keluar dari keanggotaan koperasi. ✅
+13. Anggota dapat melihat dan mengunduh invoice pinjaman.✅
+14. Anggota dapat melihat hasil simulasi angsuran pinjaman.✅
+15. Sekretaris dapat menyetujui pendaftaran calon anggota.✅
+16. Sekretaris dapat membuat akun user.✅
+17. Sekretaris dapat menghapus akun user.✅
+18. Sekretaris dapat menyetujui permohonan keluar anggota.✅
+19. Sekretaris dapat membuat peraturan koperasi.✅
+20. Bendahara dapat mengupdate arus kas koperasi.✅
+21. Bendahara dapat melakukan penyesuaian saldo kas utama.✅
+22. Bendahara dapat menambah saldo awal kategori neraca.✅
+23. Bendahara dapat melihat laporan Neraca Keuangan.✅
+24. Bendahara dapat melakukan tutup buku periode keuangan bulanan.✅
+25. Bendahara dapat melakukan proses perhitungan pembagian SHU.✅
+26. Bendahara dapat mengekspor laporan keuangan neraca dan SHU.✅
+27. Koordinator Simpan Pinjam dapat menyetujui/menolak pinjaman.✅
+28. Koordinator Simpan Pinjam dapat melakukan angsuran.✅
+29. Koordinator Simpan Pinjam dapat memproses pelunasan sisa tagihan.✅
+30. Koordinator Simpan Pinjam dapat input transaksi simpanan.✅
+31. Koordinator Simpan Pinjam memproses simpanan kolektif.✅
+32. Koordinator Simpan Pinjam memproses angsuran kolektif.✅
+33. Koordinator Simpan Pinjam mengedit simpanan.✅
