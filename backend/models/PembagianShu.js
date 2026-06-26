@@ -30,6 +30,9 @@ module.exports = (sequelize, DataTypes) => {
     shu_diterima: {
       type: DataTypes.DECIMAL(15, 2),
     },
+    pembulatan: {
+      type: DataTypes.DECIMAL(15, 2),
+    },
   }, {
     tableName: 'pembagian_shu',
     timestamps: false,

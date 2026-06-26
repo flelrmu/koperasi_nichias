@@ -3,7 +3,6 @@ const router = express.Router();
 const { verifyToken, authorizeRoles } = require('../middleware/authMiddleware');
 const {
   getAllPeraturan,
-  getSukuBunga,
   getPeraturanById,
   createPeraturan,
   updatePeraturan,
@@ -12,7 +11,6 @@ const {
 
 // Public routes (accessible by all authenticated users + guest for list)
 router.get('/', getAllPeraturan);
-router.get('/suku-bunga', getSukuBunga);
 router.get('/:id', getPeraturanById);
 
 // Protected routes (hanya Sekretaris)

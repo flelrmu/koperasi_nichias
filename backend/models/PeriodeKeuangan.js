@@ -25,7 +25,11 @@ module.exports = (sequelize, DataTypes) => {
     },
     closed_by: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'user_id',
+      },
     }
   }, {
     tableName: 'PeriodeKeuangan',
@@ -37,6 +41,10 @@ module.exports = (sequelize, DataTypes) => {
       }
     ]
   });
+
+  PeriodeKeuangan.associate = (models) => {
+    PeriodeKeuangan.belongsTo(models.User, { foreignKey: 'closed_by', as: 'closedBy' });
+  };
 
   return PeriodeKeuangan;
 };

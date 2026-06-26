@@ -37,6 +37,7 @@ module.exports = (sequelize, DataTypes) => {
 
   KategoriKas.associate = (models) => {
     KategoriKas.hasMany(models.ArusKas, { foreignKey: 'kategori_id', as: 'arusKas' });
+    KategoriKas.hasMany(models.SaldoBulanan, { foreignKey: 'kategori_id', as: 'saldoBulanan' });
   };
 
   return KategoriKas;

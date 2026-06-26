@@ -182,7 +182,7 @@ export function NotificationProvider({ children }) {
         judul: data.notifikasi?.judul || 'Pembaruan Pinjaman 📝',
         pesan: data.notifikasi?.pesan || 'Ada pembaruan pada pengajuan pinjaman Anda.',
         tipe: 'pinjaman',
-        link: data.notifikasi?.link || (currentUser?.role === 'Koordinator_Simpan_Pinjam' ? '/admin/simpan-pinjam' : '/simpan-pinjam'),
+        link: data.notifikasi?.link || (isManagement(currentUser?.role) ? '/admin/simpan-pinjam' : '/simpan-pinjam'),
         is_read: false,
         created_at: data.notifikasi?.created_at || new Date().toISOString(),
       };

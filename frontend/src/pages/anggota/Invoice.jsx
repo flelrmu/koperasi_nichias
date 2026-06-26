@@ -24,6 +24,7 @@ import Button from '../../components/atoms/Button';
 import StatusBadge from '../../components/atoms/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
+import { isManagement } from '../../utils/roles';
 
 export default function Invoice() {
   const { id } = useParams();
@@ -62,7 +63,7 @@ export default function Invoice() {
     const handleUpdate = (data) => {
       if (data.pinjaman_id && data.pinjaman_id.toString() === id.toString()) {
         if (data.deleted) {
-          navigate(user?.role === 'Koordinator_Simpan_Pinjam' ? '/admin/simpan-pinjam' : '/simpan-pinjam');
+          navigate(isManagement(user?.role) ? '/admin/simpan-pinjam' : '/simpan-pinjam');
         } else {
           setLoan(data);
         }
@@ -128,7 +129,7 @@ export default function Invoice() {
           <h3 className="text-2xl font-black text-gray-900">{error || 'Pinjaman Tidak Ditemukan'}</h3>
           <p className="text-gray-500 font-medium mt-2">Maaf, data yang Anda cari tidak tersedia atau telah dihapus.</p>
         </div>
-        <Link to={user?.role?.includes('Koordinator') || user?.role === 'Ketua' || user?.role === 'Bendahara' ? "/admin/simpan-pinjam" : "/simpan-pinjam"}>
+        <Link to={isManagement(user?.role) ? "/admin/simpan-pinjam" : "/simpan-pinjam"}>
           <Button className="!px-8 !py-4 shadow-xl shadow-[#004A9C]/20">
             Kembali ke Simpan Pinjam
           </Button>
@@ -157,7 +158,7 @@ export default function Invoice() {
       
       {/* Header Actions - Hidden on Print */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
-        <Link to={user?.role?.includes('Koordinator') || user?.role === 'Ketua' || user?.role === 'Bendahara' ? "/admin/simpan-pinjam" : "/simpan-pinjam"} className="inline-flex w-full sm:w-auto">
+        <Link to={isManagement(user?.role) ? "/admin/simpan-pinjam" : "/simpan-pinjam"} className="inline-flex w-full sm:w-auto">
           <Button className="w-full !bg-white border border-gray-200 !text-gray-700 hover:!bg-gray-50 flex items-center justify-center gap-2 shadow-sm rounded-xl py-3 px-6">
             <ArrowLeft size={18} />
             Kembali

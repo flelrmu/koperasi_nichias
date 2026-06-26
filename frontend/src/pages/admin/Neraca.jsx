@@ -298,7 +298,7 @@ export default function Neraca() {
                 value={filter.tahun}
                 onChange={(e) => setFilter({...filter, tahun: e.target.value})}
               >
-                {[2024, 2025, 2026].map(y => (
+                {Array.from({ length: new Date().getFullYear() - 2024 + 2 }, (_, i) => 2024 + i).map(y => (
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>

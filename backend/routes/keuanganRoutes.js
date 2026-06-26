@@ -31,6 +31,7 @@ router.post('/shu/proses', authorizeRoles('Bendahara'), shuController.prosesSHU)
 router.put('/shu/finalize', authorizeRoles('Bendahara'), shuController.finalizeSHU);
 router.put('/shu/cancel-finalize', authorizeRoles('Bendahara'), shuController.cancelFinalizeSHU);
 router.delete('/shu/:tahun', authorizeRoles('Bendahara'), shuController.cancelSHU);
+router.put('/shu/detail/:id', authorizeRoles('Bendahara'), shuController.updateDetailPembulatan);
 
 // Periode & Tutup Buku
 router.get('/periode-status', authorizeRoles('Bendahara', 'Ketua', 'Wakil_Ketua', 'Sekretaris', 'Koordinator_Simpan_Pinjam'), keuanganController.getPeriodeStatus);

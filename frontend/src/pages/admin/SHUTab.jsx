@@ -23,6 +23,37 @@ export default function SHUTab({ api, showNotification, user }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [editingValues, setEditingValues] = useState({});
+
+  const handlePembulatanChange = (id, val) => {
+    setEditingValues(prev => ({
+      ...prev,
+      [id]: val
+    }));
+  };
+
+  const handlePembulatanSave = async (id, val) => {
+    const numericVal = parseFloat(val);
+    if (isNaN(numericVal)) return;
+
+    try {
+      const res = await api.put(`/keuangan/shu/detail/${id}`, { pembulatan: numericVal });
+      if (res.data.success) {
+        // Refresh preview data to update summary cards and rekap totals
+        const updatedRes = await api.get(`/keuangan/shu/preview?tahun=${tahun}`);
+        if (updatedRes.data.success) {
+          setPreviewData(updatedRes.data.data);
+          setFinalAmounts({
+            jatah_anggota: updatedRes.data.data.rekomendasi.jatah_anggota,
+            jatah_pengurus: updatedRes.data.data.rekomendasi.jatah_pengurus,
+            laba_ditahan: updatedRes.data.data.rekomendasi.laba_ditahan
+          });
+        }
+      }
+    } catch (error) {
+      showNotification(error.response?.data?.message || 'Gagal menyimpan pembulatan', 'error');
+    }
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -134,6 +165,10 @@ export default function SHUTab({ api, showNotification, user }) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
   };
 
+  const formatDecimalCurrency = (val) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val || 0);
+  };
+
   const handleExportSHUExcel = () => {
     if (!previewData?.existingRekap?.is_finalized) return;
     
@@ -229,8 +264,10 @@ export default function SHUTab({ api, showNotification, user }) {
       let sumPembulatan = 0;
       
       details.forEach((detail, idx) => {
-        const pembulatan = Math.floor(detail.shu_diterima / 100) * 100;
-        const yieldVal = detail.total_simpanan > 0 ? (detail.shu_diterima / detail.total_simpanan) * 100 : 0;
+        const pembulatan = detail.pembulatan !== null && detail.pembulatan !== undefined 
+          ? parseFloat(detail.pembulatan) 
+          : Math.round(parseFloat(detail.shu_diterima || 0) / 1000) * 1000;
+        const yieldVal = detail.total_simpanan > 0 ? (pembulatan / detail.total_simpanan) * 100 : 0;
         
         sumSimpanan += parseFloat(detail.total_simpanan || 0);
         sumProporsi += parseFloat(detail.persentase || 0);
@@ -244,22 +281,22 @@ export default function SHUTab({ api, showNotification, user }) {
             <td style="font-weight: bold; border: 1px solid #cbd5e0;">${detail.anggota?.nama_lengkap || '-'}</td>
             <td class="number-cell" style="border: 1px solid #cbd5e0;">${formatCurrency(detail.total_simpanan)}</td>
             <td class="number-cell" style="color: #004A9C; font-weight: bold; border: 1px solid #cbd5e0;">${(detail.persentase * 100).toFixed(4)}%</td>
-            <td class="number-cell" style="border: 1px solid #cbd5e0;">${formatCurrency(detail.shu_diterima)}</td>
-            <td class="number-cell" style="color: #27ae60; font-weight: bold; border: 1px solid #cbd5e0;">${formatCurrency(pembulatan)}</td>
+            <td class="number-cell" style="border: 1px solid #cbd5e0;">${formatDecimalCurrency(detail.shu_diterima)}</td>
+            <td class="number-cell" style="color: #27ae60; font-weight: bold; border: 1px solid #cbd5e0;">${formatDecimalCurrency(pembulatan)}</td>
             <td class="number-cell" style="color: #3182ce; border: 1px solid #cbd5e0;">${yieldVal.toFixed(2)}%</td>
           </tr>
         `;
       });
       
-      const averageYield = sumSimpanan > 0 ? (sumSHU / sumSimpanan) * 100 : 0;
+      const averageYield = sumSimpanan > 0 ? (sumPembulatan / sumSimpanan) * 100 : 0;
       
       htmlContent += `
             <tr style="background-color: #004A9C; color: #ffffff; font-weight: bold;">
               <td colspan="3" style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: center; border: 1px solid #003B7D;">TOTAL DISTRIBUSI ANGGOTA</td>
               <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${formatCurrency(sumSimpanan)}</td>
               <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${(sumProporsi * 100).toFixed(2)}%</td>
-              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${formatCurrency(sumSHU)}</td>
-              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${formatCurrency(sumPembulatan)}</td>
+              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${formatDecimalCurrency(sumSHU)}</td>
+              <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${formatDecimalCurrency(sumPembulatan)}</td>
               <td style="background-color: #004A9C; color: #ffffff; font-weight: bold; text-align: right; border: 1px solid #003B7D;">${averageYield.toFixed(2)}%</td>
             </tr>
           </tbody>
@@ -552,8 +589,16 @@ export default function SHUTab({ api, showNotification, user }) {
                   <tbody className="divide-y divide-gray-50">
                     {paginatedDetails.length > 0 ? (
                       paginatedDetails.map((detail, idx) => {
-                        const pembulatan = Math.floor(detail.shu_diterima / 100) * 100; // Round to nearest 100
-                        const yieldVal = detail.total_simpanan > 0 ? (detail.shu_diterima / detail.total_simpanan) * 100 : 0;
+                        const currentVal = editingValues[detail.id] !== undefined
+                          ? editingValues[detail.id]
+                          : (detail.pembulatan !== null && detail.pembulatan !== undefined 
+                             ? detail.pembulatan 
+                             : Math.round(parseFloat(detail.shu_diterima || 0) / 1000) * 1000);
+                       
+                        const pembulatanNum = parseFloat(currentVal) || 0;
+                        const yieldVal = detail.total_simpanan > 0 ? (pembulatanNum / detail.total_simpanan) * 100 : 0;
+                        
+                        const isDraft = !previewData?.existingRekap?.is_finalized;
                         
                         return (
                           <tr key={idx} className="hover:bg-blue-50/30 transition-colors group">
@@ -575,12 +620,28 @@ export default function SHUTab({ api, showNotification, user }) {
                                </span>
                             </td>
                             <td className="px-6 py-4 text-right text-sm font-bold text-gray-700">
-                               {formatCurrency(detail.shu_diterima)}
+                               {formatDecimalCurrency(detail.shu_diterima)}
                             </td>
                             <td className="px-6 py-4 text-right">
-                               <span className="text-sm font-black text-green-600">
-                                 {formatCurrency(pembulatan)}
-                               </span>
+                               {isBendahara && isDraft ? (
+                                 <input
+                                   type="number"
+                                   className="w-28 text-right bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-xl font-black text-sm text-green-600 outline-none focus:border-blue-500 focus:bg-white transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                   value={currentVal}
+                                   onChange={(e) => handlePembulatanChange(detail.id, e.target.value)}
+                                   onBlur={() => handlePembulatanSave(detail.id, currentVal)}
+                                   onKeyDown={(e) => {
+                                     if (e.key === 'Enter') {
+                                       handlePembulatanSave(detail.id, currentVal);
+                                       e.target.blur();
+                                     }
+                                   }}
+                                 />
+                               ) : (
+                                 <span className="text-sm font-black text-green-600">
+                                   {formatDecimalCurrency(pembulatanNum)}
+                                 </span>
+                               )}
                             </td>
                             <td className="px-6 py-4 text-right">
                                <span className="text-[10px] font-black text-blue-500">

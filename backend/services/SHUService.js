@@ -17,17 +17,61 @@ const ArusKasService = require("./ArusKasService");
 class SHUService {
   /**
    * Mengambil Total Profit Kumulatif Tahunan (per 31 Des)
+   * Menggunakan query transaksi ArusKas tipe Income dan Expense
+   * agar didapatkan Gross Profit riil tahun berjalan sebelum penyesuaian finalisasi SHU.
    */
   async getAnnualProfit(tahun) {
-    // Kita gunakan logic neraca yang sudah ada untuk mendapatkan profit/loss kumulatif hingga Desember
-    const neracaDesember = await neracaController.getNeracaData(12, tahun);
-    const profitRow = neracaDesember.find(
-      (r) => r.isCalculated && r.nama_kategori === "PROFIT/LOSS",
-    );
+    const startDate = `${tahun}-01-01`;
+    const endDate = `${tahun}-12-31`;
 
-    // Profit/Loss di neraca biasanya disimpan dalam format saldo_akhir
-    // Karena Pasiva/Equity, kita balik tandanya (Profit Positif = Angka Negatif di Akuntansi)
-    return profitRow ? Math.abs(parseFloat(profitRow.saldo_akhir)) : 0;
+    const plTrx = await ArusKas.findAll({
+      include: [
+        {
+          model: KategoriKas,
+          as: "kategoriKas",
+          where: { tipe_neraca: { [Op.in]: ["Income", "Expense"] } },
+          attributes: ["tipe_neraca"],
+        },
+      ],
+      where: {
+        tanggal: { [Op.between]: [startDate, endDate] },
+      },
+      attributes: [
+        [
+          sequelize.fn(
+            "SUM",
+            sequelize.literal(
+              "CASE WHEN `ArusKas`.`jenis` = 'Debit' THEN `nominal` ELSE 0 END",
+            ),
+          ),
+          "totalDebit",
+        ],
+        [
+          sequelize.fn(
+            "SUM",
+            sequelize.literal(
+              "CASE WHEN `ArusKas`.`jenis` = 'Kredit' THEN `nominal` ELSE 0 END",
+            ),
+          ),
+          "totalKredit",
+        ],
+      ],
+      group: [sequelize.col("kategoriKas.tipe_neraca")],
+      raw: true,
+      nest: true,
+    });
+
+    let income = 0;
+    let expense = 0;
+    plTrx.forEach((t) => {
+      const d = parseFloat(t.totalDebit || 0);
+      const k = parseFloat(t.totalKredit || 0);
+      const tipe = t.kategoriKas.tipe_neraca;
+      if (tipe === "Income") income += d - k;
+      else if (tipe === "Expense") expense += k - d;
+    });
+
+    return income - expense;
   }
 
   /**
@@ -83,8 +127,16 @@ class SHUService {
       await this.getMemberSavingsProportions(tahun);
 
     // Rekomendasi 80, 15, 5
-    const recAnggota = Math.floor((profit * 0.8) / 1000) * 1000; // Pembulatan ribuan bawah
-    const recPengurus = Math.floor((profit * 0.15) / 1000) * 1000;
+    // Pembulatan dilakukan hanya untuk Jatah Anggota & Pengurus (jutaan terdekat jika profit >= 10jt)
+    // Laba Ditahan menerima sisa selisih pembulatan secara dinamis
+    let recAnggota, recPengurus;
+    if (profit >= 10000000) {
+      recAnggota = Math.round((profit * 0.8) / 1000000) * 1000000;
+      recPengurus = Math.round((profit * 0.15) / 1000000) * 1000000;
+    } else {
+      recAnggota = Math.round((profit * 0.8) / 1000) * 1000;
+      recPengurus = Math.round((profit * 0.15) / 1000) * 1000;
+    }
     const recLabaDitahan = profit - recAnggota - recPengurus;
 
     const existingRekap = await RekapShu.findOne({
@@ -122,7 +174,16 @@ class SHUService {
             jatah_anggota: parseFloat(existingRekap.jatah_anggota),
             jatah_pengurus: parseFloat(existingRekap.jatah_pengurus),
             laba_ditahan: parseFloat(existingRekap.laba_ditahan),
-            details: existingRekap.details,
+            details: existingRekap.details.map((d) => {
+              const raw = d.toJSON ? d.toJSON() : d;
+              const rawShu = parseFloat(raw.shu_diterima || 0);
+              return {
+                ...raw,
+                pembulatan: raw.pembulatan !== null && raw.pembulatan !== undefined
+                  ? parseFloat(raw.pembulatan)
+                  : Math.round(rawShu / 1000) * 1000,
+              };
+            }),
           }
         : null,
     };
@@ -160,23 +221,37 @@ class SHUService {
       );
 
       // 2. Bagi ke Tiap Anggota & Simpan Detail
+      let sumPembulatan = 0;
       for (const m of members) {
         if (totalAllMembersSavings > 0) {
           const p = m.total_simpanan / totalAllMembersSavings;
           const shuMember = p * jatahAnggota;
+          const roundedMember = Math.round(shuMember / 1000) * 1000;
+          sumPembulatan += roundedMember;
 
           await PembagianShu.create(
             {
-              rekap_id: rekap.id, // Pastikan kolom ini ada di model nanti
+              rekap_id: rekap.id,
               anggota_id: m.anggota_id,
               total_simpanan: m.total_simpanan,
               persentase: p,
               shu_diterima: shuMember,
+              pembulatan: roundedMember,
             },
             { transaction },
           );
         }
       }
+
+      // Update rekap.jatah_anggota and laba_ditahan to match the sum of pembulatan
+      const newLabaDitahan = profit - sumPembulatan - jatahPengurus;
+      await rekap.update(
+        {
+          jatah_anggota: sumPembulatan,
+          laba_ditahan: newLabaDitahan,
+        },
+        { transaction },
+      );
 
       // 3. REMOVED AUTO-UPDATE TO NERACA (moved to finalizeSHU)
 
@@ -293,23 +368,11 @@ class SHUService {
       const endingLabaDec = await this.getEndingLabaDitahanDec(catLabaDitahan, tahun, transaction);
 
       // Akumulasikan Laba Ditahan (Laba tahun lalu - Laba tahun buku berjalan untuk merepresentasikan kredit negatif) ke saldo awal Januari tahun buku baru (tahun + 1)
-      const newLabaDitahanJan = endingLabaDec - totalProfit;
+      // (Di-handle secara dinamis di neracaController untuk kemudahan real-time dan fleksibilitas mutasi)
 
-      if (catLabaDitahan) {
-        await SaldoBulanan.upsert(
-          {
-            kategori_id: catLabaDitahan.kategori_id,
-            bulan: 1,
-            tahun: parseInt(tahun) + 1,
-            saldo_awal: newLabaDitahanJan,
-          },
-          { transaction },
-        );
-      }
-
-      // Buat Arus Kas Pengeluaran SHU Anggota & Pengurus pada 1 Januari Tahun Buku Baru
-      // Ini akan muncul secara riil sebagai mutasi dan transaksi di bulan Januari
-      const tglBagi = `${parseInt(tahun) + 1}-01-01`;
+      // Buat Arus Kas Pengeluaran SHU Anggota & Pengurus pada Tanggal Finalisasi SHU (hari ini)
+      // Ini akan muncul secara riil sebagai mutasi dan transaksi di bulan finalisasi
+      const tglBagi = moment().format('YYYY-MM-DD');
 
       if (rekap.jatah_anggota > 0) {
         await ArusKas.create(
@@ -479,6 +542,55 @@ class SHUService {
 
       await transaction.commit();
       return true;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  /**
+   * Mengupdate nilai pembulatan untuk satu detail SHU anggota dan menyelaraskan total rekap
+   */
+  async updateDetailPembulatan(id, pembulatanValue) {
+    const transaction = await sequelize.transaction();
+    try {
+      const detail = await PembagianShu.findByPk(id, { transaction });
+      if (!detail) throw new Error("Detail pembagian SHU tidak ditemukan.");
+
+      const rekap = await RekapShu.findByPk(detail.rekap_id, { transaction });
+      if (!rekap) throw new Error("Rekap SHU tidak ditemukan.");
+      if (rekap.is_finalized) throw new Error("Data SHU yang sudah final tidak dapat diubah.");
+
+      // Update pembulatan detail ini
+      await detail.update({ pembulatan: pembulatanValue }, { transaction });
+
+      // Hitung ulang total pembulatan dari seluruh detail rekap ini
+      const allDetails = await PembagianShu.findAll({
+        where: { rekap_id: detail.rekap_id },
+        transaction,
+      });
+
+      let sumPembulatan = 0;
+      for (const d of allDetails) {
+        const pVal = d.pembulatan !== null && d.pembulatan !== undefined
+          ? parseFloat(d.pembulatan)
+          : Math.round(parseFloat(d.shu_diterima || 0) / 1000) * 1000;
+        sumPembulatan += pVal;
+      }
+
+      // Update rekap.jatah_anggota dan laba_ditahan agar seimbang
+      const newLabaDitahan = parseFloat(rekap.total_profit) - sumPembulatan - parseFloat(rekap.jatah_pengurus);
+
+      await rekap.update(
+        {
+          jatah_anggota: sumPembulatan,
+          laba_ditahan: newLabaDitahan,
+        },
+        { transaction },
+      );
+
+      await transaction.commit();
+      return detail;
     } catch (error) {
       await transaction.rollback();
       throw error;

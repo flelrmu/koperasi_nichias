@@ -85,7 +85,7 @@ export default function SimpanPinjam() {
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Membership Eligibility Logic (Min 30 days for Loans)
+  // Membership Eligibility Logic (Min 90 days / 3 months for Loans)
   const membershipDays = useMemo(() => {
     if (!profileData?.tanggal_bergabung) return 0;
     const joinDate = new Date(profileData.tanggal_bergabung);
@@ -98,9 +98,9 @@ export default function SimpanPinjam() {
   }, [profileData]);
 
   const isEligibleForLoan = useMemo(() => {
-    // Pengurus are always eligible, Anggota must be 30+ days
+    // Pengurus are always eligible, Anggota must be 90+ days (3 months)
     if (user?.role !== 'Anggota') return true;
-    return membershipDays >= 30;
+    return membershipDays >= 90;
   }, [user?.role, membershipDays]);
 
 
@@ -944,7 +944,7 @@ export default function SimpanPinjam() {
                 <div className="max-w-md mx-auto space-y-3 relative z-10">
                   <h3 className="text-2xl font-black text-gray-900 tracking-tight">Akses Pinjaman Dibatasi</h3>
                   <p className="text-gray-500 font-medium leading-relaxed">
-                    Maaf, fitur pengajuan pinjaman hanya tersedia bagi anggota yang telah bergabung selama minimal <span className="text-[#004A9C] font-bold">30 hari</span>.
+                    Maaf, fitur pengajuan pinjaman hanya tersedia bagi anggota yang telah bergabung selama minimal <span className="text-[#004A9C] font-bold">90 hari</span>.
                   </p>
                 </div>
 
@@ -957,7 +957,7 @@ export default function SimpanPinjam() {
                     </div>
                     <div className="h-10 w-px bg-gray-200"></div>
                     <div className="flex flex-col items-center">
-                      <span className="text-2xl font-black text-gray-300">30</span>
+                      <span className="text-2xl font-black text-gray-300">90</span>
                       <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Target</span>
                     </div>
                   </div>
@@ -965,7 +965,7 @@ export default function SimpanPinjam() {
                   <div className="mt-6 w-full bg-gray-200 h-2.5 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, (membershipDays / 30) * 100)}%` }}
+                      animate={{ width: `${Math.min(100, (membershipDays / 90) * 100)}%` }}
                       transition={{ duration: 1, ease: "easeOut" }}
                       className="h-full bg-gradient-to-r from-[#004A9C] to-blue-400"
                     ></motion.div>

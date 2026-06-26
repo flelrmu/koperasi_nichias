@@ -5,6 +5,7 @@ const {
   User,
   Pengurus,
   SaldoBulanan,
+  RekapShu,
   sequelize,
 } = require("../models");
 const { Op } = require("sequelize");
@@ -93,6 +94,50 @@ async function calculateNeracaForMonth(bulan, tahun) {
   );
 
   const kategoriList = await KategoriKas.findAll();
+
+  // Hitung penyesuaian finalisasi SHU secara dinamis
+  const rekapList = await RekapShu.findAll({ where: { is_finalized: true } });
+  
+  let plKreditAdj = 0;
+  let plAwalAdj = 0;
+  
+  let ldKreditAdj = 0;
+  let ldAwalAdj = 0;
+  let ldDebitAdj = 0;
+  
+  const queryBulan = parseInt(bulan);
+  const queryTahun = parseInt(tahun);
+  
+  for (const rekap of rekapList) {
+    const finalizeDate = moment(rekap.updatedAt);
+    const fMonth = finalizeDate.month() + 1;
+    const fYear = finalizeDate.year();
+    const amt = parseFloat(rekap.total_profit || 0);
+    const jatahSHU = parseFloat(rekap.jatah_anggota || 0) + parseFloat(rekap.jatah_pengurus || 0);
+    const labaDitahan = parseFloat(rekap.laba_ditahan || 0);
+    
+    // Hitung bulan & tahun berikutnya untuk penyesuaian Laba Ditahan
+    const nextMonth = fMonth === 12 ? 1 : fMonth + 1;
+    const nextYear = fMonth === 12 ? fYear + 1 : fYear;
+
+    // 1. Penyesuaian Profit/Loss (PL)
+    if (queryTahun === fYear && queryBulan === fMonth) {
+      // Kurangi Profit/Loss di bulan finalisasi hanya sebesar Jatah Anggota & Pengurus
+      plKreditAdj -= jatahSHU;
+      // Jangan kurangi Laba Ditahan di bulan finalisasi karena pengurangannya sudah di-handle oleh Profit/Loss
+      ldDebitAdj -= jatahSHU;
+    } else if (queryTahun === fYear && queryBulan > fMonth) {
+      // Di bulan-bulan setelah finalisasi pada tahun yang sama, seluruh keuntungan ditutup dari Profit/Loss
+      plAwalAdj += amt;
+    }
+
+    // 2. Penyesuaian Laba Ditahan (LD)
+    if (queryTahun > nextYear || (queryTahun === nextYear && queryBulan >= nextMonth)) {
+      // Tambahkan seluruh Laba Bersih ke saldo awal Laba Ditahan di bulan SETELAH finalisasi dan seterusnya
+      // Selisih jatah SHU sudah didebit di ArusKas/Laba Ditahan pada bulan finalisasi
+      ldAwalAdj -= amt;
+    }
+  }
 
   // Ambil semua SaldoBulanan untuk bulan & tahun ini dalam satu query untuk efisiensi
   const monthlyOpeningBalances = await SaldoBulanan.findAll({
@@ -223,18 +268,19 @@ async function calculateNeracaForMonth(bulan, tahun) {
       });
       const profitBulanIni = currIncome - currExpense;
 
-      const totalProfitKumulatif = profitAwal + profitBulanIni;
+      const plAwal = (profitAwal * -1) + plAwalAdj;
+      const plKredit = profitBulanIni + plKreditAdj;
+      const plAkhir = plAwal - plKredit;
 
       results.push({
         nama_kategori: entry.label,
         isCalculated: true,
         isPasiva: true,
         tipe_neraca: "Equity",
-        saldo_awal: profitAwal * -1, // Saldo awal akumulasi bulan sebelumnya
-        // Mutasi bulan ini (dimasukkan ke kolom yang sesuai)
-        debit: profitBulanIni < 0 ? Math.abs(profitBulanIni) : 0,
-        kredit: profitBulanIni > 0 ? Math.abs(profitBulanIni) : 0,
-        saldo_akhir: totalProfitKumulatif * -1,
+        saldo_awal: plAwal,
+        debit: 0,
+        kredit: plKredit,
+        saldo_akhir: plAkhir,
       });
       continue;
     }
@@ -362,6 +408,13 @@ async function calculateNeracaForMonth(bulan, tahun) {
       combinedDebit += currentNeracaDebit;
       combinedKredit += currentNeracaKredit;
       combinedAkhir += saldoAkhirBulan;
+    }
+
+    if (entry.label === "LABA DITAHAN") {
+      combinedAwal += ldAwalAdj;
+      combinedDebit += ldDebitAdj;
+      combinedKredit += ldKreditAdj;
+      combinedAkhir = combinedAwal - combinedKredit + combinedDebit;
     }
 
     // Final Mapping for the row

@@ -35,9 +35,11 @@ export default function ConfigRules() {
 
   const PROTECTED_TITLES = [
     'Simpanan Pokok', 'Simpanan Wajib', 'Simpanan Sukarela',
-    'Suku Bunga', 'Maksimal Pinjaman Uang', 'Pengunduran Diri',
-    'Limit Angsuran Staff', 'Limit Angsuran Asisten Manager', 'Limit Angsuran Manager',
-    'Bunga 10 Bulan', 'Bunga 15 Bulan', 'Bunga 20 Bulan'
+    'Suku Bunga', 'Maksimal Pinjaman Uang', 'Maksimal Pinjaman', 'Pengunduran Diri',
+    'Limit Angsuran Staff', 'Limit Angsuran Asst Manager', 'Limit Angsuran Asisten Manager', 'Limit Angsuran Manager',
+    'Bunga 10 Bulan', 'Bunga 15 Bulan', 'Bunga 20 Bulan',
+    'Alokasi SHU Tahunan', 'Pembulatan Distribusi SHU', 'Tutup Buku Neraca Bulanan',
+    'Bank Koperasi', 'No Rekening Koperasi', 'Atas Nama Koperasi'
   ];
 
   // Fetch data from API
@@ -280,6 +282,53 @@ export default function ConfigRules() {
           </>
         ) : (
           <AnimatePresence mode='popLayout'>
+            {activeCategory === 'Semua' && (
+              <motion.div
+                layout
+                variants={itemVariants}
+                initial="hidden"
+                animate="visible"
+                className="bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-[2rem] border border-blue-100 shadow-sm p-8 hover:shadow-xl hover:-translate-y-2 transition-all flex flex-col relative overflow-hidden group"
+              >
+                {/* Decorative background element */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-200 rounded-full -mr-16 -mt-16 opacity-30 group-hover:scale-150 transition-transform duration-500"></div>
+
+                <div className="flex items-start justify-between mb-6 relative z-10">
+                  <div className="w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-md">
+                    <BookOpen size={28} />
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] text-blue-700 font-bold bg-blue-100/60 px-3 py-1 rounded-full uppercase tracking-wider">
+                    Panduan Setup
+                  </div>
+                </div>
+                
+                <h3 className="text-xl font-black text-gray-900 mb-3">Setup Awal Penggunaan Sistem</h3>
+                <div className="text-gray-600 text-xs space-y-3 flex-1 mb-6">
+                  <p className="leading-relaxed font-semibold text-gray-700">
+                    Saat sistem pertama kali digunakan, penginputan data keuangan awal wajib dilakukan dengan urutan berikut demi menjaga sinkronisasi buku:
+                  </p>
+                  <ol className="space-y-2.5 list-decimal list-inside font-medium text-gray-600">
+                    <li>
+                      <span className="font-bold text-gray-800">Edit Simpanan Anggota:</span> Sesuaikan saldo simpanan pokok, wajib, & sukarela masing-masing anggota.
+                    </li>
+                    <li>
+                      <span className="font-bold text-gray-800">Kelola Saldo Awal Aktiva & Pasiva:</span> Input saldo awal pada tiap pos kategori akun neraca global.
+                    </li>
+                    <li>
+                      <span className="font-bold text-gray-800">Penyesuaian Saldo Awal Cash/Bank:</span> Langkah terakhir, selaraskan saldo kas riil pada titik nol sistem.
+                    </li>
+                  </ol>
+                </div>
+
+                <div className="mt-auto pt-6 border-t border-blue-100/50 flex items-center justify-between relative z-10">
+                  <div>
+                    <span className="text-[10px] text-blue-500 font-bold uppercase tracking-widest block mb-1">Status Prosedur</span>
+                    <span className="text-xs font-black text-blue-700">Wajib Berurutan</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {filteredRules.map((rule) => {
               const Icon = getIconComponent(rule.icon_name);
               return (

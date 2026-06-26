@@ -58,7 +58,7 @@ export default function SimpanPinjam() {
   const location = useLocation();
   const { api, user } = useAuth();
   const socket = useSocket();
-  const canEdit = isKoordinatorSP(user?.role);
+  const canEdit = ['Koordinator_Simpan_Pinjam', 'Bendahara'].includes(user?.role);
   const highlightRef = useRef(null);
 
   const [activeTab, setActiveTab] = useState('simpanan'); // 'simpanan' or 'pinjaman'
@@ -1281,52 +1281,69 @@ export default function SimpanPinjam() {
                                   </td>
                                   <td className="py-5 px-8"><StatusBadge status={loan.status} /></td>
                                   <td className="py-5 px-8 text-right">
-                                    {canEdit ? (
-                                      <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {loan.status !== 'Pending' ? (
-                                          <div className="flex items-center gap-1">
-                                            <button 
-                                              onClick={() => handleLoanActionClick(loan, 'view')} 
-                                              className="p-2.5 text-gray-400 hover:text-[#004A9C] hover:bg-blue-50 rounded-xl transition-all" 
-                                              title="Kelola Pinjaman"
-                                            >
-                                              <Settings size={22} />
-                                            </button>
-                                            {(loan.status === 'Approved' || loan.status === 'Lunas') && (
-                                              <Link 
-                                                to={`/pinjaman/invoice/${loan.pinjaman_id}`} 
-                                                className="p-2.5 text-blue-600 hover:text-[#004A9C] hover:bg-blue-50 rounded-xl transition-all" 
-                                                title="Cetak Invoice"
+                                    <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      {canEdit ? (
+                                        <>
+                                          {loan.status !== 'Pending' ? (
+                                            <div className="flex items-center gap-1">
+                                              <button 
+                                                onClick={() => handleLoanActionClick(loan, 'view')} 
+                                                className="p-2.5 text-gray-400 hover:text-[#004A9C] hover:bg-blue-50 rounded-xl transition-all" 
+                                                title="Kelola Pinjaman"
                                               >
-                                                <FileText size={22} />
-                                              </Link>
-                                            )}
-                                          </div>
-                                        ) : (
+                                                <Settings size={22} />
+                                              </button>
+                                              {(loan.status === 'Approved' || loan.status === 'Lunas') && (
+                                                <Link 
+                                                  to={`/pinjaman/invoice/${loan.pinjaman_id}`} 
+                                                  className="p-2.5 text-blue-600 hover:text-[#004A9C] hover:bg-blue-50 rounded-xl transition-all" 
+                                                  title="Cetak Invoice"
+                                                >
+                                                  <FileText size={22} />
+                                                </Link>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <button 
+                                              onClick={() => handleLoanActionClick(loan, 'review')} 
+                                              className="p-2.5 text-[#F2994A] hover:bg-orange-50 rounded-xl transition-all" 
+                                              title="Review Pinjaman"
+                                            >
+                                              <Eye size={22} />
+                                            </button>
+                                          )}
+                                          
+                                          {loan.status === 'Rejected' && (
+                                            <button 
+                                              onClick={() => handleDeleteLoan(loan)} 
+                                              className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" 
+                                              title="Hapus Pinjaman"
+                                            >
+                                              <Trash2 size={22} />
+                                            </button>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <div className="flex items-center gap-1">
                                           <button 
-                                            onClick={() => handleLoanActionClick(loan, 'review')} 
-                                            className="p-2.5 text-[#F2994A] hover:bg-orange-50 rounded-xl transition-all" 
-                                            title="Review Pinjaman"
+                                            onClick={() => handleLoanActionClick(loan, 'view')} 
+                                            className="p-2.5 text-gray-400 hover:text-[#004A9C] hover:bg-blue-50 rounded-xl transition-all" 
+                                            title="Lihat Detail Pinjaman"
                                           >
                                             <Eye size={22} />
                                           </button>
-                                        )}
-                                        
-                                        {/* Edit icon removed per request */}
-                                        
-                                        {loan.status === 'Rejected' && (
-                                          <button 
-                                            onClick={() => handleDeleteLoan(loan)} 
-                                            className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" 
-                                            title="Hapus Pinjaman"
-                                          >
-                                            <Trash2 size={22} />
-                                          </button>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <span className="text-[9px] font-bold text-gray-300 uppercase italic">View Only</span>
-                                    )}
+                                          {(loan.status === 'Approved' || loan.status === 'Lunas') && (
+                                            <Link 
+                                              to={`/pinjaman/invoice/${loan.pinjaman_id}`} 
+                                              className="p-2.5 text-blue-600 hover:text-[#004A9C] hover:bg-blue-50 rounded-xl transition-all" 
+                                              title="Cetak Invoice"
+                                            >
+                                              <FileText size={22} />
+                                            </Link>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
                                   </td>
                                 </motion.tr>
                               );
@@ -1435,7 +1452,7 @@ export default function SimpanPinjam() {
                             value={updateLoan.jumlah_disetujui} 
                             onChange={(e) => setUpdateLoan({...updateLoan, jumlah_disetujui: formatToRupiah(e.target.value)})}
                             className="!pl-12 font-bold"
-                            disabled={selectedLoan.status !== 'Pending'}
+                            disabled={!canEdit || selectedLoan.status !== 'Pending'}
                           />
                         </div>
                       </div>
@@ -1444,10 +1461,10 @@ export default function SimpanPinjam() {
                     <div className="space-y-3">
                       <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Tenor Persetujuan</label>
                       <select 
-                        className={`w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#004A9C]/20 transition-all font-bold text-sm text-gray-700 ${selectedLoan.status !== 'Pending' ? 'cursor-not-allowed opacity-70' : ''}`} 
+                        className={`w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#004A9C]/20 transition-all font-bold text-sm text-gray-700 ${(!canEdit || selectedLoan.status !== 'Pending') ? 'cursor-not-allowed opacity-70' : ''}`} 
                         value={updateLoan.tenor} 
                         onChange={(e) => setUpdateLoan({...updateLoan, tenor: parseInt(e.target.value)})}
-                        disabled={selectedLoan.status !== 'Pending'}
+                        disabled={!canEdit || selectedLoan.status !== 'Pending'}
                       >
                         <option value="10">10 Bulan ({parseFloat(configs['BUNGA_10_BULAN'] || 10)}% Bunga)</option>
                         <option value="15">15 Bulan ({parseFloat(configs['BUNGA_15_BULAN'] || 15)}% Bunga)</option>
@@ -1465,11 +1482,11 @@ export default function SimpanPinjam() {
                     <div className="space-y-3">
                       <label className="text-xs font-black text-[#EB5757] uppercase tracking-widest ml-1">Keterangan / Alasan Penolakan</label>
                       <textarea 
-                        className={`w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#EB5757]/20 transition-all font-medium text-sm text-gray-700 min-h-[100px] resize-none ${selectedLoan.status !== 'Pending' ? 'cursor-not-allowed opacity-70' : ''}`} 
+                        className={`w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#EB5757]/20 transition-all font-medium text-sm text-gray-700 min-h-[100px] resize-none ${(!canEdit || selectedLoan.status !== 'Pending') ? 'cursor-not-allowed opacity-70' : ''}`} 
                         placeholder="Berikan alasan jika pinjaman ditolak atau catatan tambahan..."
                         value={updateLoan.catatan_pengurus}
                         onChange={(e) => setUpdateLoan({...updateLoan, catatan_pengurus: e.target.value})}
-                        disabled={selectedLoan.status !== 'Pending'}
+                        disabled={!canEdit || selectedLoan.status !== 'Pending'}
                       />
                     </div>
                   </div>
@@ -1580,7 +1597,7 @@ export default function SimpanPinjam() {
                         );
                       })()}
 
-                      {selectedLoan.status === 'Pending' && (
+                      {selectedLoan.status === 'Pending' && canEdit && (
                         <div className="mt-8 space-y-3">
                           <label className="text-[10px] font-bold text-[#004A9C] uppercase tracking-[0.2em] ml-1">Pilih Metode Pencairan</label>
                           <div className="grid grid-cols-2 gap-3">
@@ -1604,9 +1621,9 @@ export default function SimpanPinjam() {
                         </div>
                       )}
 
-                      <div className="flex flex-col gap-3 mt-6">
+                        <div className="flex flex-col gap-3 mt-6">
                         {selectedLoan.status === 'Pending' ? (
-                          <>
+                          canEdit ? (
                             <div className="grid grid-cols-2 gap-4">
                               {(() => {
                                  const simJumlah = parseFloat(updateLoan.jumlah_disetujui.toString().replace(/\./g, '')) || 0;
@@ -1669,39 +1686,51 @@ export default function SimpanPinjam() {
                                 Tolak
                               </Button>
                             </div>
-                          </>
+                          ) : (
+                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 text-center">
+                              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Status Pinjaman</p>
+                              <StatusBadge status={selectedLoan.status} />
+                              <p className="text-[10px] text-gray-400 mt-2 italic">Menunggu Review Koordinator Simpan Pinjam</p>
+                            </div>
+                          )
                         ) : selectedLoan.status === 'Approved' ? (
                           <div className="space-y-4">
                             <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 text-center space-y-2">
                               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Status Pinjaman</p>
                               <StatusBadge status={selectedLoan.status} />
                             </div>
-                            <div className="bg-green-50 p-5 rounded-2xl border border-green-100 text-center space-y-4">
-                              <div className="space-y-2">
-                                <p className="text-[10px] font-bold text-green-600 uppercase tracking-[0.2em]">Metode Pelunasan</p>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <button 
-                                    onClick={() => setUpdateLoan({...updateLoan, metode_pembayaran: 'CASH'})}
-                                    className={`py-2 rounded-xl text-[10px] font-bold border-2 transition-all ${updateLoan.metode_pembayaran === 'CASH' ? 'border-green-600 bg-white text-green-600' : 'border-green-100 text-green-300 hover:bg-white/50'}`}
-                                  >
-                                    TUNAI
-                                  </button>
-                                  <button 
-                                    onClick={() => setUpdateLoan({...updateLoan, metode_pembayaran: 'BANK'})}
-                                    className={`py-2 rounded-xl text-[10px] font-bold border-2 transition-all ${updateLoan.metode_pembayaran === 'BANK' ? 'border-green-600 bg-white text-green-600' : 'border-green-100 text-green-300 hover:bg-white/50'}`}
-                                  >
-                                    TRANSFER
-                                  </button>
+                            {canEdit ? (
+                              <div className="bg-green-50 p-5 rounded-2xl border border-green-100 text-center space-y-4">
+                                <div className="space-y-2">
+                                  <p className="text-[10px] font-bold text-green-600 uppercase tracking-[0.2em]">Metode Pelunasan</p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <button 
+                                      onClick={() => setUpdateLoan({...updateLoan, metode_pembayaran: 'CASH'})}
+                                      className={`py-2 rounded-xl text-[10px] font-bold border-2 transition-all ${updateLoan.metode_pembayaran === 'CASH' ? 'border-green-600 bg-white text-green-600' : 'border-green-100 text-green-300 hover:bg-white/50'}`}
+                                    >
+                                      TUNAI
+                                    </button>
+                                    <button 
+                                      onClick={() => setUpdateLoan({...updateLoan, metode_pembayaran: 'BANK'})}
+                                      className={`py-2 rounded-xl text-[10px] font-bold border-2 transition-all ${updateLoan.metode_pembayaran === 'BANK' ? 'border-green-600 bg-white text-green-600' : 'border-green-100 text-green-300 hover:bg-white/50'}`}
+                                    >
+                                      TRANSFER
+                                    </button>
+                                  </div>
                                 </div>
+                                <p className="text-[10px] text-green-700 font-medium">Sisa tagihan: <span className="font-black text-sm">{formatCurrency(selectedLoan.sisa_tagihan)}</span></p>
+                                <Button
+                                  onClick={() => handleLunaskan(selectedLoan)}
+                                  className="w-full !py-4 !bg-[#27AE60] hover:!bg-[#219150] !text-white shadow-xl shadow-[#27AE60]/20 font-black uppercase tracking-widest"
+                                >
+                                  Lunasi Pinjaman Sekarang
+                                </Button>
                               </div>
-                              <p className="text-[10px] text-green-700 font-medium">Sisa tagihan: <span className="font-black text-sm">{formatCurrency(selectedLoan.sisa_tagihan)}</span></p>
-                              <Button
-                                onClick={() => handleLunaskan(selectedLoan)}
-                                className="w-full !py-4 !bg-[#27AE60] hover:!bg-[#219150] !text-white shadow-xl shadow-[#27AE60]/20 font-black uppercase tracking-widest"
-                              >
-                                Lunasi Pinjaman Sekarang
-                              </Button>
-                            </div>
+                            ) : (
+                              <div className="bg-[#DFEAF4]/30 border border-[#004A9C]/10 rounded-2xl p-4 text-center">
+                                <p className="text-[10px] text-gray-500 font-medium">Sisa tagihan: <span className="font-black text-[#004A9C]">{formatCurrency(selectedLoan.sisa_tagihan)}</span></p>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 text-center">
@@ -1710,12 +1739,12 @@ export default function SimpanPinjam() {
                             <p className="text-[10px] text-gray-400 mt-2 italic">Data ini sudah diproses dan tidak dapat diubah lagi.</p>
                           </div>
                         )}
-                        {selectedLoan.status === 'Pending' && (
+                        {(!canEdit || selectedLoan.status === 'Pending') && (
                           <button 
                             onClick={() => setIsReviewOpen(false)}
                             className="w-full py-4 text-sm font-bold text-gray-400 hover:text-gray-600 transition-all uppercase tracking-widest"
                           >
-                            Batalkan
+                            Tutup Detail
                           </button>
                         )}
                       </div>

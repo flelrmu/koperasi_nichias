@@ -232,6 +232,10 @@ export default function FinanceManagement() {
 
   const handleCategorySubmit = async (e) => {
     e.preventDefault();
+    if (isClosed) {
+      showNotification("Periode keuangan terkunci, tidak dapat menyimpan perubahan.", "error");
+      return;
+    }
     try {
       if (editCatData) {
         await api.put(
@@ -896,8 +900,13 @@ export default function FinanceManagement() {
               {isBendahara && (
                 <div className="flex justify-end pt-2">
                   <button
+                    disabled={isClosed}
                     onClick={() => setActiveTab("kategori")}
-                    className="flex items-center gap-2 px-6 py-3 bg-[#004A9C] hover:bg-[#003d82] text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-900/10 hover:shadow-blue-900/20 active:scale-95"
+                    className={`flex items-center gap-2 px-6 py-3 text-white rounded-xl text-xs font-bold transition-all shadow-lg ${
+                      isClosed
+                        ? "bg-gray-400 opacity-50 cursor-not-allowed shadow-none"
+                        : "bg-[#004A9C] hover:bg-[#003d82] shadow-blue-900/10 hover:shadow-blue-900/20 active:scale-95"
+                    }`}
                   >
                     <Tags size={16} />
                     Kelola Saldo Awal
@@ -918,6 +927,39 @@ export default function FinanceManagement() {
                     <ChevronLeft size={20} />
                   </button>
                   <h2 className="text-xl font-bold">Manajemen Saldo Awal</h2>
+                </div>
+              </div>
+
+              {/* Alert Peringatan & Informasi */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {isClosed && (
+                  <div className="col-span-1 md:col-span-2 p-4 bg-red-50 border border-red-200 rounded-2xl flex gap-3 text-red-800">
+                    <AlertCircle size={20} className="shrink-0 text-red-600 animate-pulse" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold uppercase tracking-wide">Periode Keuangan Terkunci</p>
+                      <p className="text-[11px] leading-relaxed font-medium">
+                        Periode keuangan untuk bulan dan tahun terpilih telah dikunci (tutup buku). Anda tidak dapat mengubah saldo awal pada kategori apa pun hingga periode ini dibuka kembali.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3 text-amber-800">
+                  <AlertTriangle size={20} className="shrink-0 text-amber-600 animate-pulse" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold uppercase tracking-wide">Penting / Peringatan</p>
+                    <p className="text-[11px] leading-relaxed font-medium">
+                      Pengaturan saldo awal ini <strong>hanya diisi pada awal sistem ini digunakan</strong>. Mohon tidak mengubah saldo awal jika sistem sudah berjalan aktif dan memiliki transaksi bulanan.
+                    </p>
+                  </div>
+                </div>
+                <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex gap-3 text-blue-800">
+                  <AlertCircle size={20} className="shrink-0 text-[#004A9C]" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold uppercase tracking-wide">Pemberitahuan Debit/Kredit Neraca</p>
+                    <p className="text-[11px] leading-relaxed font-medium">
+                      Jika memilih jenis <strong>Debit</strong> maka angka saldo awal pada neraca akan bernilai <strong>positif</strong>, sedangkan pilihan <strong>Kredit</strong> akan menghasilkan angka <strong>negatif / dengan kurung</strong> pada neraca.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -966,8 +1008,9 @@ export default function FinanceManagement() {
                               </span>
                             </div>
                           </div>
-                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className={`flex gap-2 transition-opacity ${isClosed ? "opacity-30" : "opacity-0 group-hover:opacity-100"}`}>
                             <button
+                              disabled={isClosed}
                               onClick={() => {
                                 setEditCatData(c);
                                 setFormDataCat({
@@ -978,7 +1021,11 @@ export default function FinanceManagement() {
                                 });
                                 setShowModalCat(true);
                               }}
-                              className="p-2 text-blue-500 hover:bg-white rounded-xl shadow-sm"
+                              className={`p-2 rounded-xl shadow-sm transition-all ${
+                                isClosed
+                                  ? "text-gray-400 opacity-50 cursor-not-allowed"
+                                  : "text-blue-500 hover:bg-white"
+                              }`}
                             >
                               <Edit2 size={14} />
                             </button>
@@ -1035,8 +1082,9 @@ export default function FinanceManagement() {
                               </span>
                             </div>
                           </div>
-                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className={`flex gap-2 transition-opacity ${isClosed ? "opacity-30" : "opacity-0 group-hover:opacity-100"}`}>
                             <button
+                              disabled={isClosed}
                               onClick={() => {
                                 setEditCatData(c);
                                 setFormDataCat({
@@ -1047,7 +1095,11 @@ export default function FinanceManagement() {
                                 });
                                 setShowModalCat(true);
                               }}
-                              className="p-2 text-blue-500 hover:bg-white rounded-xl shadow-sm"
+                              className={`p-2 rounded-xl shadow-sm transition-all ${
+                                isClosed
+                                  ? "text-gray-400 opacity-50 cursor-not-allowed"
+                                  : "text-blue-500 hover:bg-white"
+                              }`}
                             >
                               <Edit2 size={14} />
                             </button>
@@ -1102,7 +1154,7 @@ export default function FinanceManagement() {
                 </button>
               </div>
               <form onSubmit={handleSubmitKas} className="space-y-4">
-                {formDataKas.jenis === "Debit" &&
+                {formDataKas.jenis === "Kredit" &&
                   parseFloat(formDataKas.nominal) >
                     realtimeSaldo[formDataKas.metode_pembayaran || "CASH"] && (
                     <motion.div
@@ -1413,6 +1465,9 @@ export default function FinanceManagement() {
                       Uang Keluar (Kredit)
                     </button>
                   </div>
+                  <p className="text-[10px] text-gray-400 mt-1 italic leading-relaxed">
+                    * Catatan: Jika memilih <strong>Debit</strong> maka angka saldo awal neraca bernilai <strong>positif</strong>. Jika memilih <strong>Kredit</strong> maka bernilai <strong>negatif/dengan kurung</strong>.
+                  </p>
                 </div>
                 <div className="flex gap-3 pt-4">
                   <Button
@@ -1528,13 +1583,20 @@ export default function FinanceManagement() {
                 </button>
               </div>
 
-              <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex gap-3 text-blue-700 mb-6">
+              <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex gap-3 text-blue-700 mb-4">
                 <AlertCircle size={20} className="shrink-0" />
                 <p className="text-[11px] leading-relaxed font-medium">
                   <span className="font-bold">INFO:</span> Anda sedang mengubah{" "}
                   <span className="font-bold underline">Saldo Awal</span> (Titik
                   Nol). Perubahan ini tidak akan dicatat sebagai transaksi Arus
                   Kas harian.
+                </p>
+              </div>
+
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3 text-amber-800 mb-6">
+                <AlertTriangle size={20} className="shrink-0 text-amber-600 animate-pulse" />
+                <p className="text-[11px] leading-relaxed font-medium">
+                  <span className="font-bold">PERINGATAN:</span> Pengisian saldo awal ini <strong>hanya diisi pada awal sistem ini digunakan</strong>.
                 </p>
               </div>
 

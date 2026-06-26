@@ -76,38 +76,6 @@ const getAllPeraturan = async (req, res) => {
 };
 
 /**
- * GET /api/peraturan/suku-bunga
- * Mengambil nilai suku bunga aktif dari peraturan "Suku Bunga".
- */
-const getSukuBunga = async (req, res) => {
-  try {
-    const sukuBunga = await Peraturan.findOne({
-      where: { judul: 'Suku Bunga' },
-      attributes: ['peraturan_id', 'judul', 'ketentuan_utama', 'nilai_numerik', 'updated_at'],
-    });
-
-    if (!sukuBunga) {
-      return res.status(404).json({
-        success: false,
-        message: 'Peraturan suku bunga tidak ditemukan.',
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      data: sukuBunga,
-    });
-  } catch (error) {
-    console.error('❌ Error fetching suku bunga:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Gagal mengambil data suku bunga.',
-      error: error.message,
-    });
-  }
-};
-
-/**
  * GET /api/peraturan/:id
  * Mengambil detail satu peraturan.
  */
@@ -304,7 +272,6 @@ const deletePeraturan = async (req, res) => {
 
 module.exports = {
   getAllPeraturan,
-  getSukuBunga,
   getPeraturanById,
   createPeraturan,
   updatePeraturan,

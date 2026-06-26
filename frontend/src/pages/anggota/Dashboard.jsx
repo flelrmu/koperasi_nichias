@@ -169,7 +169,9 @@ export default function Dashboard() {
       ?.filter((curr) => curr.rekap?.is_finalized)
       ?.reduce(
         (acc, curr) =>
-          acc + Math.floor(parseFloat(curr.shu_diterima || 0) / 100) * 100,
+          acc + (curr.pembulatan !== null && curr.pembulatan !== undefined
+            ? parseFloat(curr.pembulatan)
+            : Math.round(parseFloat(curr.shu_diterima || 0) / 1000) * 1000),
         0,
       ) || 0;
   const sisaPinjaman =

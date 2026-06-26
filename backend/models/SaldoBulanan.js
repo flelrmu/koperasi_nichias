@@ -9,7 +9,11 @@ module.exports = (sequelize, DataTypes) => {
     },
     kategori_id: {
       type: DataTypes.INTEGER,
-      allowNull: false
+      allowNull: false,
+      references: {
+        model: 'kategori_kas',
+        key: 'kategori_id',
+      },
     },
     bulan: {
       type: DataTypes.INTEGER,
@@ -33,6 +37,10 @@ module.exports = (sequelize, DataTypes) => {
       }
     ]
   });
+
+  SaldoBulanan.associate = (models) => {
+    SaldoBulanan.belongsTo(models.KategoriKas, { foreignKey: 'kategori_id', as: 'kategoriKas' });
+  };
 
   return SaldoBulanan;
 };

@@ -138,3 +138,30 @@ exports.cancelSHU = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * PUT /api/keuangan/shu/detail/:id
+ */
+exports.updateDetailPembulatan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { pembulatan } = req.body;
+
+    if (pembulatan === undefined) throw new Error("Nominal pembulatan harus diisi.");
+
+    const result = await SHUService.updateDetailPembulatan(parseInt(id), parseFloat(pembulatan));
+
+    const io = req.io || req.app.get("io");
+    if (io) {
+      io.emit("dashboardUpdate");
+    }
+
+    res.json({
+      success: true,
+      message: "Nominal pembulatan berhasil diperbarui.",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
