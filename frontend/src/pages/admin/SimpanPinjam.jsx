@@ -58,27 +58,27 @@ export default function SimpanPinjam() {
   const location = useLocation();
   const { api, user } = useAuth();
   const socket = useSocket();
-  const canEdit = ['Koordinator_Simpan_Pinjam', 'Bendahara'].includes(user?.role);
+  const canEdit = ['Koordinator_Simpan_Pinjam'].includes(user?.role);
   const highlightRef = useRef(null);
 
-  const [activeTab, setActiveTab] = useState('simpanan'); // 'simpanan' or 'pinjaman'
+  const [activeTab, setActiveTab] = useState('simpanan'); 
   
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMonth, setFilterMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
   const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()));
   const [activeLoanFilter, setActiveLoanFilter] = useState('Semua');
-  const [loanSortOrder, setLoanSortOrder] = useState('newest'); // 'newest' or 'oldest'
+  const [loanSortOrder, setLoanSortOrder] = useState('newest'); 
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [highlightedId, setHighlightedId] = useState(null);
 
-  // Pagination states
+  
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Modals state
+  
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState(null);
 
@@ -103,7 +103,7 @@ export default function SimpanPinjam() {
     metode_pembayaran: 'CASH'
   });
 
-  // Data states
+  
   const [savingsData, setSavingsData] = useState([]);
   const [loansData, setLoansData] = useState([]);
   const [configs, setConfigs] = useState({});
@@ -132,7 +132,7 @@ export default function SimpanPinjam() {
     fetchData();
   }, []);
 
-  // Listen for socket events
+  
   useEffect(() => {
     if (!socket) return;
 
@@ -140,7 +140,7 @@ export default function SimpanPinjam() {
       console.log('📥 WebSocket Received simpanan:updated:', data);
       setSavingsData(prev => prev.map(s => s.simpanan_id === data.simpanan_id ? data : s));
       
-      // Highlight updated row
+      
       if (activeTab === 'simpanan') {
         setHighlightedId(data.simpanan_id);
         setTimeout(() => setHighlightedId(null), 3000);
@@ -151,7 +151,7 @@ export default function SimpanPinjam() {
       console.log('📥 WebSocket Received pinjaman:updated:', data);
       setLoansData(prev => prev.map(l => l.pinjaman_id === data.pinjaman_id ? data : l));
       
-      // Highlight updated row
+      
       if (activeTab === 'pinjaman') {
         setHighlightedId(data.pinjaman_id);
         setTimeout(() => setHighlightedId(null), 3000);
@@ -202,7 +202,7 @@ export default function SimpanPinjam() {
     };
   }, [socket, activeTab]);
 
-  // --- LOGIC ---
+  
   const savingsStats = useMemo(() => {
     return savingsData.reduce((acc, curr) => ({
       pokok: acc.pokok + parseFloat(curr.saldo_pokok || 0),
@@ -263,20 +263,20 @@ export default function SimpanPinjam() {
           return priorityA - priorityB;
         }
         
-        // Secondary sort by date / submission order
+        
         if (loanSortOrder === 'oldest') {
-          // Pertama masuk (oldest first)
+          
           const dateDiff = new Date(a.tanggal_pengajuan) - new Date(b.tanggal_pengajuan);
           return dateDiff !== 0 ? dateDiff : a.pinjaman_id - b.pinjaman_id;
         } else {
-          // Terakhir masuk (newest first)
+          
           const dateDiff = new Date(b.tanggal_pengajuan) - new Date(a.tanggal_pengajuan);
           return dateDiff !== 0 ? dateDiff : b.pinjaman_id - a.pinjaman_id;
         }
       });
   }, [loansData, searchQuery, activeLoanFilter, loanSortOrder, filterMonth, filterYear]);
 
-  // Pagination logic
+  
   const activeData = activeTab === 'simpanan' ? filteredSavings : filteredLoans;
   const totalPages = Math.ceil(activeData.length / itemsPerPage);
   const paginatedData = useMemo(() => {
@@ -377,7 +377,7 @@ export default function SimpanPinjam() {
     });
   };
 
-  // Check URL query param for automatic modal opening
+  
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const reviewLoanId = params.get('review_loan');
@@ -386,14 +386,14 @@ export default function SimpanPinjam() {
       if (loan) {
         setActiveTab('pinjaman');
         handleLoanActionClick(loan, 'review');
-        // Clear the URL param without refreshing
+        
         window.history.replaceState(null, '', location.pathname);
       }
     }
   }, [location.search, loansData]);
 
   const handleBulkWajib = async (scope = 'all') => {
-    // If scope is 'selected' and nothing is selected, return
+    
     if (scope === 'selected' && selectedItems.length === 0) {
       setStatusModal({
         isOpen: true,
@@ -507,7 +507,7 @@ export default function SimpanPinjam() {
     try {
       const targetStatus = forcedStatus || updateLoan.status;
       
-      // Validation: if Approved, check if monthly payment exceeds limit
+      
       if (targetStatus === 'Approved') {
         const simJumlah = parseFloat(updateLoan.jumlah_disetujui.toString().replace(/\./g, '')) || 0;
         const t = parseInt(updateLoan.tenor) || 10;
@@ -538,7 +538,7 @@ export default function SimpanPinjam() {
         }
       }
 
-      // Validation: if Rejected, catatan_pengurus is mandatory
+      
       if (targetStatus === 'Rejected' && !updateLoan.catatan_pengurus) {
         setStatusModal({ 
           isOpen: true, 
@@ -676,7 +676,7 @@ export default function SimpanPinjam() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Premium Header Section */}
+      {}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#DFEAF4] rounded-full -mr-32 -mt-32 opacity-50 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#004A9C]/5 rounded-full -ml-24 -mb-24 opacity-40 blur-3xl"></div>
@@ -695,7 +695,7 @@ export default function SimpanPinjam() {
         </div>
       </div>
 
-      {/* Tabs Section */}
+      {}
       <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 flex flex-col lg:flex-row gap-6 items-center justify-between">
         <div className="flex p-1.5 bg-gray-50 rounded-2xl w-full lg:w-auto overflow-x-auto no-scrollbar">
           <button
@@ -726,7 +726,7 @@ export default function SimpanPinjam() {
       <AnimatePresence mode="wait">
         {activeTab === 'simpanan' ? (
           <motion.div key="simpanan-tab" variants={tabContentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-            {/* Savings Stats */}
+            {}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
                 { label: 'Total S. Pokok', value: savingsStats.pokok, icon: Wallet, color: '#004A9C', bg: '#DFEAF4' },
@@ -741,7 +741,7 @@ export default function SimpanPinjam() {
                   onMouseLeave={() => setHoveredStat(null)}
                   className="bg-white rounded-[2.5rem] shadow-sm p-8 border border-gray-100 hover:shadow-2xl hover:shadow-blue-900/10 transition-all group relative aspect-square flex flex-col items-center justify-center text-center"
                 >
-                  {/* Clipping container for decorative background effects */}
+                  {}
                   <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] pointer-events-none">
                     <div 
                       className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-5 transition-transform duration-700 group-hover:scale-150"
@@ -763,7 +763,7 @@ export default function SimpanPinjam() {
                         {formatCurrency(stat.value, true)}
                       </p>
                       
-                      {/* Hover Tooltip for Full Amount */}
+                      {}
                       <AnimatePresence>
                         {hoveredStat === `savings-${idx}` && (
                           <motion.div
@@ -784,7 +784,7 @@ export default function SimpanPinjam() {
               ))}
             </div>
 
-            {/* Filter Bar (Search only) */}
+            {}
             <motion.div variants={itemVariants} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
               <div className="relative flex-1 w-full">
                 <Search
@@ -990,7 +990,7 @@ export default function SimpanPinjam() {
                 exit="exit" 
                 className="space-y-6"
               >
-                {/* Loan Stats */}
+                {}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                   {[
                     { label: 'Outstanding Pinjaman', value: loanStats.outstanding, icon: Wallet, color: '#004A9C', bg: '#DFEAF4' },
@@ -1047,7 +1047,7 @@ export default function SimpanPinjam() {
                   ))}
                 </div>
 
-                {/* Filter Bar (Search + Month + Year) */}
+                {}
                 <motion.div variants={itemVariants} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
                   <div className="relative flex-1 w-full">
                     <Search
@@ -1113,7 +1113,7 @@ export default function SimpanPinjam() {
                         ))}
                       </div>
 
-                      {/* Sorting Controls */}
+                      {}
                       <div className="relative z-20" ref={sortDropdownRef}>
                         <button
                           onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
@@ -1358,7 +1358,7 @@ export default function SimpanPinjam() {
                   {!isLoading && paginatedData.length > 0 && <Pagination />}
                 </div>
 
-                {/* Collective Action Card for Pinjaman */}
+                {}
                 {canEdit && (
                   <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col md:flex-row items-center justify-between gap-4 mt-6">
                     <div className="flex items-center gap-4">
@@ -1422,9 +1422,9 @@ export default function SimpanPinjam() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  {/* Left Side: Detail & Form */}
+                  {}
                   <div className="space-y-8">
-                    {/* User Card */}
+                    {}
                     <div className="flex items-center gap-5 p-6 bg-gray-50 rounded-3xl border border-gray-100">
                       <div className="w-16 h-16 bg-gradient-to-br from-[#004A9C] to-blue-600 text-white rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg shadow-blue-900/20">
                         {selectedLoan?.anggota?.nama_lengkap?.charAt(0)}
@@ -1491,7 +1491,7 @@ export default function SimpanPinjam() {
                     </div>
                   </div>
 
-                  {/* Right Side: Simulation & Actions */}
+                  {}
                   <div className="space-y-6">
                     <div className="bg-blue-50/50 p-8 rounded-[2.5rem] border border-blue-100 h-full flex flex-col shadow-sm">
                       <div className="flex items-center justify-between mb-8">
@@ -1519,8 +1519,8 @@ export default function SimpanPinjam() {
                       </div>
 
                       {(() => {
-                        // For Approved/Lunas: use STORED values from database (locked at approval time)
-                        // For Pending: calculate dynamically from current configs
+                        
+                        
                         const isPending = selectedLoan?.status === 'Pending';
                         
                         let simBunga, simTotal, simAngsuran, simBungaPersen;
@@ -1536,7 +1536,7 @@ export default function SimpanPinjam() {
                           simTotal = simJumlah + simBunga;
                           simAngsuran = simTotal / t;
                         } else {
-                          // Use stored database values
+                          
                           simBunga = parseFloat(selectedLoan?.total_bunga || 0);
                           simTotal = parseFloat(selectedLoan?.total_angsuran || 0);
                           simAngsuran = parseFloat(selectedLoan?.angsuran_per_bulan || 0);
@@ -1757,11 +1757,11 @@ export default function SimpanPinjam() {
         )}
       </AnimatePresence>
 
-      {/* --- MODALS --- */}
-      {/* Old Loan Review Modal Removed */}
+      {}
+      {}
 
 
-      {/* Confirmation Modal */}
+      {}
       <Modal
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
@@ -1773,7 +1773,7 @@ export default function SimpanPinjam() {
         cancelText="Batal"
       />
 
-      {/* Status Modal (Success/Error) */}
+      {}
       <Modal
         isOpen={statusModal.isOpen}
         onClose={() => setStatusModal({ ...statusModal, isOpen: false })}

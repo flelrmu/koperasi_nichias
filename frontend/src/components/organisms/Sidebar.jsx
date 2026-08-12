@@ -27,13 +27,13 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     navigate('/login');
   };
 
-  // Menu items for Anggota
+  
   const MEMBER_MENU_ITEMS = [
     { name: 'Dashboard', path: '/dashboard', icon: Home },
     { name: 'Simpan Pinjam', path: '/simpan-pinjam', icon: PiggyBank },
   ];
 
-  // Menu items for Admin/Pengurus
+  
   const ADMIN_MENU_ITEMS = [
     { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard, roles: MANAGEMENT_ROLES },
     { name: 'Manajemen Users', path: '/admin/users', icon: User, roles: MANAGEMENT_ROLES },
@@ -42,14 +42,14 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     { name: 'Konfigurasi', path: '/admin/konfigurasi', icon: Settings, roles: MANAGEMENT_ROLES },
   ];
 
-  // Determine menu items based on role
+  
   const navItems = user?.role === 'Anggota' 
     ? MEMBER_MENU_ITEMS 
     : ADMIN_MENU_ITEMS.filter(item => item.roles.includes(user?.role));
 
   return (
     <>
-      {/* Mobile Overlay */}
+      {}
       {isOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
@@ -57,7 +57,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         />
       )}
 
-      {/* Sidebar Container */}
+      {}
       <aside 
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#DFEAF4] flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'

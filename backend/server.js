@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const db = require('./models');
 
-// Import routes
+
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
@@ -24,16 +24,16 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 5000;
 
 
-// Middleware
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Static uploads folder
+
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Socket.io connection logic
+
 io.on('connection', (socket) => {
   console.log('⚡ Client connected to Socket.io:', socket.id);
   
@@ -46,7 +46,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// Pass io to request object for use in controllers
+
 app.use((req, res, next) => {
   req.io = io;
   next();
@@ -54,7 +54,7 @@ app.use((req, res, next) => {
 
 const dashboardRoutes = require('./routes/dashboardRoutes');
 
-// Routes
+
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -63,7 +63,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/simpan-pinjam', require('./routes/simpanPinjamRoutes'));
 app.use('/api/keuangan', require('./routes/keuanganRoutes'));
 
-// Test route
+
 app.get('/', (req, res) => {
   res.json({
     message: 'Koperasi Nichias API is running!',
@@ -71,12 +71,12 @@ app.get('/', (req, res) => {
   });
 });
 
-// Test koneksi database lalu jalankan server
+
 db.sequelize
   .authenticate()
   .then(() => {
     console.log('✅ Koneksi database berhasil!');
-    // Sinkronisasi tabel (Membuat tabel jika belum ada)
+    
     return db.sequelize.sync();
   })
   .then(() => {

@@ -9,15 +9,6 @@ const Anggota = db.Anggota;
 const Pengurus = db.Pengurus;
 const Notifikasi = db.Notifikasi;
 
-/**
- * POST /api/auth/register
- * Mendaftarkan calon anggota baru.
- * - Validasi email domain @koperasi-nichias.co.id
- * - Validasi password complexity
- * - Cek status email existing (Aktif/Pending)
- * - Jika baru → INSERT ke tabel users & anggota
- * - Kirim notifikasi ke semua Sekretaris via Socket.IO
- */
 const register = async (req, res) => {
   const {
     email,
@@ -32,8 +23,7 @@ const register = async (req, res) => {
     no_rekening_bank,
     alamat,
   } = req.body;
-
-  // Validasi field wajib (Semua 11 field harus diisi)
+  
   if (
     !email || 
     !password || 
@@ -52,8 +42,7 @@ const register = async (req, res) => {
       message: 'Semua data (11 field) wajib diisi lengkap.',
     });
   }
-
-  // Validasi domain email: harus @koperasi-nichias.co.id
+  
   const emailDomainRegex = /^[^\s@]+@koperasi-nichias\.co\.id$/i;
   if (!emailDomainRegex.test(email)) {
     return res.status(400).json({
@@ -61,8 +50,7 @@ const register = async (req, res) => {
       message: 'Email harus menggunakan domain @koperasi-nichias.co.id',
     });
   }
-
-  // Validasi password complexity: min 8 char, huruf besar, huruf kecil, angka, simbol
+  
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
   if (!passwordRegex.test(password)) {
     return res.status(400).json({
@@ -70,12 +58,11 @@ const register = async (req, res) => {
       message: 'Password minimal 8 karakter, harus mengandung huruf besar, huruf kecil, angka, dan simbol.',
     });
   }
-
-  // Gunakan transaction untuk menjaga konsistensi data
+  
   const transaction = await db.sequelize.transaction();
 
   try {
-    // Cek apakah email sudah terdaftar
+    
     const existingUser = await User.findOne({
       where: { email },
       include: [{ model: Anggota, as: 'anggota' }],
@@ -85,7 +72,7 @@ const register = async (req, res) => {
     if (existingUser) {
       const status = existingUser.anggota?.status_keanggotaan;
 
-      // Jika statusnya 'Aktif' → Tolak
+      
       if (status === 'Aktif') {
         await transaction.rollback();
         return res.status(409).json({
@@ -94,7 +81,7 @@ const register = async (req, res) => {
         });
       }
 
-      // Jika statusnya 'Pending' → Tolak
+      
       if (status === 'Pending') {
         await transaction.rollback();
         return res.status(409).json({
@@ -103,7 +90,7 @@ const register = async (req, res) => {
         });
       }
 
-      // Status lainnya (Keluar, dll) → Tolak
+      
       await transaction.rollback();
       return res.status(409).json({
         success: false,
@@ -111,7 +98,7 @@ const register = async (req, res) => {
       });
     }
 
-    // Cek apakah no_identitas sudah terdaftar (jika diisi)
+    
     if (no_identitas) {
       const existingAnggota = await Anggota.findOne({ where: { no_identitas }, transaction });
       if (existingAnggota) {
@@ -123,10 +110,10 @@ const register = async (req, res) => {
       }
     }
 
-    // Hash password
+    
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 1. Insert ke tabel users
+    
     const newUser = await User.create(
       {
         email,
@@ -136,7 +123,7 @@ const register = async (req, res) => {
       { transaction }
     );
 
-    // 2. Insert ke tabel anggota
+    
     const newAnggota = await Anggota.create(
       {
         user_id: newUser.user_id,
@@ -154,7 +141,7 @@ const register = async (req, res) => {
       { transaction }
     );
 
-    // 3. Buat notifikasi untuk semua Sekretaris
+    
     const sekretarisList = await User.findAll({
       where: { role: 'Sekretaris' },
       attributes: ['user_id'],
@@ -178,16 +165,16 @@ const register = async (req, res) => {
       await Notifikasi.bulkCreate(notifikasiRecords, { transaction });
     }
 
-    // Commit transaction
+    
     await transaction.commit();
 
-    // 4. Fetch full data from DB for complete socket payload
+    
     const fullAnggota = await Anggota.findByPk(newAnggota.anggota_id, {
       include: [{ model: User, as: 'user', attributes: ['email', 'role'] }]
     });
     const anggotaPlain = fullAnggota.get({ plain: true });
 
-    // 5. Emit Socket.IO event untuk notifikasi real-time
+    
     const notifPayload = {
       notifikasi: {
         judul: notifJudul,
@@ -202,18 +189,18 @@ const register = async (req, res) => {
     console.log(`📤 Emitting notifikasi:pendaftaran-baru for ${nama_lengkap}`);
     req.io.emit('notifikasi:pendaftaran-baru', notifPayload);
 
-    // Emit dashboard update for real-time stats
+    
     req.io.emit('dashboardUpdate');
     req.io.emit('arus-kas-updated');
 
-    // Emit juga user:created agar UserManagement table auto-update
+    
     console.log(`📤 Emitting user:created for ${nama_lengkap}`);
     req.io.emit('user:created', {
       type: 'anggota',
       user: anggotaPlain,
     });
 
-    // Generate JWT token
+    
     const token = jwt.sign(
       {
         user_id: newUser.user_id,
@@ -240,7 +227,7 @@ const register = async (req, res) => {
       },
     });
   } catch (error) {
-    // Rollback jika terjadi error
+    
     await transaction.rollback();
     console.error('❌ Error pada registrasi:', error);
 
@@ -252,13 +239,8 @@ const register = async (req, res) => {
   }
 };
 
-/**
- * POST /api/auth/login
- * Login untuk semua role (Anggota & Pengurus).
- * - Cek email + password
- * - Generate JWT token
- * - Response berisi redirect path berdasarkan role & status
- */
+
+
 const login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -270,7 +252,7 @@ const login = async (req, res) => {
   }
 
   try {
-    // Cari user berdasarkan email
+    
     const user = await User.findOne({
       where: { email },
       include: [
@@ -286,7 +268,7 @@ const login = async (req, res) => {
       });
     }
 
-    // Bandingkan password
+    
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -295,7 +277,7 @@ const login = async (req, res) => {
       });
     }
 
-    // Generate JWT token
+    
     const token = jwt.sign(
       {
         user_id: user.user_id,
@@ -306,7 +288,7 @@ const login = async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // Tentukan redirect path dan data user berdasarkan role
+    
     let redirectPath = '/dashboard';
     let nama_lengkap = '';
     let status_keanggotaan = null;
@@ -332,7 +314,7 @@ const login = async (req, res) => {
           redirectPath = '/dashboard';
       }
     } else {
-      // Pengurus (Ketua, Wakil_Ketua, Sekretaris, Bendahara, Koordinator_Simpan_Pinjam)
+      
       nama_lengkap = user.pengurus?.nama_lengkap || '';
       foto_profil = user.pengurus?.foto_profil || null;
       redirectPath = '/admin/dashboard';
@@ -366,17 +348,14 @@ const login = async (req, res) => {
   }
 };
 
-/**
- * POST /api/auth/admin/create-user
- * Membuat user baru oleh admin/pengurus.
- */
+
 const adminCreateUser = async (req, res) => {
   const {
-    type, // 'Anggota' atau 'Pengurus'
+    type, 
     email,
     password,
     nama_lengkap,
-    // Field khusus Anggota
+    
     no_identitas,
     tempat_lahir,
     tanggal_lahir,
@@ -385,12 +364,12 @@ const adminCreateUser = async (req, res) => {
     no_hp,
     no_rekening_bank,
     alamat,
-    // Field khusus Pengurus
-    role, // e.g., 'Sekretaris', 'Bendahara'
-    metode_pembayaran, // Tambahkan ini
+    
+    role, 
+    metode_pembayaran, 
   } = req.body;
 
-  // ... (Validasi tetap sama)
+  
   if (!email || !password || !nama_lengkap || !type) {
     return res.status(400).json({ success: false, message: 'Field email, password, nama lengkap, dan tipe user wajib diisi.' });
   }
@@ -431,7 +410,7 @@ const adminCreateUser = async (req, res) => {
         tanggal_bergabung: new Date(),
       }, { transaction });
 
-      // --- AUTO-GENERATE SIMPANAN POKOK (SAME AS APPROVE) ---
+      
       const configPokok = await db.Konfigurasi.findOne({ 
         where: { nama_config: 'SIMPANAN_POKOK' },
         transaction 
@@ -455,7 +434,7 @@ const adminCreateUser = async (req, res) => {
         keterangan: 'Simpanan Pokok Awal (Dibuat oleh Admin)'
       }, { transaction });
 
-      // --- INTEGRASI ARUS KAS ---
+      
       await ArusKasService.recordTransaction({
         user_id: detailInstance.user_id,
         nama_kategori: 'Simpanan Pokok',
@@ -477,7 +456,7 @@ const adminCreateUser = async (req, res) => {
 
     await transaction.commit();
 
-    // Ambil data LENGKAP untuk emit & response
+    
     let fullData;
     if (type.toLowerCase() === 'anggota') {
       fullData = await Anggota.findByPk(detailInstance.anggota_id, {
@@ -489,7 +468,7 @@ const adminCreateUser = async (req, res) => {
       });
     }
 
-    // Ubah ke JSON murni & pastikan casing konsisten (lowercase)
+    
     const socketPayload = { 
       type: type.toLowerCase(), 
       user: fullData.get({ plain: true }) 
@@ -497,14 +476,14 @@ const adminCreateUser = async (req, res) => {
 
     console.log(`📤 Emitting user:created event for ${socketPayload.type}:`, socketPayload.user.nama_lengkap);
 
-    // Emit event real-time dengan data lengkap
+    
     req.io.emit('user:created', socketPayload);
 
-    // Emit dashboard update for real-time stats
+    
     req.io.emit('dashboardUpdate');
     req.io.emit('arus-kas-updated');
 
-    // Emit simpanan:created if member was created
+    
     if (type.toLowerCase() === 'anggota') {
       const newSimpanan = await db.Simpanan.findOne({
         where: { anggota_id: detailInstance.anggota_id },

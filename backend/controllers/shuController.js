@@ -1,8 +1,8 @@
 const SHUService = require("../services/SHUService");
 
-/**
- * GET /api/keuangan/shu/preview
- */
+
+
+
 exports.getPreview = async (req, res) => {
   try {
     const { tahun } = req.query;
@@ -15,9 +15,9 @@ exports.getPreview = async (req, res) => {
   }
 };
 
-/**
- * POST /api/keuangan/shu/proses
- */
+
+
+
 exports.prosesSHU = async (req, res) => {
   try {
     const { tahun, jatah_anggota, jatah_pengurus, laba_ditahan } = req.body;
@@ -54,9 +54,9 @@ exports.prosesSHU = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/keuangan/shu/finalize
- */
+
+
+
 exports.finalizeSHU = async (req, res) => {
   try {
     const { tahun } = req.body;
@@ -94,9 +94,9 @@ exports.finalizeSHU = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/keuangan/shu/cancel-finalize
- */
+
+
+
 exports.cancelFinalizeSHU = async (req, res) => {
   try {
     const { tahun } = req.body;
@@ -121,9 +121,9 @@ exports.cancelFinalizeSHU = async (req, res) => {
   }
 };
 
-/**
- * DELETE /api/keuangan/shu/:tahun
- */
+
+
+
 exports.cancelSHU = async (req, res) => {
   try {
     const { tahun } = req.params;
@@ -139,9 +139,9 @@ exports.cancelSHU = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/keuangan/shu/detail/:id
- */
+
+
+
 exports.updateDetailPembulatan = async (req, res) => {
   try {
     const { id } = req.params;

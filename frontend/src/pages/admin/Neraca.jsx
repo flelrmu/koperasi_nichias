@@ -26,7 +26,7 @@ export default function Neraca() {
   const { user } = useAuth();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewType, setViewType] = useState('monthly'); // 'monthly' or 'yearly'
+  const [viewType, setViewType] = useState('monthly'); 
   const [filter, setFilter] = useState({
     bulan: moment().format('MM'),
     tahun: moment().format('YYYY')
@@ -238,7 +238,7 @@ export default function Neraca() {
     return num < 0 ? `(${formatted})` : formatted;
   };
 
-  // Group data by Tipe Neraca (excluding total rows for calculations)
+  
   const assets = data.filter(item => item.tipe_neraca === 'Asset' && !item.isTotalRow);
   const liabilities = data.filter(item => item.tipe_neraca === 'Liability' && !item.isTotalRow);
   const equities = data.filter(item => item.tipe_neraca === 'Equity' && !item.isTotalRow);
@@ -247,12 +247,14 @@ export default function Neraca() {
   const totalLiabilities = liabilities.reduce((acc, curr) => acc + parseFloat(curr.saldo_akhir), 0);
   const totalEquity = equities.reduce((acc, curr) => acc + parseFloat(curr.saldo_akhir), 0);
 
+  const isBalanced = Math.abs(totalAssets + totalLiabilities + totalEquity) < 1;
+
   const totalDebitCol = data.filter(item => !item.isTotalRow).reduce((acc, curr) => acc + parseFloat(curr.debit || 0), 0);
   const totalKreditCol = data.filter(item => !item.isTotalRow).reduce((acc, curr) => acc + parseFloat(curr.kredit || 0), 0);
 
   return (
     <div className="space-y-6 pb-20">
-      {/* Header Section */}
+      {}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[32px] shadow-sm border border-gray-100">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-blue-50 rounded-2xl">
@@ -326,8 +328,12 @@ export default function Neraca() {
             ) : (
               <Button 
                 onClick={handleTutupBuku} 
-                disabled={loading}
-                className="flex items-center gap-2 !px-6 bg-red-500 hover:bg-red-600 text-white font-bold"
+                disabled={loading || !isBalanced}
+                className={`flex items-center gap-2 !px-6 font-bold ${
+                  !isBalanced 
+                    ? '!bg-gray-100 !text-gray-400 cursor-not-allowed' 
+                    : 'bg-red-500 hover:bg-red-600 text-white'
+                }`}
               >
                 <Unlock size={18} />
                 Tutup Buku
@@ -336,7 +342,7 @@ export default function Neraca() {
           </div>
         </div>
 
-        {/* Main Content Area */}
+        {}
         <motion.div 
           layout
           className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden"
@@ -385,7 +391,7 @@ export default function Neraca() {
                       </td>
                     </tr>
                   ))}
-                  {/* Empty Footer Row for Month-Year label like in image */}
+                  {}
                   <tr className="bg-[#004A9C] border-t-2 border-[#003B7D] text-white">
                     <td className="px-8 py-4 text-sm font-black text-center border-r border-white/10 uppercase text-white">
                       {moment(`${filter.tahun}-${filter.bulan}-01`).format('MMM-YY')}
@@ -405,7 +411,7 @@ export default function Neraca() {
           )}
         </motion.div>
 
-        {/* Action Cards */}
+        {}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-blue-600 rounded-[32px] p-8 text-white relative overflow-hidden shadow-xl shadow-blue-500/20">
             <FileSpreadsheet className="absolute -right-6 -bottom-6 text-white/10" size={140} />
@@ -436,10 +442,10 @@ export default function Neraca() {
             </div>
             <p className="text-gray-500 text-sm mb-6 leading-relaxed">
               Laporan ini dibuat secara otomatis dengan menggabungkan saldo awal kategori dan seluruh mutasi kas (Debit/Kredit). 
-              {Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 1 ? (
+              {isBalanced ? (
                 <span className="text-green-600 font-bold ml-1">✅ Neraca Seimbang (Balance).</span>
               ) : (
-                <span className="text-red-500 font-bold ml-1">⚠️ Neraca Tidak Seimbang. Selisih: {formatRupiah(totalAssets - (totalLiabilities + totalEquity))}</span>
+                <span className="text-red-500 font-bold ml-1">⚠️ Neraca Tidak Seimbang. Selisih: {formatRupiah(Math.abs(totalAssets + totalLiabilities + totalEquity))}</span>
               )}
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -456,7 +462,7 @@ export default function Neraca() {
             </div>
           </div>
         </div>
-      {/* Confirm Modal */}
+      {}
       <Modal
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}

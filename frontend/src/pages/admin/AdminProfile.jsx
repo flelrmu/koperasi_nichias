@@ -28,7 +28,7 @@ export default function AdminProfile() {
   const [isSavingPwd, setIsSavingPwd] = useState(false);
   const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
 
-  // State for profile data
+  
   const [profileData, setProfileData] = useState({
     nama: '',
     email: '',
@@ -201,7 +201,7 @@ export default function AdminProfile() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Avatar & Summary */}
+        {}
         <motion.div variants={itemVariants} className="space-y-6 lg:col-span-1">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col items-center text-center">
             <div className="relative mb-4 group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
@@ -246,10 +246,10 @@ export default function AdminProfile() {
           </div>
         </motion.div>
 
-        {/* Right Column: Forms */}
+        {}
         <motion.div variants={itemVariants} className="lg:col-span-2 space-y-6">
           
-          {/* Profile Details Form */}
+          {}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100 bg-gray-50/50">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center">
@@ -346,7 +346,7 @@ export default function AdminProfile() {
             </div>
           </div>
 
-          {/* Change Password Form */}
+          {}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100 bg-gray-50/50">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center">
@@ -404,7 +404,7 @@ export default function AdminProfile() {
         </motion.div>
       </div>
 
-      {/* Status Modal (Success/Error) */}
+      {}
       <Modal
         isOpen={statusModal.isOpen}
         onClose={() => setStatusModal({ ...statusModal, isOpen: false })}

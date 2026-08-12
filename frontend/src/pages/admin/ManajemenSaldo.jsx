@@ -21,7 +21,7 @@ import StatusBadge from '../../components/atoms/StatusBadge';
 export default function ManajemenSaldo() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams(); // simpanan_id
+  const { id } = useParams(); 
   const { api } = useAuth();
   
   const formatToRupiah = (value) => {
@@ -52,7 +52,7 @@ export default function ManajemenSaldo() {
     
     setSaldo(prev => ({ ...prev, [key]: formatted }));
     
-    // Use requestAnimationFrame or setTimeout to restore cursor position after React re-render
+    
     requestAnimationFrame(() => {
       const newLength = formatted.length;
       const position = Math.max(0, selectionStart + (newLength - oldLength));
@@ -164,7 +164,7 @@ export default function ManajemenSaldo() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Header Navigation */}
+      {}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button 
@@ -181,7 +181,7 @@ export default function ManajemenSaldo() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Form Inputs */}
+        {}
         <div className="lg:col-span-2 space-y-6">
            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-8 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-[#DFEAF4]/10 rounded-full -mr-32 -mt-32"></div>
@@ -215,7 +215,7 @@ export default function ManajemenSaldo() {
                  ))}
               </div>
 
-              {/* Metode Pembayaran Selection */}
+              {}
               <div className="pt-8 border-t border-gray-100 space-y-4">
                   <label className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] px-1 block">Akun Sumber Penyesuaian</label>
                   <div className="grid grid-cols-2 gap-4">
@@ -240,7 +240,7 @@ export default function ManajemenSaldo() {
                   <p className="text-[10px] text-gray-400 italic px-1 font-medium">Pilih akun mana yang akan mencatat selisih saldo ini di laporan keuangan (Arus Kas).</p>
               </div>
 
-              {/* Action Buttons */}
+              {}
               <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-4">
                 <Button 
                   variant="outline" 
@@ -261,9 +261,9 @@ export default function ManajemenSaldo() {
            </div>
         </div>
 
-        {/* Right Column: Info & Summary */}
+        {}
         <div className="space-y-6">
-           {/* Profile Card */}
+           {}
            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
               <div className="flex flex-col items-center text-center space-y-4">
                  <div className="w-24 h-24 bg-[#004A9C] text-white rounded-[2rem] flex items-center justify-center font-black text-4xl shadow-2xl shadow-[#004A9C]/30 relative">
@@ -281,7 +281,7 @@ export default function ManajemenSaldo() {
               </div>
            </div>
 
-           {/* Total Summary Card */}
+           {}
            <div className="bg-gray-900 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-gray-200 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24 blur-3xl transition-all group-hover:scale-150 duration-700"></div>
               <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#004A9C]/20 rounded-full -ml-16 -mb-16 blur-2xl"></div>
@@ -317,7 +317,7 @@ export default function ManajemenSaldo() {
               </div>
            </div>
 
-           {/* Quick Note */}
+           {}
            <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100 flex gap-4">
               <Info className="text-orange-500 shrink-0 mt-1" size={20} />
               <p className="text-[11px] text-orange-700 leading-relaxed font-medium">
@@ -327,7 +327,7 @@ export default function ManajemenSaldo() {
         </div>
       </div>
 
-      {/* Confirm Modal */}
+      {}
       <Modal
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
@@ -340,7 +340,7 @@ export default function ManajemenSaldo() {
         maxWidth="max-w-md"
       />
 
-      {/* Status Modal */}
+      {}
       <Modal
         isOpen={statusModal.isOpen}
         onClose={() => {

@@ -1,11 +1,9 @@
 const {
   ArusKas,
   KategoriKas,
-  Simpanan,
   Anggota,
   PembagianShu,
   RekapShu,
-  SaldoBulanan,
   Notifikasi,
   sequelize,
 } = require("../models");
@@ -15,11 +13,11 @@ const neracaController = require("../controllers/neracaController");
 const ArusKasService = require("./ArusKasService");
 
 class SHUService {
-  /**
-   * Mengambil Total Profit Kumulatif Tahunan (per 31 Des)
-   * Menggunakan query transaksi ArusKas tipe Income dan Expense
-   * agar didapatkan Gross Profit riil tahun berjalan sebelum penyesuaian finalisasi SHU.
-   */
+  
+
+
+
+
   async getAnnualProfit(tahun) {
     const startDate = `${tahun}-01-01`;
     const endDate = `${tahun}-12-31`;
@@ -71,14 +69,20 @@ class SHUService {
       else if (tipe === "Expense") expense += k - d;
     });
 
-    return income - expense;
+    // Incorporate the PROFIT/LOSS category's saldo_awal (set via Manajemen Saldo Awal)
+    const plCat = await KategoriKas.findOne({
+      where: { nama_kategori: "PROFIT/LOSS" },
+    });
+    const plBaseSaldo = plCat ? parseFloat(plCat.saldo_awal || 0) : 0;
+
+    return (income - expense) + Math.abs(plBaseSaldo);
   }
 
-  /**
-   * Menghitung Proporsi Simpanan Tiap Anggota
-   */
+  
+
+
   async getMemberSavingsProportions(tahun) {
-    // Ambil semua anggota aktif
+    
     const members = await Anggota.findAll({
       where: { status_keanggotaan: "Aktif" },
     });
@@ -87,24 +91,9 @@ class SHUService {
     let totalAllMembersSavings = 0;
 
     for (const member of members) {
-      // Hitung Saldo Simpanan (Pokok + Wajib + Sukarela) per 31 Des
-      // Kita asumsikan saldo simpanan di tabel Anggota/Simpanan sudah terupdate
-      // Atau kita hitung dari transaksi simpanan hingga akhir tahun
-      const savings = await sequelize.query(
-        `
-        SELECT (saldo_pokok + saldo_wajib + saldo_sukarela) as total 
-        FROM simpanan 
-        WHERE anggota_id = :anggotaId
-      `,
-        {
-          replacements: {
-            anggotaId: member.anggota_id,
-          },
-          type: sequelize.QueryTypes.SELECT,
-        },
-      );
-
-      const totalSaldo = parseFloat(savings[0].total || 0);
+      const totalSaldo = (parseFloat(member.saldo_pokok) || 0) + 
+                         (parseFloat(member.saldo_wajib) || 0) + 
+                         (parseFloat(member.saldo_sukarela) || 0);
       totalAllMembersSavings += totalSaldo;
 
       results.push({
@@ -118,17 +107,17 @@ class SHUService {
     return { members: results, totalAllMembersSavings };
   }
 
-  /**
-   * Menghasilkan Preview Pembagian
-   */
+  
+
+
   async generatePreview(tahun) {
     const profit = await this.getAnnualProfit(tahun);
     const { members, totalAllMembersSavings } =
       await this.getMemberSavingsProportions(tahun);
 
-    // Rekomendasi 80, 15, 5
-    // Pembulatan dilakukan hanya untuk Jatah Anggota & Pengurus (jutaan terdekat jika profit >= 10jt)
-    // Laba Ditahan menerima sisa selisih pembulatan secara dinamis
+    
+    
+    
     let recAnggota, recPengurus;
     if (profit >= 10000000) {
       recAnggota = Math.round((profit * 0.8) / 1000000) * 1000000;
@@ -189,9 +178,9 @@ class SHUService {
     };
   }
 
-  /**
-   * Memproses Final Pembagian SHU
-   */
+  
+
+
   async processSHU(
     tahun,
     jatahAnggota,
@@ -205,7 +194,7 @@ class SHUService {
       const { members, totalAllMembersSavings } =
         await this.getMemberSavingsProportions(tahun);
 
-      // 1. Simpan Rekap Header
+      
       const rekap = await RekapShu.create(
         {
           tahun,
@@ -220,7 +209,7 @@ class SHUService {
         { transaction },
       );
 
-      // 2. Bagi ke Tiap Anggota & Simpan Detail
+      
       let sumPembulatan = 0;
       for (const m of members) {
         if (totalAllMembersSavings > 0) {
@@ -243,7 +232,7 @@ class SHUService {
         }
       }
 
-      // Update rekap.jatah_anggota and laba_ditahan to match the sum of pembulatan
+      
       const newLabaDitahan = profit - sumPembulatan - jatahPengurus;
       await rekap.update(
         {
@@ -253,9 +242,9 @@ class SHUService {
         { transaction },
       );
 
-      // 3. REMOVED AUTO-UPDATE TO NERACA (moved to finalizeSHU)
+      
 
-      // Buat Notifikasi Persisten untuk Bendahara yang memproses
+      
       await Notifikasi.create(
         {
           user_id: processedBy,
@@ -276,9 +265,9 @@ class SHUService {
     }
   }
 
-  /**
-   * Helper to get December ending balance for BANK dynamically
-   */
+  
+
+
   async getEndingBankDec(tahun, transaction) {
     const startDate = `${tahun}-12-01`;
     const endDate = `${tahun}-12-31`;
@@ -289,10 +278,10 @@ class SHUService {
     });
     if (!catBank) return 0;
 
-    // 1. Get starting balance of December
+    
     const sAwalDec = await ArusKasService.getOpeningBalance(catBank, 12, tahun, { transaction });
 
-    // 2. Get December transactions
+    
     const currTrx = await ArusKas.findAll({
       where: { metode_pembayaran: "BANK", tanggal: { [Op.between]: [startDate, endDate] } },
       attributes: [
@@ -307,14 +296,14 @@ class SHUService {
     return sAwalDec + cDebit - cKredit;
   }
 
-  /**
-   * Helper to get December ending balance for LABA DITAHAN dynamically
-   */
+  
+
+
   async getEndingLabaDitahanDec(catLabaDitahan, tahun, transaction) {
     const startDate = `${tahun}-12-01`;
     const endDate = `${tahun}-12-31`;
 
-    // 1. Get starting balance of December
+    
     const sAwalDec = await ArusKasService.getOpeningBalance(catLabaDitahan, 12, tahun, { transaction });
 
     const currTrx = await ArusKas.findAll({
@@ -331,9 +320,9 @@ class SHUService {
     return sAwalDec + cDebit - cKredit;
   }
 
-  /**
-   * Finalisasi SHU: Masukkan Laba Ditahan ke Neraca
-   */
+  
+
+
   async finalizeSHU(tahun, processedBy) {
     const transaction = await sequelize.transaction();
     try {
@@ -344,14 +333,14 @@ class SHUService {
 
       const totalProfit = parseFloat(rekap.total_profit);
 
-      // Pastikan kategori LABA DITAHAN ada
+      
       const [catLabaDitahan] = await KategoriKas.findOrCreate({
         where: { nama_kategori: "LABA DITAHAN" },
         defaults: { tipe_neraca: "Equity", kode_akun: "3-000", saldo_awal: 0 },
         transaction,
       });
 
-      // Pastikan kategori PEMBAGIAN SHU ANGGOTA & PENGURUS ada
+      
       const [catAnggota] = await KategoriKas.findOrCreate({
         where: { nama_kategori: "PEMBAGIAN SHU ANGGOTA" },
         defaults: { tipe_neraca: "Equity", kode_akun: "3-200", saldo_awal: 0 },
@@ -364,14 +353,14 @@ class SHUService {
         transaction,
       });
 
-      // Hitung ending balance Laba Ditahan per 31 Desember secara riil
+      
       const endingLabaDec = await this.getEndingLabaDitahanDec(catLabaDitahan, tahun, transaction);
 
-      // Akumulasikan Laba Ditahan (Laba tahun lalu - Laba tahun buku berjalan untuk merepresentasikan kredit negatif) ke saldo awal Januari tahun buku baru (tahun + 1)
-      // (Di-handle secara dinamis di neracaController untuk kemudahan real-time dan fleksibilitas mutasi)
+      
+      
 
-      // Buat Arus Kas Pengeluaran SHU Anggota & Pengurus pada Tanggal Finalisasi SHU (hari ini)
-      // Ini akan muncul secara riil sebagai mutasi dan transaksi di bulan finalisasi
+      
+      
       const tglBagi = moment().format('YYYY-MM-DD');
 
       if (rekap.jatah_anggota > 0) {
@@ -406,10 +395,10 @@ class SHUService {
 
       await rekap.update({ is_finalized: true }, { transaction });
 
-      // Hitung ulang saldo akhir di Arus Kas secara sekuensial agar saldo_akhir transaksi SHU baru terisi dengan benar
+      
       await ArusKasService.recalculateSaldo({ transaction });
 
-      // Buat Notifikasi Persisten di Database untuk Semua Anggota Aktif
+      
       const activeMembers = await Anggota.findAll({
         where: { status_keanggotaan: "Aktif" },
         attributes: ["user_id"],
@@ -432,7 +421,7 @@ class SHUService {
         }
       }
 
-      // Buat Notifikasi Persisten untuk Bendahara yang memproses pembagian
+      
       await Notifikasi.create(
         {
           user_id: processedBy,
@@ -453,9 +442,9 @@ class SHUService {
     }
   }
 
-  /**
-   * Membatalkan Finalisasi SHU: Keluarkan Laba Ditahan dari Neraca
-   */
+  
+
+
   async cancelFinalizeSHU(tahun) {
     const transaction = await sequelize.transaction();
     try {
@@ -469,19 +458,11 @@ class SHUService {
         transaction,
       });
 
-      // Batalkan perubahan dengan menghapus record SaldoBulanan Januari tahun depan
-      if (catLabaDitahan) {
-        await SaldoBulanan.destroy({
-          where: {
-            kategori_id: catLabaDitahan.kategori_id,
-            bulan: 1,
-            tahun: parseInt(tahun) + 1,
-          },
-          transaction,
-        });
-      }
+      
+      // SaldoBulanan destroy removed as SaldoBulanan is no longer used.
 
-      // Hapus Arus Kas Pengeluaran SHU Anggota & Pengurus yang auto-generated di bulan Januari
+
+      
       await ArusKas.destroy({
         where: {
           kode_transaksi: {
@@ -491,7 +472,7 @@ class SHUService {
         transaction,
       });
 
-      // Hapus Notifikasi Persisten yang telah dikirim ke anggota
+      
       const activeMembers = await Anggota.findAll({
         where: { status_keanggotaan: "Aktif" },
         attributes: ["user_id"],
@@ -510,7 +491,7 @@ class SHUService {
 
       await rekap.update({ is_finalized: false }, { transaction });
 
-      // Hitung ulang saldo akhir di Arus Kas secara sekuensial agar saldo_akhir sinkron kembali setelah transaksi SHU dihapus
+      
       await ArusKasService.recalculateSaldo({ transaction });
 
       await transaction.commit();
@@ -521,9 +502,9 @@ class SHUService {
     }
   }
 
-  /**
-   * Membatalkan Proses SHU
-   */
+  
+
+
   async cancelSHU(tahun) {
     const transaction = await sequelize.transaction();
     try {
@@ -532,12 +513,12 @@ class SHUService {
       if (rekap.is_finalized)
         throw new Error(`SHU yang sudah difinalisasi tidak dapat dibatalkan.`);
 
-      // Hapus detail pembagian
+      
       await PembagianShu.destroy({
         where: { rekap_id: rekap.id },
         transaction,
       });
-      // Hapus rekap header
+      
       await rekap.destroy({ transaction });
 
       await transaction.commit();
@@ -548,9 +529,9 @@ class SHUService {
     }
   }
 
-  /**
-   * Mengupdate nilai pembulatan untuk satu detail SHU anggota dan menyelaraskan total rekap
-   */
+  
+
+
   async updateDetailPembulatan(id, pembulatanValue) {
     const transaction = await sequelize.transaction();
     try {
@@ -561,10 +542,10 @@ class SHUService {
       if (!rekap) throw new Error("Rekap SHU tidak ditemukan.");
       if (rekap.is_finalized) throw new Error("Data SHU yang sudah final tidak dapat diubah.");
 
-      // Update pembulatan detail ini
+      
       await detail.update({ pembulatan: pembulatanValue }, { transaction });
 
-      // Hitung ulang total pembulatan dari seluruh detail rekap ini
+      
       const allDetails = await PembagianShu.findAll({
         where: { rekap_id: detail.rekap_id },
         transaction,
@@ -578,7 +559,7 @@ class SHUService {
         sumPembulatan += pVal;
       }
 
-      // Update rekap.jatah_anggota dan laba_ditahan agar seimbang
+      
       const newLabaDitahan = parseFloat(rekap.total_profit) - sumPembulatan - parseFloat(rekap.jatah_pengurus);
 
       await rekap.update(

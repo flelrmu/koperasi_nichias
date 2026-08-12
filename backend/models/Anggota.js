@@ -74,14 +74,45 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING(255),
       allowNull: true,
     },
+    saldo_pokok: {
+      type: DataTypes.DECIMAL(15, 2),
+      defaultValue: 0.00,
+    },
+    saldo_wajib: {
+      type: DataTypes.DECIMAL(15, 2),
+      defaultValue: 0.00,
+    },
+    saldo_sukarela: {
+      type: DataTypes.DECIMAL(15, 2),
+      defaultValue: 0.00,
+    },
+    last_updated: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   }, {
     tableName: 'anggota',
     timestamps: false,
   });
 
+  Anggota.prototype.toJSON = function () {
+    const values = Object.assign({}, this.get());
+    values.simpanan = {
+      simpanan_id: this.anggota_id,
+      anggota_id: this.anggota_id,
+      saldo_pokok: parseFloat(this.saldo_pokok || 0),
+      saldo_wajib: parseFloat(this.saldo_wajib || 0),
+      saldo_sukarela: parseFloat(this.saldo_sukarela || 0),
+      last_updated: this.last_updated,
+      toJSON() {
+        return this;
+      }
+    };
+    return values;
+  };
+
   Anggota.associate = (models) => {
     Anggota.belongsTo(models.User, { foreignKey: 'user_id', as: 'user' });
-    Anggota.hasOne(models.Simpanan, { foreignKey: 'anggota_id', as: 'simpanan' });
     Anggota.hasMany(models.TransaksiSimpanan, { foreignKey: 'anggota_id', as: 'transaksiSimpanan' });
     Anggota.hasMany(models.Pinjaman, { foreignKey: 'anggota_id', as: 'pinjaman' });
     Anggota.hasMany(models.PembagianShu, { foreignKey: 'anggota_id', as: 'pembagianShu' });

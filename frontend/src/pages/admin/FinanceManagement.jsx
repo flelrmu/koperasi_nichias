@@ -36,6 +36,7 @@ import { useNavigate } from "react-router-dom";
 import NeracaInlineTab from "./NeracaInlineTab";
 import SHUTab from "./SHUTab";
 import moment from "moment";
+import SaldoAwalAccessModal from "../../components/molecules/SaldoAwalAccessModal";
 
 const formatNumber = (num) => {
   if (!num) return "";
@@ -55,12 +56,12 @@ export default function FinanceManagement() {
   const [exportTrigger, setExportTrigger] = useState(0);
   const isBendahara = user?.role === "Bendahara";
 
-  // Helper for current date
+  
   const now = new Date();
   const currentMonth = String(now.getMonth() + 1).padStart(2, "0");
   const currentYear = String(now.getFullYear());
 
-  // --- Arus Kas State ---
+  
   const [arusKasData, setArusKasData] = useState([]);
   const [loadingKas, setLoadingKas] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -70,13 +71,14 @@ export default function FinanceManagement() {
   const [currentKasBalance, setCurrentKasBalance] = useState(0);
   const [isClosed, setIsClosed] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [showSaldoAwalModal, setShowSaldoAwalModal] = useState(false);
 
-  // Pagination State
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [filterKategori, setFilterKategori] = useState("all");
   const itemsPerPage = 10;
 
-  // --- Kategori State ---
+  
   const [categories, setCategories] = useState([]);
   const [users, setUsers] = useState([]);
   const [realtimeSaldo, setRealtimeSaldo] = useState({ CASH: 0, BANK: 0 });
@@ -87,15 +89,18 @@ export default function FinanceManagement() {
     keterangan: "",
     jenis: "",
     metode_pembayaran: "CASH",
+    tanggal: moment().format("YYYY-MM-DD"),
   });
 
-  // --- Category Modal State ---
+  
   const [showModalCat, setShowModalCat] = useState(false);
   const [editCatData, setEditCatData] = useState(null);
   const [formDataCat, setFormDataCat] = useState({
     nama_kategori: "",
     jenis: "Debit",
     saldo_awal: "",
+    tipe_neraca: "Asset",
+    metode_penyesuaian: "BANK",
   });
   const [showConfirmDelete, setShowConfirmDelete] = useState({
     isOpen: false,
@@ -104,16 +109,11 @@ export default function FinanceManagement() {
     type: "category",
   });
 
-  // --- Edit Kas State ---
+  
   const [editKasData, setEditKasData] = useState(null);
 
-  // --- Adjust Saldo State ---
-  const [showModalAdjust, setShowModalAdjust] = useState(false);
-  const [formDataAdjust, setFormDataAdjust] = useState({
-    saldo_cash: "",
-    saldo_bank: "",
-  });
-  const [isAdjusting, setIsAdjusting] = useState(false);
+  
+
 
   const fetchPeriodeStatus = useCallback(async () => {
     try {
@@ -219,6 +219,7 @@ export default function FinanceManagement() {
           nominal: "",
           keterangan: "",
           jenis: "",
+          tanggal: moment().format("YYYY-MM-DD"),
         });
         fetchArusKas();
       }
@@ -327,6 +328,7 @@ export default function FinanceManagement() {
       keterangan: "",
       jenis: "Debit",
       metode_pembayaran: "CASH",
+      tanggal: moment().format("YYYY-MM-DD"),
     });
     setShowModalKas(true);
   };
@@ -415,9 +417,9 @@ export default function FinanceManagement() {
 
   return (
     <div className="space-y-6 pb-10">
-      {/* Premium Header Section */}
+      {}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 relative overflow-hidden">
-        {/* Decorative background blurs */}
+        {}
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#DFEAF4] rounded-full -mr-32 -mt-32 opacity-50 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#004A9C]/5 rounded-full -ml-24 -mb-24 opacity-40 blur-3xl"></div>
         
@@ -463,7 +465,7 @@ export default function FinanceManagement() {
         </div>
       </div>
 
-      {/* Tab Switcher */}
+      {}
       <div className="flex p-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto gap-1 no-scrollbar">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -488,7 +490,7 @@ export default function FinanceManagement() {
         })}
       </div>
 
-      {/* Content Area */}
+      {}
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
@@ -500,7 +502,7 @@ export default function FinanceManagement() {
         >
           {activeTab === "arus-kas" && (
             <div className="space-y-6">
-              {/* Real-time Balance Card */}
+              {}
               <div className="bg-gradient-to-br from-[#004A9C] to-[#003B7D] rounded-2xl p-6 text-white shadow-lg relative overflow-hidden flex items-center justify-between">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-1/2 translate-x-1/3"></div>
                 <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-400 opacity-10 rounded-full translate-y-1/2 -translate-x-1/2"></div>
@@ -520,41 +522,7 @@ export default function FinanceManagement() {
                 </div>
 
                 <div className="relative z-10 flex items-center gap-3">
-                  {isBendahara && (
-                    <button
-                      onClick={() => {
-                        // Hitung saldo awal bulan ini (Saldo Saat Ini - Mutasi Bulan Ini)
-                        const getSaldoAwalBulan = (metode) => {
-                          const mutasiBulanIni = arusKasData
-                            .filter((item) => item.metode_pembayaran === metode)
-                            .reduce((acc, item) => {
-                              return item.jenis === "Debit"
-                                ? acc + parseFloat(item.nominal)
-                                : acc - parseFloat(item.nominal);
-                            }, 0);
-                          return (realtimeSaldo[metode] || 0) - mutasiBulanIni;
-                        };
 
-                        setFormDataAdjust({
-                          saldo_cash: getSaldoAwalBulan("CASH"),
-                          saldo_bank: getSaldoAwalBulan("BANK"),
-                          bulan: bulan,
-                          tahun: tahun,
-                        });
-                        setShowModalAdjust(true);
-                      }}
-                      disabled={isClosed}
-                      className={`flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/20 transition-all group ${isClosed ? "opacity-50 cursor-not-allowed" : "hover:bg-white/20"}`}
-                    >
-                      <Settings2
-                        size={16}
-                        className={`text-blue-100 transition-transform duration-500 ${!isClosed && "group-hover:rotate-90"}`}
-                      />
-                      <span className="text-xs font-bold text-white">
-                        Penyesuaian Saldo Awal
-                      </span>
-                    </button>
-                  )}
                   <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20">
                     <div
                       className={`w-2 h-2 rounded-full animate-pulse ${isClosed ? "bg-red-400" : "bg-green-400"}`}
@@ -566,7 +534,7 @@ export default function FinanceManagement() {
                 </div>
               </div>
 
-              {/* Filters */}
+              {}
               <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
                 <div className="relative flex-1 w-full">
                   <Search
@@ -630,7 +598,7 @@ export default function FinanceManagement() {
                 </div>
               </div>
 
-              {/* Table */}
+              {}
               <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
@@ -761,6 +729,7 @@ export default function FinanceManagement() {
                                                 jenis: row.jenis,
                                                 metode_pembayaran:
                                                   row.metode_pembayaran || "CASH",
+                                                tanggal: moment(row.tanggal).format("YYYY-MM-DD"),
                                               });
                                               setShowModalKas(true);
                                             }}
@@ -812,7 +781,7 @@ export default function FinanceManagement() {
                   </table>
                 </div>
 
-                {/* Pagination Footer - Simplified & More Visible */}
+                {}
                 {filteredKas.length > 0 && (
                   <div className="p-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between bg-[#F8FAFC]">
                     <div className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4 sm:mb-0">
@@ -896,12 +865,14 @@ export default function FinanceManagement() {
                 )}
               </div>
 
-              {/* Kelola Kategori Button - Only for Bendahara */}
+              {}
               {isBendahara && (
                 <div className="flex justify-end pt-2">
                   <button
                     disabled={isClosed}
-                    onClick={() => setActiveTab("kategori")}
+                    onClick={() => {
+                      if (!isClosed) setShowSaldoAwalModal(true);
+                    }}
                     className={`flex items-center gap-2 px-6 py-3 text-white rounded-xl text-xs font-bold transition-all shadow-lg ${
                       isClosed
                         ? "bg-gray-400 opacity-50 cursor-not-allowed shadow-none"
@@ -913,6 +884,16 @@ export default function FinanceManagement() {
                   </button>
                 </div>
               )}
+
+              {/* Modal Verifikasi Kode Akses Saldo Awal */}
+              <SaldoAwalAccessModal
+                isOpen={showSaldoAwalModal}
+                onClose={() => setShowSaldoAwalModal(false)}
+                onVerified={() => {
+                  setShowSaldoAwalModal(false);
+                  setActiveTab('kategori');
+                }}
+              />
             </div>
           )}
 
@@ -930,7 +911,7 @@ export default function FinanceManagement() {
                 </div>
               </div>
 
-              {/* Alert Peringatan & Informasi */}
+              {}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {isClosed && (
                   <div className="col-span-1 md:col-span-2 p-4 bg-red-50 border border-red-200 rounded-2xl flex gap-3 text-red-800">
@@ -964,7 +945,7 @@ export default function FinanceManagement() {
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                {/* KELOMPOK AKTIVA / ASSET */}
+                {}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 px-1">
                     <div className="w-2 h-6 bg-blue-600 rounded-full"></div>
@@ -978,8 +959,10 @@ export default function FinanceManagement() {
                         (c) =>
                           c.tipe_neraca === "Asset" &&
                           [
-                            "TAGIHAN PINJAMAN",
-                            "TAGIHAN CREDIT BARANG",
+                            "CASH",
+                            "BANK",
+                            "PINJAMAN UANG",
+                            "CREDIT BARANG",
                             "TAGIHAN RENTAL",
                             "PERSEDIAAN BARANG",
                             "ALAT KANTOR",
@@ -1018,6 +1001,7 @@ export default function FinanceManagement() {
                                   jenis: c.jenis,
                                   tipe_neraca: c.tipe_neraca,
                                   saldo_awal: c.saldo_awal,
+                                  metode_penyesuaian: "BANK",
                                 });
                                 setShowModalCat(true);
                               }}
@@ -1035,7 +1019,7 @@ export default function FinanceManagement() {
                   </div>
                 </div>
 
-                {/* KELOMPOK PASIVA / LIABILITIES & EQUITY */}
+                {}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 px-1">
                     <div className="w-2 h-6 bg-orange-500 rounded-full"></div>
@@ -1056,7 +1040,6 @@ export default function FinanceManagement() {
                             "LOAN",
                             "PROFIT/LOSS",
                             "LABA DITAHAN",
-                            "SIMPANAN ANGGOTA",
                           ].includes(c.nama_kategori),
                       )
                       .map((c) => (
@@ -1092,6 +1075,7 @@ export default function FinanceManagement() {
                                   jenis: c.jenis,
                                   tipe_neraca: c.tipe_neraca,
                                   saldo_awal: c.saldo_awal,
+                                  metode_penyesuaian: "BANK",
                                 });
                                 setShowModalCat(true);
                               }}
@@ -1125,7 +1109,7 @@ export default function FinanceManagement() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Modal Arus Kas */}
+      {}
       <AnimatePresence>
         {showModalKas && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -1212,12 +1196,14 @@ export default function FinanceManagement() {
                               "LABA DITAHAN",
                               "PROFIT/LOSS",
                               "SIMPANAN ANGGOTA",
-                              "TAGIHAN PINJAMAN",
-                              "TAGIHAN CREDIT BARANG",
+                              "PINJAMAN UANG",
+                              "CREDIT BARANG",
                               "PEMBAGIAN SHU ANGGOTA",
                               "PEMBAGIAN SHU PENGURUS",
                               "CASH",
                               "BANK",
+                              "TOTAL ASSET",
+                              "Simpanan Lain-lain",
                             ].includes(c.nama_kategori),
                         )
                         .map((c) => (
@@ -1246,6 +1232,24 @@ export default function FinanceManagement() {
                       }
                     />
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
+                    Tanggal Transaksi
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-[#004A9C]/20"
+                    value={formDataKas.tanggal}
+                    onChange={(e) =>
+                      setFormDataKas({
+                        ...formDataKas,
+                        tanggal: e.target.value,
+                      })
+                    }
+                  />
                 </div>
 
                 <div className="space-y-1">
@@ -1357,7 +1361,7 @@ export default function FinanceManagement() {
         )}
       </AnimatePresence>
 
-      {/* Modal Kategori */}
+      {}
       <AnimatePresence>
         {showModalCat && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -1441,6 +1445,7 @@ export default function FinanceManagement() {
                     <option value="Equity">PASIVA (Modal/Ekuitas)</option>
                   </select>
                 </div>
+
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                     Jenis Transaksi Default
@@ -1486,7 +1491,7 @@ export default function FinanceManagement() {
           </div>
         )}
       </AnimatePresence>
-      {/* Modal Konfirmasi Hapus */}
+      {}
       <AnimatePresence>
         {showConfirmDelete.isOpen && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
@@ -1554,155 +1559,7 @@ export default function FinanceManagement() {
         )}
       </AnimatePresence>
 
-      {/* Modal Penyesuaian Saldo Awal */}
-      <AnimatePresence>
-        {showModalAdjust && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowModalAdjust(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8"
-            >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">
-                  Penyesuaian Saldo Awal
-                </h2>
-                <button
-                  onClick={() => setShowModalAdjust(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <Plus size={24} className="rotate-45" />
-                </button>
-              </div>
 
-              <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex gap-3 text-blue-700 mb-4">
-                <AlertCircle size={20} className="shrink-0" />
-                <p className="text-[11px] leading-relaxed font-medium">
-                  <span className="font-bold">INFO:</span> Anda sedang mengubah{" "}
-                  <span className="font-bold underline">Saldo Awal</span> (Titik
-                  Nol). Perubahan ini tidak akan dicatat sebagai transaksi Arus
-                  Kas harian.
-                </p>
-              </div>
-
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3 text-amber-800 mb-6">
-                <AlertTriangle size={20} className="shrink-0 text-amber-600 animate-pulse" />
-                <p className="text-[11px] leading-relaxed font-medium">
-                  <span className="font-bold">PERINGATAN:</span> Pengisian saldo awal ini <strong>hanya diisi pada awal sistem ini digunakan</strong>.
-                </p>
-              </div>
-
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  setIsAdjusting(true);
-                  try {
-                    // Update CASH
-                    await api.put("/keuangan/saldo-kas", {
-                      metode_pembayaran: "CASH",
-                      saldo_baru: formDataAdjust.saldo_cash,
-                      bulan: formDataAdjust.bulan,
-                      tahun: formDataAdjust.tahun,
-                    });
-                    // Update BANK
-                    await api.put("/keuangan/saldo-kas", {
-                      metode_pembayaran: "BANK",
-                      saldo_baru: formDataAdjust.saldo_bank,
-                      bulan: formDataAdjust.bulan,
-                      tahun: formDataAdjust.tahun,
-                    });
-                    setShowModalAdjust(false);
-                    fetchArusKas();
-                    fetchSetupData();
-                  } catch (err) {
-                    showNotification("Gagal menyesuaikan saldo awal", "error");
-                  } finally {
-                    setIsAdjusting(false);
-                  }
-                }}
-                className="space-y-6"
-              >
-                {/* Input CASH */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                    Saldo Awal Bulan (CASH) -{" "}
-                    {months[parseInt(formDataAdjust.bulan) - 1]}{" "}
-                    {formDataAdjust.tahun}
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
-                      Rp
-                    </span>
-                    <input
-                      type="text"
-                      required
-                      className="w-full pl-10 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-lg font-black outline-none focus:ring-2 focus:ring-[#004A9C]/20"
-                      value={formatNumber(formDataAdjust.saldo_cash)}
-                      onChange={(e) =>
-                        setFormDataAdjust({
-                          ...formDataAdjust,
-                          saldo_cash: parseNumber(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                {/* Input BANK */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                    Saldo Awal Bulan (BANK) -{" "}
-                    {months[parseInt(formDataAdjust.bulan) - 1]}{" "}
-                    {formDataAdjust.tahun}
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
-                      Rp
-                    </span>
-                    <input
-                      type="text"
-                      required
-                      className="w-full pl-10 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-lg font-black outline-none focus:ring-2 focus:ring-[#004A9C]/20"
-                      value={formatNumber(formDataAdjust.saldo_bank)}
-                      onChange={(e) =>
-                        setFormDataAdjust({
-                          ...formDataAdjust,
-                          saldo_bank: parseNumber(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    onClick={() => setShowModalAdjust(false)}
-                    className="flex-1 !bg-gray-100 !text-gray-500"
-                  >
-                    Batal
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1"
-                    disabled={isAdjusting}
-                  >
-                    {isAdjusting ? "Memproses..." : "Simpan Saldo Awal"}
-                  </Button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

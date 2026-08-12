@@ -55,17 +55,17 @@ export default function InputBaruSimpanan() {
     try {
       const res = await api.get('/simpan-pinjam/konfigurasi');
       if (res.data.success) {
-        // Convert array to map: { nama_config: nilai }
+        
         const configMap = {};
         const data = res.data.data;
         if (Array.isArray(data)) {
           data.forEach(c => { configMap[c.nama_config] = parseFloat(c.nilai); });
         } else {
-          // Fallback if already a map
+          
           Object.assign(configMap, data);
         }
         setConfigs(configMap);
-        // Default nominal for Wajib if starting with Wajib
+        
         setFormData(prev => ({
           ...prev,
           nominal: formatToRupiah((configMap.SIMPANAN_WAJIB || 0).toString().split('.')[0])
@@ -109,7 +109,7 @@ export default function InputBaruSimpanan() {
     fetchSavings();
   }, [fetchConfigs, fetchMember, fetchSavings]);
 
-  // WebSocket listener for real-time config updates
+  
   useEffect(() => {
     if (!socket) return;
 
@@ -136,9 +136,9 @@ export default function InputBaruSimpanan() {
     };
   }, [socket, id]);
 
-  // Handle nominal auto-fill when jenis_simpanan changes
+  
   useEffect(() => {
-    // If switching to Pokok/Wajib while 'Tarik' is selected, force back to 'Setor'
+    
     if (formData.jenis_transaksi === 'Tarik' && (formData.jenis_simpanan === 'Pokok' || formData.jenis_simpanan === 'Wajib')) {
       setFormData(prev => ({ ...prev, jenis_transaksi: 'Setor' }));
       return;
@@ -241,7 +241,7 @@ export default function InputBaruSimpanan() {
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
 
-    // Client-side validation for Sukarela minimum
+    
     if (formData.jenis_simpanan === 'Sukarela' && formData.jenis_transaksi === 'Setor') {
       const nominalVal = parseFloat(formData.nominal.toString().replace(/\./g, '')) || 0;
       const minSukarela = configs.SIMPANAN_SUKARELA || 0;
@@ -295,7 +295,7 @@ export default function InputBaruSimpanan() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Header */}
+      {}
       <div className="flex items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
         <div className="flex items-center gap-4">
           <button 
@@ -312,7 +312,7 @@ export default function InputBaruSimpanan() {
       </div>
 
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-        {/* Identitas Anggota Section */}
+        {}
         <div className="p-6 border-b border-gray-50 bg-[#DFEAF4]/20 flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
            <div className="flex items-center gap-4">
              <div className="w-14 h-14 bg-[#004A9C] text-white rounded-2xl flex items-center justify-center font-bold text-xl shadow-md">
@@ -331,11 +331,11 @@ export default function InputBaruSimpanan() {
            </div>
         </div>
 
-        {/* Form Section */}
+        {}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Jenis Transaksi */}
+            {}
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
                 <Wallet size={12} /> Jenis Transaksi
@@ -384,7 +384,7 @@ export default function InputBaruSimpanan() {
               )}
             </div>
 
-            {/* Jenis Simpanan */}
+            {}
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
                 <Info size={12} /> Jenis Simpanan
@@ -403,7 +403,7 @@ export default function InputBaruSimpanan() {
             </div>
             </div>
 
-          {/* Metode Pembayaran */}
+          {}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
               Metode Pembayaran
@@ -428,7 +428,7 @@ export default function InputBaruSimpanan() {
             </div>
           </div>
 
-          {/* Nominal */}
+          {}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
               Nominal Transaksi (IDR)
@@ -462,7 +462,7 @@ export default function InputBaruSimpanan() {
             )}
           </div>
 
-          {/* Keterangan */}
+          {}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
               <FileText size={12} /> Keterangan (Opsional)
@@ -498,7 +498,7 @@ export default function InputBaruSimpanan() {
         </form>
       </div>
 
-      {/* Confirm Modal */}
+      {}
       <Modal
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
@@ -511,7 +511,7 @@ export default function InputBaruSimpanan() {
         maxWidth="max-w-md"
       />
 
-      {/* Status Modal */}
+      {}
       <Modal
         isOpen={statusModal.isOpen}
         onClose={() => {

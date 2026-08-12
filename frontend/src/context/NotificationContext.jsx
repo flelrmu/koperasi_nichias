@@ -12,13 +12,13 @@ export function NotificationProvider({ children }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [toastQueue, setToastQueue] = useState([]);
 
-  // Use refs to avoid stale closures in socket handlers
+  
   const authRef = useRef({ isAuthenticated, user });
   useEffect(() => {
     authRef.current = { isAuthenticated, user };
   }, [isAuthenticated, user]);
 
-  // Fetch notifications from API (for persisted notifications)
+  
   const fetchNotifications = useCallback(async () => {
     if (!authRef.current.isAuthenticated) return;
     
@@ -33,7 +33,7 @@ export function NotificationProvider({ children }) {
     }
   }, [api]);
 
-  // Fetch on mount and when auth changes
+  
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications();
@@ -43,7 +43,7 @@ export function NotificationProvider({ children }) {
     }
   }, [isAuthenticated, user?.role, fetchNotifications]);
 
-  // Listen for real-time Socket.IO events
+  
   useEffect(() => {
     if (!socket) return;
 
@@ -67,18 +67,18 @@ export function NotificationProvider({ children }) {
       setUnreadCount(prev => prev + 1);
       setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
 
-      // Refetch from DB to get real notification IDs
+      
       setTimeout(() => fetchNotifications(), 1500);
     };
 
-    // Handle member approval notification (for Anggota role)
+    
     const handleMemberApproved = (data) => {
       console.log('🔔 Real-time member:approved received:', data);
       
       const { isAuthenticated: authed, user: currentUser } = authRef.current;
       if (!authed) return;
 
-      // Check if this approval is for the current user
+      
       if (currentUser?.user_id === data.user_id) {
         const newNotif = {
           id: `temp_approved_${Date.now()}`,
@@ -92,8 +92,8 @@ export function NotificationProvider({ children }) {
 
         setNotifications(prev => [newNotif, ...prev]);
         setUnreadCount(prev => prev + 1);
-        // Toast disabled for approval as per user request
-        // setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
+        
+        
       }
     };
 
@@ -115,7 +115,7 @@ export function NotificationProvider({ children }) {
       setNotifications(prev => [newNotif, ...prev]);
       setUnreadCount(prev => prev + 1);
       
-      // Don't show toast for initial Simpanan Pokok notification
+      
       if (!data.notifikasi.judul.includes('Simpanan Pokok')) {
         setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
       }
@@ -128,20 +128,20 @@ export function NotificationProvider({ children }) {
       const { isAuthenticated: authed, user: currentUser } = authRef.current;
       if (!authed || !currentUser) return;
 
-      // Check if current user is the one updated
+      
       if (data.type === 'Anggota' && data.id === currentUser.anggota_id) {
         if (data.data?.status_keanggotaan === 'Keluar') {
-          // Update local storage and redirect
+          
           const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
           savedUser.status_keanggotaan = 'Keluar';
           localStorage.setItem('user', JSON.stringify(savedUser));
           window.location.href = '/dashboard/keluar';
         } else if (data.data?.status_keanggotaan === 'Aktif') {
-          // If approved from pending_keluar or similar
+          
           const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
           savedUser.status_keanggotaan = 'Aktif';
           localStorage.setItem('user', JSON.stringify(savedUser));
-          // Don't necessarily redirect if they are already on dashboard
+          
         }
       }
     };
@@ -150,7 +150,7 @@ export function NotificationProvider({ children }) {
       console.log('🔔 Real-time notifikasi:anggota-keluar received:', data);
       const { isAuthenticated: authed, user: currentUser } = authRef.current;
       
-      // Only show to Sekretaris (administrative responsibility)
+      
       if (!authed || currentUser?.role !== 'Sekretaris') return;
 
       const newNotif = {
@@ -174,7 +174,7 @@ export function NotificationProvider({ children }) {
       console.log('🔔 Real-time notifikasi:pinjaman received:', data);
       const { isAuthenticated: authed, user: currentUser } = authRef.current;
       
-      // Only show if it's meant for the current user
+      
       if (!authed || currentUser?.user_id !== data.user_id) return;
 
       const newNotif = {
@@ -191,7 +191,7 @@ export function NotificationProvider({ children }) {
       setUnreadCount(prev => prev + 1);
       setToastQueue(prev => [...prev, { ...newNotif, _toastId: Date.now() }]);
       
-      // Still fetch from DB to ensure state consistency (real IDs, etc.)
+      
       setTimeout(() => fetchNotifications(), 1500);
     };
 
@@ -294,7 +294,7 @@ export function NotificationProvider({ children }) {
     };
   }, [socket, fetchNotifications]);
 
-  // Mark single notification as read
+  
   const markAsRead = useCallback(async (id) => {
     if (String(id).startsWith('temp_')) {
       setNotifications(prev => prev.map(n => (n.id === id ? { ...n, is_read: true } : n)));
@@ -310,7 +310,7 @@ export function NotificationProvider({ children }) {
     }
   }, [api]);
 
-  // Mark all notifications as read
+  
   const markAllAsRead = useCallback(async () => {
     try {
       await api.put('/notifications/read-all');
@@ -321,12 +321,12 @@ export function NotificationProvider({ children }) {
     }
   }, [api]);
 
-  // Remove a toast from the queue
+  
   const dismissToast = useCallback((toastId) => {
     setToastQueue(prev => prev.filter(t => t._toastId !== toastId));
   }, []);
 
-  // Manual notification trigger
+  
   const showNotification = useCallback((pesan, tipe = 'sistem', judul = 'Pemberitahuan') => {
     const newToast = {
       id: `toast_${Date.now()}`,
@@ -366,7 +366,7 @@ export function useNotifications() {
   return context;
 }
 
-// Alias for convenience
+
 export const useNotification = useNotifications;
 
 export default NotificationContext;

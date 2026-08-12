@@ -122,7 +122,7 @@ export default function GuestRuleDetail() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Dynamic Header Hero */}
+      {}
       <motion.div variants={itemVariants} className="relative rounded-[3rem] overflow-hidden bg-white shadow-2xl shadow-blue-900/5 border border-gray-100">
         <div className={`h-4 w-full ${rule.icon_bg_color || 'bg-blue-50'} opacity-50`}></div>
         <div className="p-8 md:p-14 flex flex-col md:flex-row items-center gap-10">
@@ -147,10 +147,10 @@ export default function GuestRuleDetail() {
         </div>
       </motion.div>
 
-      {/* Content Grid */}
+      {}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-8 space-y-16">
-          {/* Objectives */}
+          {}
           <section className="space-y-6">
             <div className="inline-flex items-center gap-4 text-[#004A9C] bg-[#DFEAF4] px-6 py-2.5 rounded-2xl">
               <Target size={28} className="shrink-0" />
@@ -161,7 +161,7 @@ export default function GuestRuleDetail() {
             </p>
           </section>
 
-          {/* Procedure */}
+          {}
           {procedures.length > 0 && (
             <section className="space-y-8">
               <div className="inline-flex items-center gap-4 text-[#004A9C] bg-[#DFEAF4] px-6 py-2.5 rounded-2xl">
@@ -189,7 +189,7 @@ export default function GuestRuleDetail() {
         </div>
 
         <div className="lg:col-span-4 space-y-8">
-          {/* Terms */}
+          {}
           {conditions.length > 0 && (
             <section className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-xl shadow-blue-900/5">
                <div className="flex items-center gap-3 text-gray-900 mb-8 border-b border-gray-50 pb-6">
@@ -207,7 +207,7 @@ export default function GuestRuleDetail() {
             </section>
           )}
 
-          {/* Info Side */}
+          {}
           <section className="px-6 space-y-6">
             <div className="flex items-center justify-between text-[10px] text-gray-400 font-black uppercase tracking-[0.3em] italic border-b border-gray-100 pb-3">
               <span>Terakhir Diperbarui</span>

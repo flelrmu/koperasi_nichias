@@ -1,7 +1,7 @@
-/**
- * Konversi angka menjadi terbilang dalam Bahasa Indonesia
- * Contoh: 20000000 -> "Dua Puluh Juta Rupiah"
- */
+
+
+
+
 
 const satuan = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
 
@@ -19,10 +19,10 @@ function terbilangHelper(angka) {
   return '';
 }
 
-/**
- * @param {number|string} angka - Angka yang akan dikonversi
- * @returns {string} Terbilang dalam Bahasa Indonesia + " Rupiah"
- */
+
+
+
+
 export default function angkaKeTerbilang(angka) {
   const num = Math.floor(Math.abs(parseFloat(angka) || 0));
   if (num === 0) return 'Nol Rupiah';

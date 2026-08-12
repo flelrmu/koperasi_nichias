@@ -32,7 +32,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import Button from '../../components/atoms/Button';
 
-// Fallback data for charts if DB is empty
+
 const divisionData = [
   { name: 'Produksi', value: 45, color: '#004A9C' },
   { name: 'Logistik', value: 25, color: '#27AE60' },
@@ -168,12 +168,12 @@ export default function AdminDashboard() {
       variants={containerVariants} 
       className="space-y-8 pb-10"
     >
-      {/* Premium Header Section */}
+      {}
       <motion.div 
         variants={itemVariants}
         className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 relative overflow-hidden"
       >
-        {/* Decorative background blurs */}
+        {}
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#DFEAF4] rounded-full -mr-32 -mt-32 opacity-40 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#004A9C]/5 rounded-full -ml-24 -mb-24 opacity-40 blur-3xl"></div>
         
@@ -196,7 +196,7 @@ export default function AdminDashboard() {
         
       </motion.div>
 
-      {/* Stats Grid with entry animation */}
+      {}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {topStats.map((stat, idx) => (
           <motion.div
@@ -205,7 +205,7 @@ export default function AdminDashboard() {
             onClick={() => stat.path && navigate(stat.path)}
             className={`bg-white rounded-[2.5rem] shadow-sm p-8 border border-gray-100 hover:shadow-2xl hover:shadow-blue-900/10 transition-all group relative overflow-hidden aspect-square flex flex-col items-center justify-center text-center ${stat.path ? 'cursor-pointer' : ''}`}
           >
-            {/* Decorative background circle */}
+            {}
             <div 
               className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-5 transition-transform duration-700 group-hover:scale-150"
               style={{ backgroundColor: stat.color }}
@@ -232,7 +232,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Charts Section */}
+      {}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <motion.div variants={itemVariants} className="lg:col-span-2 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-500">
           <div className="p-8 border-b border-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

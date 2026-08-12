@@ -75,7 +75,7 @@ function SingleToast({ toast, onDismiss, index }) {
       className={`relative w-[380px] bg-white rounded-2xl shadow-2xl ${colors.glow} border ${colors.border} overflow-hidden cursor-pointer group hover:scale-[1.02] transition-transform`}
       onClick={handleClick}
     >
-      {/* Progress bar */}
+      {}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gray-100">
         <motion.div
           className="h-full bg-[#004A9C] rounded-r-full"
@@ -86,12 +86,12 @@ function SingleToast({ toast, onDismiss, index }) {
       </div>
 
       <div className="flex items-start gap-3.5 p-4 pt-5">
-        {/* Icon */}
+        {}
         <div className={`shrink-0 w-11 h-11 rounded-xl ${colors.bg} flex items-center justify-center ${colors.text}`}>
           <Icon size={22} strokeWidth={2.5} />
         </div>
 
-        {/* Content */}
+        {}
         <div className="flex-1 min-w-0 pr-6">
           <h4 className="text-sm font-bold text-gray-800 tracking-tight mb-0.5">
             {toast.judul}
@@ -112,7 +112,7 @@ function SingleToast({ toast, onDismiss, index }) {
           </div>
         </div>
 
-        {/* Close button */}
+        {}
         <button
           onClick={(e) => {
             e.stopPropagation();

@@ -42,7 +42,7 @@ export default function ConfigRules() {
     'Bank Koperasi', 'No Rekening Koperasi', 'Atas Nama Koperasi'
   ];
 
-  // Fetch data from API
+  
   const fetchPeraturan = async () => {
     setIsLoading(true);
     try {
@@ -61,7 +61,7 @@ export default function ConfigRules() {
     fetchPeraturan();
   }, []);
 
-  // WebSocket listeners for real-time updates
+  
   useEffect(() => {
     if (!socket) return;
 
@@ -151,7 +151,7 @@ export default function ConfigRules() {
     }
   };
 
-  // Loading Skeleton
+  
   const CardSkeleton = () => (
     <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8 animate-pulse flex flex-col">
       <div className="flex items-start justify-between mb-8">
@@ -173,9 +173,9 @@ export default function ConfigRules() {
 
   return (
     <div className="space-y-8">
-      {/* Header Section */}
+      {}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 relative overflow-hidden">
-        {/* Decorative background */}
+        {}
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#DFEAF4] rounded-full -mr-32 -mt-32 opacity-50 blur-3xl"></div>
         
         <div className="space-y-3 relative z-10">
@@ -204,7 +204,7 @@ export default function ConfigRules() {
         )}
       </div>
 
-      {/* Filter & Search Section */}
+      {}
       <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 flex flex-col lg:flex-row gap-4 items-center">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -233,7 +233,7 @@ export default function ConfigRules() {
         </div>
       </div>
 
-      {/* Loan System Parameters - Grouped Section */}
+      {}
       {(activeCategory === 'Pinjaman' || activeCategory === 'Semua') && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -269,7 +269,7 @@ export default function ConfigRules() {
         </motion.div>
       )}
 
-      {/* Rules Grid */}
+      {}
       <motion.div 
         className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
         variants={containerVariants}
@@ -290,7 +290,7 @@ export default function ConfigRules() {
                 animate="visible"
                 className="bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-[2rem] border border-blue-100 shadow-sm p-8 hover:shadow-xl hover:-translate-y-2 transition-all flex flex-col relative overflow-hidden group"
               >
-                {/* Decorative background element */}
+                {}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-200 rounded-full -mr-16 -mt-16 opacity-30 group-hover:scale-150 transition-transform duration-500"></div>
 
                 <div className="flex items-start justify-between mb-6 relative z-10">
@@ -341,14 +341,14 @@ export default function ConfigRules() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8 hover:shadow-2xl hover:-translate-y-2 transition-all group flex flex-col relative overflow-hidden"
                 >
-                  {/* Decorative background element */}
+                  {}
                   <div className={`absolute top-0 right-0 w-32 h-32 ${rule.icon_bg_color || 'bg-blue-50'} rounded-full -mr-16 -mt-16 opacity-20 group-hover:scale-150 transition-transform duration-500`}></div>
 
                   <div className="flex items-start justify-between mb-8 relative z-10">
                     <div className={`w-14 h-14 ${rule.icon_bg_color || 'bg-blue-50'} ${rule.icon_color || 'text-blue-600'} rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform shadow-sm`}>
                       <Icon size={28} />
                     </div>
-                    {/* Tanggal terakhir diperbarui */}
+                    {}
                     <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium bg-gray-50 px-2.5 py-1 rounded-full">
                       <Clock size={10} />
                       <span>{formatDate(rule.updated_at)}</span>
@@ -398,7 +398,7 @@ export default function ConfigRules() {
         )}
       </motion.div>
 
-      {/* Empty State */}
+      {}
       {!isLoading && filteredRules.length === 0 && (
         <motion.div 
           initial={{ opacity: 0 }}
@@ -413,7 +413,7 @@ export default function ConfigRules() {
         </motion.div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {}
       <Modal
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ isOpen: false, rule: null })}
@@ -424,7 +424,7 @@ export default function ConfigRules() {
         onConfirm={handleDelete}
       />
 
-      {/* Status Modal */}
+      {}
       <Modal
         isOpen={statusModal.isOpen}
         onClose={() => setStatusModal({ ...statusModal, isOpen: false })}

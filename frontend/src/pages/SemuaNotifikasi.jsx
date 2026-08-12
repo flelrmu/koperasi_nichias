@@ -65,13 +65,13 @@ export default function SemuaNotifikasi() {
     fetchPage(currentPage);
   }, [currentPage, fetchPage]);
 
-  // Listen for real-time updates to refresh the list if we're on the first page
+  
   useEffect(() => {
     if (!socket) return;
     
     const handleNewNotif = () => {
       if (currentPage === 1) {
-        // Debounce slightly to allow the global context to update first
+        
         setTimeout(() => fetchPage(1), 500);
       }
     };
@@ -93,9 +93,9 @@ export default function SemuaNotifikasi() {
 
   const handleNotifClick = async (notif) => {
     if (!notif.is_read) {
-      // Mark as read in local state instantly for better UX
+      
       setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
-      // Call global context to mark as read
+      
       await contextMarkAsRead(notif.id);
     }
     
@@ -105,7 +105,7 @@ export default function SemuaNotifikasi() {
   };
 
   const handleMarkAllRead = async () => {
-    // Optimistic update
+    
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     await markAllAsRead();
   };
@@ -122,7 +122,7 @@ export default function SemuaNotifikasi() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
-      {/* Header */}
+      {}
       <motion.div 
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -151,7 +151,7 @@ export default function SemuaNotifikasi() {
         )}
       </motion.div>
 
-      {/* List Notifikasi */}
+      {}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[500px]">
         {isLoading && notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 space-y-4">
@@ -232,7 +232,7 @@ export default function SemuaNotifikasi() {
         )}
       </div>
 
-      {/* Pagination Controls */}
+      {}
       {totalPages > 1 && (
         <motion.div 
           initial={{ opacity: 0 }}

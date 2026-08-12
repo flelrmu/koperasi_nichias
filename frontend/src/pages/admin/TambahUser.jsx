@@ -54,16 +54,16 @@ export default function TambahUser() {
   const navigate = useNavigate();
   const { api } = useAuth();
   
-  const [activeTab, setActiveTab] = useState('anggota'); // 'anggota' or 'pengurus'
+  const [activeTab, setActiveTab] = useState('anggota'); 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Set page title for SEO/UX
+  
   useEffect(() => {
-    document.title = "Koperasi Nichias | Tambah User Baru";
+    document.title = "Koperasi Karyawan Nichias Sunijaya | Tambah User Baru";
   }, []);
 
-  // Form states
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -141,7 +141,7 @@ export default function TambahUser() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
-      {/* Header */}
+      {}
       <div className="flex items-center justify-between">
         <button 
           id="btn-back-to-users"
@@ -163,7 +163,7 @@ export default function TambahUser() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Selector & Info */}
+        {}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6 sticky top-6">
             <div>
@@ -233,7 +233,7 @@ export default function TambahUser() {
           </div>
         </div>
 
-        {/* Right Column: Dynamic Form */}
+        {}
         <div className="lg:col-span-2">
           <AnimatePresence mode="wait">
             <motion.div
@@ -258,9 +258,9 @@ export default function TambahUser() {
                   </div>
                 </div>
 
-                {/* Form Sections */}
+                {}
                 <div className="space-y-6">
-                  {/* Common Fields: Auth */}
+                  {}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-[11px] font-bold text-gray-500 ml-1 uppercase tracking-widest">Email Perusahaan</label>
@@ -313,7 +313,7 @@ export default function TambahUser() {
                   </div>
 
                   {activeTab === 'anggota' ? (
-                    /* Anggota Specific Fields */
+                    
                     <motion.div 
                       key="fields-anggota"
                       initial={{ opacity: 0, y: 10 }}
@@ -464,7 +464,7 @@ export default function TambahUser() {
                       </div>
                     </motion.div>
                   ) : (
-                    /* Pengurus Specific Fields */
+                    
                     <motion.div 
                       key="fields-pengurus"
                       initial={{ opacity: 0, y: 10 }}

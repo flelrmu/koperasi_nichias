@@ -15,7 +15,7 @@ if (config.use_env_variable) {
   sequelize = new Sequelize(config.database, config.username, config.password, config);
 }
 
-// Auto-import semua model dari folder ini
+
 fs.readdirSync(__dirname)
   .filter((file) => {
     return (
@@ -30,7 +30,7 @@ fs.readdirSync(__dirname)
     db[model.name] = model;
   });
 
-// Jalankan associate() untuk setiap model yang memilikinya
+
 Object.keys(db).forEach((modelName) => {
   if (db[modelName].associate) {
     db[modelName].associate(db);

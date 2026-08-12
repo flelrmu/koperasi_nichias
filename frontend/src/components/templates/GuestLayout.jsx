@@ -11,7 +11,7 @@ export default function GuestLayout() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-poppins flex flex-col">
-      {/* Premium Header */}
+      {}
       <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-8">
@@ -55,7 +55,7 @@ export default function GuestLayout() {
         </div>
       </header>
 
-      {/* Main Content Area */}
+      {}
       <main className="flex-1 overflow-x-hidden overflow-y-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <motion.div
@@ -68,7 +68,7 @@ export default function GuestLayout() {
         </div>
       </main>
 
-      {/* Basic Footer */}
+      {}
       <footer className="bg-white border-t border-gray-100 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-center items-center text-sm text-gray-500">
           <p>© 2026 Koperasi Karyawan Nichias Sunijaya. All rights reserved.</p>

@@ -81,7 +81,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, type }) {
       <div className="py-2 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Left Column: Profile Config */}
+          {}
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-6 relative overflow-hidden group">
               <div className="absolute -inset-1 bg-gradient-to-r from-[#004A9C] to-[#002D5F] rounded-3xl blur opacity-0 group-hover:opacity-10 transition duration-1000 group-hover:duration-200"></div>
@@ -130,7 +130,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, type }) {
             </div>
           </div>
 
-          {/* Right Column: Dynamic Form Design */}
+          {}
           <div className="lg:col-span-2">
              <motion.div
               initial="hidden"
@@ -153,7 +153,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, type }) {
                 </div>
 
                 <div className="space-y-6">
-                  {/* Common Fields */}
+                  {}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="md:col-span-2 space-y-2">
                       <label className="text-[11px] font-bold text-gray-500 ml-1 uppercase tracking-widest">Nama Lengkap Sesuai ID</label>

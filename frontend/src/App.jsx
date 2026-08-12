@@ -43,18 +43,18 @@ function App() {
           <Router>
             <NotificationToast />
             <Routes>
-              {/* Public Routes */}
+              {}
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="/register" element={<Register />} />
               <Route path="/login" element={<Login />} />
               
-              {/* Guest Rules Routes */}
+              {}
               <Route path="/rules" element={<GuestLayout />}>
                 <Route index element={<GuestRules />} />
                 <Route path=":id" element={<GuestRuleDetail />} />
               </Route>
 
-              {/* Anggota Pending Dashboard */}
+              {}
               <Route
                 path="/dashboard/pending"
                 element={
@@ -64,7 +64,7 @@ function App() {
                 }
               />
 
-              {/* Anggota Keluar Dashboard */}
+              {}
               <Route
                 path="/dashboard/keluar"
                 element={
@@ -74,7 +74,7 @@ function App() {
                 }
               />
 
-              {/* Anggota Aktif Dashboard */}
+              {}
               <Route
                 path="/"
                 element={
@@ -92,7 +92,7 @@ function App() {
                 <Route path="notifikasi" element={<SemuaNotifikasi />} />
               </Route>
 
-              {/* Shared Invoice Route (Accessible by both Member and Admin) */}
+              {}
               <Route
                 path="/pinjaman/invoice/:id"
                 element={
@@ -104,7 +104,7 @@ function App() {
                 <Route index element={<Invoice />} />
               </Route>
 
-              {/* Admin/Pengurus Dashboard */}
+              {}
               <Route
                 path="/admin"
                 element={
@@ -212,7 +212,7 @@ function App() {
                 />
               </Route>
 
-              {/* Catch-all: redirect to login */}
+              {}
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </Router>

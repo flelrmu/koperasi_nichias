@@ -2,16 +2,16 @@ const db = require('../models');
 const Anggota = db.Anggota;
 const { Op } = require('sequelize');
 
-/**
- * Generates a unique member number (no_anggota)
- * Format: KOP-[Year]-[Sequence] (e.g., KOP-2026-001)
- */
+
+
+
+
 async function generateNoAnggota() {
   const currentYear = new Date().getFullYear();
   const yearPrefix = `KOP-${currentYear}-`;
 
   try {
-    // Find the latest member number for this year
+    
     const lastMember = await Anggota.findOne({
       where: {
         no_anggota: {
@@ -31,7 +31,7 @@ async function generateNoAnggota() {
       }
     }
 
-    // Format to 3 digits (e.g., 001)
+    
     const sequence = nextNumber.toString().padStart(3, '0');
     return `${yearPrefix}${sequence}`;
   } catch (error) {

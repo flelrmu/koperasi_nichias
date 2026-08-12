@@ -1,16 +1,12 @@
 const db = require('../models');
 const Notifikasi = db.Notifikasi;
 
-/**
- * GET /api/notifications
- * Mengambil daftar notifikasi untuk user yang sedang login.
- * Urutkan dari terbaru, limit 30.
- */
+
 const getNotifications = async (req, res) => {
   try {
     const { user_id } = req.user;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20; // Default 20 untuk Topbar
+    const limit = parseInt(req.query.limit) || 20; 
     const offset = (page - 1) * limit;
 
     const { count, rows } = await Notifikasi.findAndCountAll({
@@ -45,10 +41,10 @@ const getNotifications = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/notifications/:id/read
- * Menandai satu notifikasi sebagai sudah dibaca.
- */
+
+
+
+
 const markAsRead = async (req, res) => {
   try {
     const { id } = req.params;
@@ -81,10 +77,10 @@ const markAsRead = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/notifications/read-all
- * Menandai semua notifikasi user sebagai sudah dibaca.
- */
+
+
+
+
 const markAllAsRead = async (req, res) => {
   try {
     const { user_id } = req.user;

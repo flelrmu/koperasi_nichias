@@ -17,10 +17,10 @@ import {
   HandCoins
 } from 'lucide-react';
 
-/**
- * Map nama icon (string dari database) ke komponen Lucide.
- * Digunakan di halaman peraturan untuk me-resolve icon secara dinamis.
- */
+
+
+
+
 export const iconMap = {
   Wallet,
   CreditCard,
@@ -40,22 +40,22 @@ export const iconMap = {
   HandCoins,
 };
 
-/**
- * Resolve icon component dari nama string.
- * Fallback ke FileText jika nama tidak ditemukan.
- */
+
+
+
+
 export const getIconComponent = (iconName) => {
   return iconMap[iconName] || FileText;
 };
 
-/**
- * Daftar semua icon yang tersedia untuk dipilih di form.
- */
+
+
+
 export const availableIcons = Object.keys(iconMap);
 
-/**
- * Daftar preset warna icon untuk form.
- */
+
+
+
 export const iconColorPresets = [
   { label: 'Biru', color: 'text-blue-600', bg: 'bg-blue-50' },
   { label: 'Indigo', color: 'text-indigo-600', bg: 'bg-indigo-50' },

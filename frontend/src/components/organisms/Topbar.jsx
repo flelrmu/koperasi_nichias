@@ -35,16 +35,16 @@ export default function Topbar({ toggleSidebar }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Always call hooks unconditionally at top level (React Rules of Hooks)
+  
   const notifContext = useNotifications();
 
-  // Notifications available for all authenticated users
+  
   const notifications = notifContext.notifications;
   const unreadCount = notifContext.unreadCount;
   const markAsRead = notifContext.markAsRead;
   const markAllAsRead = notifContext.markAllAsRead;
 
-  // Dynamic user info
+  
   const userName = user?.nama_lengkap || user?.email || 'User';
   const userRole = user?.role === 'Anggota' 
     ? `Anggota ${user?.status_keanggotaan || ''}` 
@@ -56,7 +56,7 @@ export default function Topbar({ toggleSidebar }) {
     .join('')
     .toUpperCase();
 
-  // Handle click outside to close dropdown
+  
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -69,7 +69,7 @@ export default function Topbar({ toggleSidebar }) {
     };
   }, [dropdownRef]);
 
-  // Listen for real-time photo updates
+  
   useEffect(() => {
     if (!socket || !user) return;
     const handlePhotoUpdated = (e) => {
@@ -83,11 +83,11 @@ export default function Topbar({ toggleSidebar }) {
   }, [socket, user, updateUserData]);
 
   const handleNotifClick = (notif) => {
-    // Mark as read
+    
     if (!notif.is_read && notif.id) {
       markAsRead(notif.id);
     }
-    // Navigate to link
+    
     if (notif.link) {
       navigate(notif.link);
     }
@@ -127,7 +127,7 @@ export default function Topbar({ toggleSidebar }) {
       </div>
 
       <div className="flex items-center gap-4 sm:gap-6">
-        {/* Notifications Dropdown */}
+        {}
         <div className="relative" ref={dropdownRef}>
           <button 
             onClick={() => setShowNotifications(!showNotifications)}

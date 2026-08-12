@@ -60,13 +60,13 @@ export default function SimpanPinjam() {
   const [installmentSearchQuery, setInstallmentSearchQuery] = useState('');
   const [hoveredCard, setHoveredCard] = useState(null);
   
-  // Pagination
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [currentInstallmentPage, setCurrentInstallmentPage] = useState(1);
   const itemsPerPage = 8;
   const installmentsPerPage = 10;
 
-  // Form State
+  
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formData, setFormData] = useState({
     jenis_pinjaman: 'Uang',
@@ -85,12 +85,12 @@ export default function SimpanPinjam() {
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Membership Eligibility Logic (Min 90 days / 3 months for Loans)
+  
   const membershipDays = useMemo(() => {
     if (!profileData?.tanggal_bergabung) return 0;
     const joinDate = new Date(profileData.tanggal_bergabung);
     const today = new Date();
-    // Reset time for accurate day calculation
+    
     joinDate.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
     const diffTime = today - joinDate;
@@ -98,7 +98,7 @@ export default function SimpanPinjam() {
   }, [profileData]);
 
   const isEligibleForLoan = useMemo(() => {
-    // Pengurus are always eligible, Anggota must be 90+ days (3 months)
+    
     if (user?.role !== 'Anggota') return true;
     return membershipDays >= 90;
   }, [user?.role, membershipDays]);
@@ -137,7 +137,7 @@ export default function SimpanPinjam() {
         setSelectedLoan(loan);
         setIsDetailOpen(true);
         setActiveTab('pinjaman');
-        // Clear param
+        
         window.history.replaceState(null, '', location.pathname);
       }
     }
@@ -332,7 +332,7 @@ export default function SimpanPinjam() {
     return cleanValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   }, []);
 
-  // Restore cursor position after React re-renders the formatted value
+  
   useEffect(() => {
     if (cursorPosRef.current !== null && jumlahInputRef.current) {
       jumlahInputRef.current.setSelectionRange(cursorPosRef.current, cursorPosRef.current);
@@ -351,7 +351,7 @@ export default function SimpanPinjam() {
       const formatted = formatToRupiah(rawValue);
       const newLen = formatted.length;
 
-      // Calculate new cursor position based on length change from formatting
+      
       cursorPosRef.current = Math.max(0, cursorPos + (newLen - oldLen));
 
       setFormData(prev => ({ ...prev, [name]: formatted, terbilang: rawValue ? angkaKeTerbilang(rawValue) : '' }));
@@ -438,7 +438,7 @@ export default function SimpanPinjam() {
         try {
           const payload = {
             ...formData,
-            jumlah_pinjaman: formData.jumlah_pinjaman.replace(/\./g, ''), // Clean dots
+            jumlah_pinjaman: formData.jumlah_pinjaman.replace(/\./g, ''), 
             tenor: selectedTenor
           };
           const response = await api.post('/simpan-pinjam/pinjaman', payload);
@@ -539,7 +539,7 @@ export default function SimpanPinjam() {
       variants={containerVariants} 
       className="space-y-6 pb-10"
     >
-      {/* Header */}
+      {}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#DFEAF4] rounded-full -mr-32 -mt-32 opacity-50 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#004A9C]/5 rounded-full -ml-24 -mb-24 opacity-40 blur-3xl"></div>
@@ -750,7 +750,7 @@ export default function SimpanPinjam() {
             exit={{ opacity: 0, scale: 1.02 }}
             className="space-y-8"
           >
-            {/* Header / Back Button */}
+            {}
             <div className="flex items-center gap-4 mb-2">
               <button 
                 onClick={() => setIsDetailOpen(false)}
@@ -765,7 +765,7 @@ export default function SimpanPinjam() {
             </div>
 
             <div className="flex flex-col lg:flex-row gap-8">
-              {/* Left Side: Info Cards */}
+              {}
               <div className="flex-1 space-y-8">
                 <div className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-xl shadow-blue-900/5 space-y-8 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-gray-50 rounded-full -mr-32 -mt-32 opacity-50 blur-3xl"></div>
@@ -835,10 +835,10 @@ export default function SimpanPinjam() {
                 )}
               </div>
 
-              {/* Right Side: Financial Summary */}
+              {}
               <div className="w-full lg:w-[380px] space-y-6">
                 <div className="bg-[#004A9C] rounded-[3rem] p-10 text-white shadow-2xl shadow-blue-900/40 relative overflow-hidden flex flex-col h-full min-h-[600px]">
-                  {/* Decorative backgrounds */}
+                  {}
                   <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-[80px]"></div>
                   <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-blue-400/20 rounded-full blur-[80px]"></div>
 
@@ -903,7 +903,7 @@ export default function SimpanPinjam() {
           </motion.div>
         ) : (
           <>
-            {/* Tabs Bar */}
+            {}
             <motion.div variants={itemVariants} className="bg-white p-3 rounded-2xl border border-gray-100 shadow-xl shadow-blue-900/5 flex justify-start items-center">
               <div className="flex p-1 bg-gray-50 rounded-xl w-full lg:w-auto">
                 <button
@@ -928,7 +928,7 @@ export default function SimpanPinjam() {
             </motion.div>
 
             {activeTab === 'pinjaman' && !isEligibleForLoan ? (
-              /* Warning for restricted members */
+              
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -979,7 +979,7 @@ export default function SimpanPinjam() {
             ) : (
 
               <>
-                {/* Stats Grid */}
+                {}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                   {(activeTab === 'simpanan' 
                     ? [
@@ -1012,7 +1012,7 @@ export default function SimpanPinjam() {
                       onMouseLeave={() => setHoveredCard(null)}
                       className="bg-white rounded-[2.5rem] shadow-sm p-8 border border-gray-100 hover:shadow-2xl hover:shadow-blue-900/10 transition-all group relative overflow-hidden aspect-square flex flex-col items-center justify-center text-center cursor-help"
                     >
-                      {/* Clipping container for decorative background effects */}
+                      {}
                       <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] pointer-events-none">
                         <div 
                           className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-5 transition-transform duration-700 group-hover:scale-150"
@@ -1053,7 +1053,7 @@ export default function SimpanPinjam() {
                   ))}
                 </div>
 
-                {/* Separate Filter Bar for Savings & Loans */}
+                {}
                 <motion.div variants={itemVariants} className="mt-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
                   <div className="relative flex-1 w-full">
                     <Search
@@ -1101,7 +1101,7 @@ export default function SimpanPinjam() {
                   </div>
                 </motion.div>
 
-                {/* Table Section */}
+                {}
                 <motion.div variants={itemVariants} className="mt-6 bg-white rounded-[2.5rem] shadow-xl shadow-blue-900/5 border border-gray-100 overflow-hidden flex flex-col min-h-[500px]">
                   <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
                     <div className="flex items-center gap-4">
@@ -1275,7 +1275,7 @@ export default function SimpanPinjam() {
                   exit={{ opacity: 0, y: -20 }}
                   className="mt-12 space-y-6"
                 >
-                  {/* Separate Filter Bar for Installment History */}
+                  {}
                   <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
                     <div className="relative flex-1 w-full">
                       <Search
@@ -1323,7 +1323,7 @@ export default function SimpanPinjam() {
                     </div>
                   </div>
 
-                  {/* Table Container */}
+                  {}
                   <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 overflow-hidden flex flex-col min-h-[500px]">
                     <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
                       <div className="flex items-center gap-4">
@@ -1446,7 +1446,7 @@ export default function SimpanPinjam() {
       )}
     </AnimatePresence>
 
-      {/* Info Card */}
+      {}
       {activeTab === 'pinjaman' && (
         <motion.div variants={itemVariants} className="bg-orange-50 border border-orange-100 rounded-[2.5rem] p-8 flex items-start gap-6 mt-12">
           <div className="p-4 bg-white rounded-2xl text-orange-500 shadow-sm">

@@ -21,6 +21,13 @@ module.exports = (sequelize, DataTypes) => {
         key: 'kategori_id',
       },
     },
+    periode_id: {
+      type: DataTypes.INTEGER,
+      references: {
+        model: 'PeriodeKeuangan',
+        key: 'periode_id',
+      },
+    },
     tanggal: {
       type: DataTypes.DATEONLY,
     },
@@ -46,11 +53,46 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     tableName: 'arus_kas',
     timestamps: false,
+    hooks: {
+      beforeCreate: async (arusKas, options) => {
+        if (arusKas.tanggal && !arusKas.periode_id) {
+          const moment = require('moment');
+          const dateObj = moment(arusKas.tanggal);
+          const bulan = dateObj.month() + 1;
+          const tahun = dateObj.year();
+          
+          const PeriodeKeuangan = sequelize.models.PeriodeKeuangan;
+          const [periode] = await PeriodeKeuangan.findOrCreate({
+            where: { bulan, tahun },
+            defaults: { is_closed: false },
+            transaction: options.transaction
+          });
+          arusKas.periode_id = periode.periode_id;
+        }
+      },
+      beforeUpdate: async (arusKas, options) => {
+        if (arusKas.changed('tanggal') && arusKas.tanggal) {
+          const moment = require('moment');
+          const dateObj = moment(arusKas.tanggal);
+          const bulan = dateObj.month() + 1;
+          const tahun = dateObj.year();
+          
+          const PeriodeKeuangan = sequelize.models.PeriodeKeuangan;
+          const [periode] = await PeriodeKeuangan.findOrCreate({
+            where: { bulan, tahun },
+            defaults: { is_closed: false },
+            transaction: options.transaction
+          });
+          arusKas.periode_id = periode.periode_id;
+        }
+      }
+    }
   });
 
   ArusKas.associate = (models) => {
     ArusKas.belongsTo(models.User, { foreignKey: 'user_id', as: 'user' });
     ArusKas.belongsTo(models.KategoriKas, { foreignKey: 'kategori_id', as: 'kategoriKas' });
+    ArusKas.belongsTo(models.PeriodeKeuangan, { foreignKey: 'periode_id', as: 'periodeKeuangan' });
   };
 
   return ArusKas;

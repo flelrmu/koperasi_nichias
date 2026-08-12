@@ -6,7 +6,7 @@ export default function Logo({ variant = "default" }) {
   return (
     <div className="flex items-center gap-2 group select-none">
       <div className="relative flex items-center justify-center">
-        {/* Minimalist Glow for White Variant */}
+        {}
         {isWhite && (
           <div className="absolute inset-0 bg-white/15 blur-xl rounded-full scale-125 animate-pulse-slow" />
         )}

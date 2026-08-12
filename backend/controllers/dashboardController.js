@@ -1,4 +1,4 @@
-const { Anggota, Pinjaman, Simpanan, TransaksiSimpanan, ArusKas, Angsuran, sequelize } = require('../models');
+const { Anggota, Pinjaman, TransaksiSimpanan, ArusKas, Angsuran, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const moment = require('moment');
 
@@ -6,16 +6,16 @@ exports.getDashboardStats = async (req, res) => {
   try {
     const today = moment().startOf('day');
 
-    // 1. Total Anggota Aktif
+    
     const totalAnggotaAktif = await Anggota.count({ where: { status_keanggotaan: 'Aktif' } });
 
-    // 2. Pendaftaran Pending
+    
     const pendaftaranPending = await Anggota.count({ where: { status_keanggotaan: 'Pending' } });
 
-    // 3. Pinjaman Pending
+    
     const pinjamanPending = await Pinjaman.count({ where: { status: 'Pending' } });
 
-    // 4. Aktifitas Hari Ini (Anggota baru, Pinjaman baru, Transaksi Simpanan, Arus Kas, Angsuran, Persetujuan Pinjaman)
+    
     const anggotaHariIni = await Anggota.count({ where: { tanggal_registrasi: { [Op.gte]: today.toDate() } } });
     const pinjamanBaruHariIni = await Pinjaman.count({ where: { tanggal_pengajuan: { [Op.gte]: today.format('YYYY-MM-DD') } } });
     const transaksiSimpananHariIni = await TransaksiSimpanan.count({ where: { tanggal: { [Op.gte]: today.format('YYYY-MM-DD') } } });
@@ -25,7 +25,7 @@ exports.getDashboardStats = async (req, res) => {
     
     const aktifitasHariIni = anggotaHariIni + pinjamanBaruHariIni + transaksiSimpananHariIni + arusKasHariIni + angsuranHariIni + persetujuanPinjamanHariIni;
 
-    // 5. Aliran Dana (Debit Kredit 6 bulan terakhir dari Arus Kas)
+    
     const sixMonthsAgo = moment().subtract(5, 'months').startOf('month');
     
     const aliranDanaRaw = await ArusKas.findAll({
@@ -41,7 +41,7 @@ exports.getDashboardStats = async (req, res) => {
       raw: true
     });
 
-    // Format for recharts: { name: 'Jan', debit: 4000, credit: 2400 }
+    
     const months = [];
     for(let i=5; i>=0; i--) {
       months.push(moment().subtract(i, 'months').format('YYYY-MM'));
@@ -64,7 +64,7 @@ exports.getDashboardStats = async (req, res) => {
       return monthData;
     });
 
-    // 6. Distribusi Divisi
+    
     const divisiRaw = await Anggota.findAll({
       attributes: [
         'divisi',
@@ -85,8 +85,8 @@ exports.getDashboardStats = async (req, res) => {
       color: colors[index % colors.length]
     }));
 
-    // 7. Ringkasan Simpanan
-    const simpananData = await Simpanan.findAll({
+    
+    const simpananData = await Anggota.findAll({
       attributes: [
         [sequelize.fn('SUM', sequelize.col('saldo_pokok')), 'total_pokok'],
         [sequelize.fn('SUM', sequelize.col('saldo_wajib')), 'total_wajib'],
@@ -107,14 +107,14 @@ exports.getDashboardStats = async (req, res) => {
       total: totalDanaSimpanan
     };
 
-    // 8. Nilai Pinjaman (Pending & Aktif/Berjalan)
+    
     const pinjamanAktifData = await Pinjaman.findAll({
       attributes: [
         [sequelize.fn('SUM', sequelize.col('sisa_tagihan')), 'total_berjalan']
       ],
       where: {
         status: {
-          [Op.in]: ['Approved', 'Berjalan'] // Adjust depending on exact statuses in your DB, sometimes it's 'Approved' with sisa_tagihan > 0
+          [Op.in]: ['Approved', 'Berjalan'] 
         },
         sisa_tagihan: { [Op.gt]: 0 }
       },

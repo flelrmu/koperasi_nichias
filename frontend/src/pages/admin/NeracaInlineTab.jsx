@@ -355,7 +355,7 @@ export default function NeracaInlineTab({ api, showNotification, exportTrigger }
 
   return (
     <div className="space-y-4">
-      {/* Year Filter */}
+      {}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Calendar size={18} className="text-gray-400" />
@@ -371,10 +371,15 @@ export default function NeracaInlineTab({ api, showNotification, exportTrigger }
         <p className="text-xs text-gray-400">Menampilkan 12 tabel neraca bulanan</p>
       </div>
 
-      {/* Monthly Accordion Tables */}
+      {}
       {yearlyData.map((monthItem) => {
         const isExpanded = expandedMonth === monthItem.bulan;
         const hasData = monthItem.data.some(d => d.saldo_akhir !== 0 || d.debit !== 0 || d.kredit !== 0);
+        
+        const totalBalance = monthItem.data
+          .filter(d => !d.isTotalRow)
+          .reduce((acc, curr) => acc + parseFloat(curr.saldo_akhir || 0), 0);
+        const isBalanced = Math.abs(totalBalance) < 1;
 
         return (
           <motion.div
@@ -382,7 +387,7 @@ export default function NeracaInlineTab({ api, showNotification, exportTrigger }
             layout
             className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
           >
-            {/* Month Header */}
+            {}
             <button
               onClick={() => setExpandedMonth(isExpanded ? null : monthItem.bulan)}
               className="w-full flex items-center justify-between p-5 hover:bg-gray-50/50 transition-colors"
@@ -404,7 +409,7 @@ export default function NeracaInlineTab({ api, showNotification, exportTrigger }
               </div>
             </button>
 
-            {/* Expandable Content */}
+            {}
             <AnimatePresence>
               {isExpanded && (
                 <motion.div
@@ -465,7 +470,7 @@ export default function NeracaInlineTab({ api, showNotification, exportTrigger }
                               </td>
                             </tr>
                           ))}
-                          {/* Footer */}
+                          {}
                           <tr className="bg-[#004A9C] border-t-2 border-[#003B7D] text-white">
                             <td className="px-6 py-3 text-xs font-black text-center border-r border-white/10 uppercase text-white">
                               {moment(`${tahun}-${String(monthItem.bulan).padStart(2, '0')}-01`).format('MMM-YY')}
@@ -487,34 +492,23 @@ export default function NeracaInlineTab({ api, showNotification, exportTrigger }
                       </table>
                     </div>
 
-                    {/* Month Actions & Status */}
+                    {}
                     <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/30">
                       <div>
-                        {(() => {
-                          // Calculate overall balance: sum of all non-aggregate rows
-                          // Since Assets are (+) and Pasiva are (-), sum should be 0
-                          const totalBalance = monthItem.data
-                            .filter(d => !d.isTotalRow)
-                            .reduce((acc, curr) => acc + parseFloat(curr.saldo_akhir || 0), 0);
-                          
-                          const isBalanced = Math.abs(totalBalance) < 1;
-                          return (
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status Neraca:</span>
-                              {isBalanced ? (
-                                <div className="flex items-center gap-1.5 px-4 py-2 bg-green-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-500/20">
-                                  <CheckCircle2 size={14} />
-                                  Seimbang
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-1.5 px-4 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 animate-pulse">
-                                  <AlertTriangle size={14} />
-                                  Tidak Seimbang
-                                </div>
-                              )}
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status Neraca:</span>
+                          {isBalanced ? (
+                            <div className="flex items-center gap-1.5 px-4 py-2 bg-green-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-500/20">
+                              <CheckCircle2 size={14} />
+                              Seimbang
                             </div>
-                          );
-                        })()}
+                          ) : (
+                            <div className="flex items-center gap-1.5 px-4 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 animate-pulse">
+                              <AlertTriangle size={14} />
+                              Tidak Seimbang
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -530,7 +524,12 @@ export default function NeracaInlineTab({ api, showNotification, exportTrigger }
                         ) : (
                           <Button
                             onClick={() => handleTutupBuku(monthItem.bulan)}
-                            className="flex items-center gap-2 !px-6 text-xs bg-red-500 hover:bg-red-600 text-white font-bold"
+                            disabled={!isBalanced}
+                            className={`flex items-center gap-2 !px-6 text-xs font-bold ${
+                              !isBalanced 
+                                ? '!bg-gray-100 !text-gray-400 cursor-not-allowed' 
+                                : 'bg-red-500 hover:bg-red-600 text-white'
+                            }`}
                           >
                             <Unlock size={14} /> Tutup Buku {MONTHS[monthItem.bulan - 1]}
                           </Button>
@@ -544,7 +543,7 @@ export default function NeracaInlineTab({ api, showNotification, exportTrigger }
           </motion.div>
         );
       })}
-      {/* Confirm Modal */}
+      {}
       <Modal
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}

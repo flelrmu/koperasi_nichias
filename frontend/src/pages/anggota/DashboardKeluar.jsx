@@ -67,7 +67,7 @@ const DashboardKeluar = () => {
         animate="visible"
         className="max-w-3xl w-full space-y-8 relative z-10"
       >
-        {/* Main Card */}
+        {}
         <motion.div 
           variants={itemVariants}
           className="bg-white p-12 rounded-[3rem] border border-gray-100 shadow-2xl shadow-blue-900/5 text-center space-y-8"
@@ -118,7 +118,7 @@ const DashboardKeluar = () => {
           </div>
         </motion.div>
 
-        {/* Footer Info */}
+        {}
         <motion.div 
           variants={itemVariants}
           className="bg-white/60 backdrop-blur-md p-6 rounded-[2rem] border border-white flex items-center justify-between gap-6 px-10 shadow-sm"

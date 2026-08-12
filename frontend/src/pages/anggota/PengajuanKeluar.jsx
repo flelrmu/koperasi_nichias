@@ -225,7 +225,7 @@ function PengajuanKeluar() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Header section with back button */}
+      {}
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center gap-4 mb-2">
         <button 
           onClick={() => navigate('/profile')}
@@ -240,7 +240,7 @@ function PengajuanKeluar() {
       </motion.div>
 
       <motion.div variants={itemVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* Warning Banner */}
+        {}
         <div className="bg-[#EB5757]/5 border-b border-[#EB5757]/10 p-6 flex items-start gap-4">
           <div className="w-12 h-12 rounded-2xl bg-[#EB5757]/10 flex items-center justify-center shrink-0">
             <AlertTriangle className="text-[#EB5757]" size={24} />
@@ -327,7 +327,7 @@ function PengajuanKeluar() {
         </div>
       </motion.div>
 
-      {/* FAQs or Info */}
+      {}
       <motion.div variants={itemVariants} className="bg-[#DFEAF4]/30 border border-[#004A9C]/10 rounded-2xl p-6 flex gap-5 items-center">
         <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-[#004A9C] shadow-sm shrink-0">
           <Info size={28} />

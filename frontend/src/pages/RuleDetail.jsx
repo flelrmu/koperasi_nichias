@@ -121,7 +121,7 @@ export default function RuleDetail() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Navigation Header */}
+      {}
       <motion.div variants={itemVariants} className="flex items-center gap-4">
         <button 
           onClick={() => navigate('/koperasi-rules')}
@@ -139,7 +139,7 @@ export default function RuleDetail() {
         </div>
       </motion.div>
 
-      {/* Hero Section Card */}
+      {}
       <motion.div variants={itemVariants} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden text-poppins">
         <div className="bg-gradient-to-r from-[#004A9C] to-[#4A90E2] p-8 sm:p-12 text-white relative">
           <div className="absolute right-[-5%] top-[-10%] w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
@@ -164,9 +164,9 @@ export default function RuleDetail() {
         </div>
 
         <div className="p-8 sm:p-12 grid grid-cols-1 lg:grid-cols-3 gap-12">
-          {/* Main Info Columns */}
+          {}
           <div className="lg:col-span-2 space-y-10">
-            {/* Objective Section */}
+            {}
             <section className="space-y-4">
               <div className="flex items-center gap-3 text-[#004A9C]">
                 <Target size={24} className="shrink-0" />
@@ -177,7 +177,7 @@ export default function RuleDetail() {
               </p>
             </section>
 
-            {/* Procedures Section */}
+            {}
             {procedures.length > 0 && (
               <section className="space-y-4">
                 <div className="flex items-center gap-3 text-[#004A9C]">
@@ -198,9 +198,9 @@ export default function RuleDetail() {
             )}
           </div>
 
-          {/* Sidebar Info */}
+          {}
           <div className="lg:col-span-1 space-y-8">
-            {/* Conditions Section */}
+            {}
             {conditions.length > 0 && (
               <section className="bg-gray-50 rounded-3xl p-8 border border-gray-100">
                  <div className="flex items-center gap-2 text-gray-800 mb-6">
@@ -218,7 +218,7 @@ export default function RuleDetail() {
               </section>
             )}
 
-            {/* Metadata Section */}
+            {}
             <section className="px-6 space-y-4">
               <div className="flex items-center justify-between text-xs text-gray-400 font-bold uppercase tracking-widest italic border-b border-gray-100 pb-2">
                 <span>Update Terakhir</span>
@@ -237,7 +237,7 @@ export default function RuleDetail() {
           </div>
         </div>
 
-        {/* Action Footer */}
+        {}
         <div className="bg-gray-50/50 p-8 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-6">
            <div className="text-center sm:text-left">
               <p className="text-sm font-bold text-gray-800">Masih ragu dengan peraturan ini?</p>

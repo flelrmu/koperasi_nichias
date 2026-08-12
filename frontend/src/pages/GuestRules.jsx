@@ -64,8 +64,8 @@ export default function GuestRules() {
       return;
     }
 
-    // Format phone number: remove non-digits, ensure starts with country code if needed
-    // Assuming the number in DB is like 0812... or +62...
+    
+    
     let phoneNumber = secretaryContact.no_hp.replace(/\D/g, '');
     if (phoneNumber.startsWith('0')) {
       phoneNumber = '62' + phoneNumber.substring(1);
@@ -76,7 +76,7 @@ export default function GuestRules() {
   };
 
 
-  // WebSocket real-time updates
+  
   useEffect(() => {
     if (!socket) return;
 
@@ -136,7 +136,7 @@ export default function GuestRules() {
 
   return (
     <div className="space-y-12">
-      {/* Hero Head */}
+      {}
       <div className="text-center space-y-4 max-w-3xl mx-auto">
         <motion.div 
           initial={{ scale: 0.9, opacity: 0 }}
@@ -154,7 +154,7 @@ export default function GuestRules() {
         </p>
       </div>
 
-      {/* Filter & Search Bar */}
+      {}
       <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 flex flex-col md:flex-row gap-4 items-center">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -183,7 +183,7 @@ export default function GuestRules() {
         </div>
       </div>
 
-      {/* Grid Rules */}
+      {}
       <motion.div 
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
         variants={containerVariants}
@@ -208,7 +208,7 @@ export default function GuestRules() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8 hover:shadow-2xl hover:-translate-y-2 transition-all group flex flex-col relative overflow-hidden"
                 >
-                  {/* Decorative background element */}
+                  {}
                   <div className={`absolute top-0 right-0 w-32 h-32 ${rule.icon_bg_color || 'bg-blue-50'} rounded-full -mr-16 -mt-16 opacity-20 group-hover:scale-150 transition-transform duration-500`}></div>
                   
                   <div className="flex items-start justify-between mb-8 relative z-10">
@@ -245,7 +245,7 @@ export default function GuestRules() {
         )}
       </motion.div>
 
-      {/* Empty State */}
+      {}
       {!isLoading && filteredRules.length === 0 && (
         <motion.div 
           initial={{ opacity: 0 }}
@@ -266,7 +266,7 @@ export default function GuestRules() {
         </motion.div>
       )}
 
-      {/* Help Section */}
+      {}
       <motion.div 
         variants={itemVariants} 
         className="bg-gradient-to-br from-[#004A9C] to-[#0d4c9e] rounded-[2.5rem] p-10 md:p-12 text-white flex flex-col md:flex-row items-center gap-8 relative overflow-hidden shadow-2xl shadow-blue-900/20"

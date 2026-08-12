@@ -56,7 +56,7 @@ export default function TambahPeraturan() {
 
     setIsSaving(true);
     try {
-      // Filter out empty strings from arrays
+      
       const payload = {
         ...rule,
         syarat_ketentuan: rule.syarat_ketentuan.filter(s => s.trim()),
@@ -132,7 +132,7 @@ export default function TambahPeraturan() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Navigation Header */}
+      {}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button 
@@ -159,9 +159,9 @@ export default function TambahPeraturan() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content Form */}
+        {}
         <div className="lg:col-span-2 space-y-6">
-          {/* Basic Info Card */}
+          {}
           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-6">
             <div className="flex items-center gap-2 text-[#004A9C] mb-2 border-b border-gray-50 pb-4">
               <ShieldCheck size={20} />
@@ -218,12 +218,12 @@ export default function TambahPeraturan() {
                         const val = e.target.value;
                         let numeric = null;
                         
-                        // Smart parsing: if it's a number or currency format
+                        
                         const cleanVal = val.replace(/[^0-9]/g, '');
                         if (cleanVal && !isNaN(cleanVal)) {
                           numeric = parseFloat(cleanVal);
                           
-                          // Auto-format for Simpanan/Pinjaman (Currency)
+                          
                           if (rule.judul.toLowerCase().includes('simpanan') || rule.judul.toLowerCase().includes('pinjaman')) {
                             const formatted = new Intl.NumberFormat('id-ID', {
                               style: 'currency',
@@ -234,14 +234,14 @@ export default function TambahPeraturan() {
                             return;
                           }
                           
-                          // Auto-format for Bunga (%)
+                          
                           if (rule.judul.toLowerCase().includes('bunga')) {
                             setRule({ ...rule, ketentuan_utama: `${numeric}%`, nilai_numerik: numeric });
                             return;
                           }
                         }
                         
-                        // Fallback to manual text
+                        
                         setRule({ ...rule, ketentuan_utama: val, nilai_numerik: numeric });
                       }}
                       placeholder="Masukkan nominal (Contoh: 100000)"
@@ -262,7 +262,7 @@ export default function TambahPeraturan() {
             </div>
           </div>
 
-          {/* Procedures Card */}
+          {}
           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-6">
             <div className="flex items-center justify-between border-b border-gray-50 pb-4">
               <div className="flex items-center gap-2 text-[#004A9C]">
@@ -305,9 +305,9 @@ export default function TambahPeraturan() {
           </div>
         </div>
 
-        {/* Sidebar Info Form */}
+        {}
         <div className="space-y-6">
-          {/* Purpose Card */}
+          {}
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
             <h4 className="font-bold text-gray-800 text-md border-b border-gray-50 pb-3">Tujuan Kebijakan</h4>
             <Textarea 
@@ -318,7 +318,7 @@ export default function TambahPeraturan() {
             />
           </div>
 
-          {/* Conditions Card */}
+          {}
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-gray-50 pb-3">
               <h4 className="font-bold text-gray-800 text-md">Syarat & Ketentuan</h4>
@@ -348,11 +348,11 @@ export default function TambahPeraturan() {
             </div>
           </div>
 
-          {/* Icon Picker */}
+          {}
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
             <h4 className="font-bold text-gray-800 text-md border-b border-gray-50 pb-3">Icon & Warna</h4>
             
-            {/* Icon Preview */}
+            {}
             <div className="flex items-center gap-3 mb-3">
               <div className={`w-12 h-12 ${rule.icon_bg_color} ${rule.icon_color} rounded-xl flex items-center justify-center`}>
                 <IconPreview size={24} />
@@ -363,7 +363,7 @@ export default function TambahPeraturan() {
               </div>
             </div>
 
-            {/* Icon Select */}
+            {}
             <select
               value={rule.icon_name}
               onChange={(e) => setRule({ ...rule, icon_name: e.target.value })}
@@ -374,7 +374,7 @@ export default function TambahPeraturan() {
               ))}
             </select>
 
-            {/* Color Preset */}
+            {}
             <div className="flex flex-wrap gap-2 mt-2">
               {iconColorPresets.map(preset => (
                 <button
@@ -393,7 +393,7 @@ export default function TambahPeraturan() {
         </div>
       </div>
 
-      {/* Status Modal */}
+      {}
       <Modal
         isOpen={statusModal.isOpen}
         onClose={() => {

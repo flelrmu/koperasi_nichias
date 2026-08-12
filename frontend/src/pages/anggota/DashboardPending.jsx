@@ -31,7 +31,7 @@ export default function DashboardPending() {
   const [secretaryContact, setSecretaryContact] = useState(null);
   const [configs, setConfigs] = useState({});
 
-  // Fetch configurations
+  
   useEffect(() => {
     const fetchConfigs = async () => {
       try {
@@ -67,7 +67,7 @@ export default function DashboardPending() {
     }).format(num);
   };
 
-  // Fetch secretary contact
+  
   useEffect(() => {
     const fetchSecretaryContact = async () => {
       try {
@@ -82,7 +82,7 @@ export default function DashboardPending() {
     fetchSecretaryContact();
   }, [api]);
 
-  // Listen for real-time member:approved event
+  
   useEffect(() => {
     if (!socket) return;
 
@@ -92,7 +92,7 @@ export default function DashboardPending() {
         setApprovalData(data);
         setCurrentStep(4);
 
-        // Update localStorage so next login goes to /dashboard
+        
         const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
         savedUser.status_keanggotaan = 'Aktif';
         localStorage.setItem('user', JSON.stringify(savedUser));
@@ -136,7 +136,7 @@ export default function DashboardPending() {
 
   const handleGoToDashboard = () => {
 
-    // Force reload so AuthContext picks up updated localStorage
+    
     window.location.href = '/dashboard';
   };
 
@@ -154,7 +154,7 @@ export default function DashboardPending() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-poppins">
-      {/* Header */}
+      {}
       <header className="bg-white border-b border-gray-200 h-20 flex items-center justify-between px-4 sm:px-6 lg:px-8 sticky top-0 z-30">
         <Logo />
         <div className="flex items-center gap-4">
@@ -174,14 +174,14 @@ export default function DashboardPending() {
         </div>
       </header>
 
-      {/* Content */}
+      {}
       <motion.div
         className="max-w-2xl mx-auto px-4 py-8 sm:py-12"
         initial="hidden"
         animate="visible"
         variants={containerVariants}
       >
-        {/* Step 2 Banner */}
+        {}
         {currentStep === 2 && (
           <motion.div variants={itemVariants} className="text-center mb-8">
             <motion.div
@@ -201,7 +201,7 @@ export default function DashboardPending() {
           </motion.div>
         )}
 
-        {/* Step 3 Banner */}
+        {}
         {currentStep === 3 && (
           <motion.div variants={itemVariants} className="text-center mb-8">
             <motion.div
@@ -218,7 +218,7 @@ export default function DashboardPending() {
           </motion.div>
         )}
 
-        {/* Step 4 Banner - APPROVED */}
+        {}
         {currentStep === 4 && (
           <motion.div
             variants={itemVariants}
@@ -256,7 +256,7 @@ export default function DashboardPending() {
           </motion.div>
         )}
 
-        {/* Stepper */}
+        {}
         <motion.div variants={itemVariants} className="mb-8">
           <div className="flex items-center justify-between relative px-4">
             <div className="absolute top-5 left-[12%] right-[12%] h-1 bg-gray-200 z-0 rounded-full"></div>
@@ -304,7 +304,7 @@ export default function DashboardPending() {
           </div>
         </motion.div>
 
-        {/* Dynamic Content Based on Step */}
+        {}
         <AnimatePresence mode="wait">
           {currentStep === 2 && (
             <motion.div
@@ -460,7 +460,7 @@ export default function DashboardPending() {
             </motion.div>
           )}
 
-          {/* Step 4: Approved / Aktif */}
+          {}
           {currentStep === 4 && (
             <motion.div
               key="approved"
@@ -473,7 +473,7 @@ export default function DashboardPending() {
               <div className="bg-white rounded-2xl shadow-xl border border-[#27AE60]/20 overflow-hidden relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#27AE60]/5 via-transparent to-[#004A9C]/5 pointer-events-none" />
                 <div className="p-8 sm:p-10 relative z-10">
-                  {/* Confetti-like decorations */}
+                  {}
                   <div className="absolute top-4 left-4 w-3 h-3 bg-[#27AE60]/30 rounded-full" />
                   <div className="absolute top-8 right-8 w-2 h-2 bg-[#004A9C]/30 rounded-full" />
                   <div className="absolute top-12 left-16 w-2 h-2 bg-[#F2994A]/30 rounded-full" />

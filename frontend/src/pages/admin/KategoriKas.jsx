@@ -97,7 +97,7 @@ export default function KategoriKas() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[24px] shadow-sm border border-gray-100">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-blue-50 rounded-2xl">
@@ -117,7 +117,7 @@ export default function KategoriKas() {
           </Button>
         </div>
 
-        {/* Content */}
+        {}
         <div className="grid grid-cols-1 gap-6">
           <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-50">
@@ -202,7 +202,7 @@ export default function KategoriKas() {
           </div>
         </div>
 
-        {/* Modal */}
+        {}
         <AnimatePresence>
           {showModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

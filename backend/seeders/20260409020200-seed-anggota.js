@@ -3,28 +3,182 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {
-    const members = [
-      { user_id: 5, no_anggota: 'KOP-2026-001', no_identitas: '1371012304950001', nama_lengkap: 'Agus Pratama', tempat_lahir: 'Bukittinggi', tanggal_lahir: '1995-04-23', jabatan: 'Staff', divisi: 'HRD', no_hp: '085211223344', no_rekening_bank: 'BCA - 1122334455', alamat: 'Bukittinggi', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-01-10', status_keanggotaan: 'Aktif' },
-      { user_id: 6, no_anggota: 'KOP-2026-002', no_identitas: '1371021508880002', nama_lengkap: 'Bambang Hermawan', tempat_lahir: 'Solok', tanggal_lahir: '1988-08-15', jabatan: 'Manager', divisi: 'Keuangan', no_hp: '085211223355', no_rekening_bank: 'Mandiri - 1112223334445', alamat: 'Solok', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-01-15', status_keanggotaan: 'Aktif' },
-      { user_id: 7, no_anggota: 'KOP-2026-003', no_identitas: '1371031212920003', nama_lengkap: 'Citra Lestari', tempat_lahir: 'Pariaman', tanggal_lahir: '1992-12-12', jabatan: 'Assistant_Manager', divisi: 'Marketing', no_hp: '085211223366', no_rekening_bank: 'BNI - 0099887766', alamat: 'Pariaman', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-02-01', status_keanggotaan: 'Aktif' },
-      { user_id: 8, no_anggota: 'KOP-2026-004', no_identitas: '1371040101900004', nama_lengkap: 'Dian Sastro', tempat_lahir: 'Jakarta', tanggal_lahir: '1990-01-01', jabatan: 'Staff', divisi: 'Operasional', no_hp: '081234567890', no_rekening_bank: 'BRI - 000111222', alamat: 'Jakarta', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-02-10', status_keanggotaan: 'Aktif' },
-      { user_id: 9, no_anggota: 'KOP-2026-005', no_identitas: '1371050202910005', nama_lengkap: 'Eko Prasetyo', tempat_lahir: 'Bandung', tanggal_lahir: '1991-02-02', jabatan: 'Supervisor', divisi: 'Produksi', no_hp: '081234567891', no_rekening_bank: 'BCA - 000111223', alamat: 'Bandung', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-02-15', status_keanggotaan: 'Aktif' },
-      { user_id: 10, no_anggota: 'KOP-2026-006', no_identitas: '1371060303920006', nama_lengkap: 'Fajar Sidik', tempat_lahir: 'Surabaya', tanggal_lahir: '1992-03-03', jabatan: 'Staff', divisi: 'IT', no_hp: '081234567892', no_rekening_bank: 'Mandiri - 000111224', alamat: 'Surabaya', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-03-01', status_keanggotaan: 'Aktif' },
-      { user_id: 11, no_anggota: 'KOP-2026-007', no_identitas: '1371070404930007', nama_lengkap: 'Gita Gutawa', tempat_lahir: 'Medan', tanggal_lahir: '1993-04-04', jabatan: 'Staff', divisi: 'Marketing', no_hp: '081234567893', no_rekening_bank: 'BNI - 000111225', alamat: 'Medan', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-03-05', status_keanggotaan: 'Aktif' },
-      { user_id: 12, no_anggota: 'KOP-2026-008', no_identitas: '1371080505940008', nama_lengkap: 'Hendra Gunawan', tempat_lahir: 'Semarang', tanggal_lahir: '1994-05-05', jabatan: 'Manager', divisi: 'Operasional', no_hp: '081234567894', no_rekening_bank: 'BRI - 000111226', alamat: 'Semarang', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-03-10', status_keanggotaan: 'Aktif' },
-      { user_id: 13, no_anggota: 'KOP-2026-009', no_identitas: '1371090606950009', nama_lengkap: 'Indah Permatasari', tempat_lahir: 'Yogyakarta', tanggal_lahir: '1995-06-06', jabatan: 'Staff', divisi: 'HRD', no_hp: '081234567895', no_rekening_bank: 'BCA - 000111227', alamat: 'Yogyakarta', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-03-15', status_keanggotaan: 'Aktif' },
-      { user_id: 14, no_anggota: 'KOP-2026-010', no_identitas: '1371100707960010', nama_lengkap: 'Joko Widodo', tempat_lahir: 'Solo', tanggal_lahir: '1996-07-07', jabatan: 'Staff', divisi: 'Produksi', no_hp: '081234567896', no_rekening_bank: 'Mandiri - 000111228', alamat: 'Solo', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-04-01', status_keanggotaan: 'Aktif' },
-      { user_id: 15, no_anggota: 'KOP-2026-011', no_identitas: '1371110808970011', nama_lengkap: 'Kurnia Mega', tempat_lahir: 'Malang', tanggal_lahir: '1997-08-08', jabatan: 'Supervisor', divisi: 'IT', no_hp: '081234567897', no_rekening_bank: 'BNI - 000111229', alamat: 'Malang', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-04-05', status_keanggotaan: 'Aktif' },
-      { user_id: 16, no_anggota: 'KOP-2026-012', no_identitas: '1371120909980012', nama_lengkap: 'Linda Sari', tempat_lahir: 'Padang', tanggal_lahir: '1998-09-09', jabatan: 'Staff', divisi: 'Keuangan', no_hp: '081234567898', no_rekening_bank: 'BRI - 000111230', alamat: 'Padang', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-04-10', status_keanggotaan: 'Aktif' },
-      { user_id: 17, no_anggota: 'KOP-2026-013', no_identitas: '1371131010990013', nama_lengkap: 'Muhammad Ali', tempat_lahir: 'Palembang', tanggal_lahir: '1999-10-10', jabatan: 'Staff', divisi: 'Marketing', no_hp: '081234567899', no_rekening_bank: 'BCA - 000111231', alamat: 'Palembang', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-04-15', status_keanggotaan: 'Aktif' },
-      { user_id: 18, no_anggota: 'KOP-2026-014', no_identitas: '1371141111000014', nama_lengkap: 'Nina Zatulini', tempat_lahir: 'Batam', tanggal_lahir: '2000-11-11', jabatan: 'Staff', divisi: 'Operasional', no_hp: '081234567900', no_rekening_bank: 'Mandiri - 000111232', alamat: 'Batam', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-05-01', status_keanggotaan: 'Aktif' },
-      { user_id: 19, no_anggota: 'KOP-2026-015', no_identitas: '1371151212010015', nama_lengkap: 'Oscar Lawalata', tempat_lahir: 'Manado', tanggal_lahir: '2001-12-12', jabatan: 'Staff', divisi: 'Produksi', no_hp: '081234567901', no_rekening_bank: 'BNI - 000111233', alamat: 'Manado', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-05-05', status_keanggotaan: 'Aktif' },
-      { user_id: 20, no_anggota: 'KOP-2026-016', no_identitas: '1371161313020016', nama_lengkap: 'Putri Tanjung', tempat_lahir: 'Makassar', tanggal_lahir: '2002-01-13', jabatan: 'Staff', divisi: 'HRD', no_hp: '081234567902', no_rekening_bank: 'BRI - 000111234', alamat: 'Makassar', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-05-10', status_keanggotaan: 'Aktif' },
-      { user_id: 21, no_anggota: 'KOP-2026-017', no_identitas: '1371171414030017', nama_lengkap: 'Qory Sandioriva', tempat_lahir: 'Denpasar', tanggal_lahir: '2003-02-14', jabatan: 'Staff', divisi: 'Keuangan', no_hp: '081234567903', no_rekening_bank: 'BCA - 000111235', alamat: 'Denpasar', tanggal_registrasi: new Date(), tanggal_bergabung: null, status_keanggotaan: 'Pending' },
-      { user_id: 22, no_anggota: 'KOP-2026-018', no_identitas: '1371181515040018', nama_lengkap: 'Raffi Ahmad', tempat_lahir: 'Banjarmasin', tanggal_lahir: '2004-03-15', jabatan: 'Staff', divisi: 'IT', no_hp: '081234567904', no_rekening_bank: 'Mandiri - 000111236', alamat: 'Banjarmasin', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-06-01', status_keanggotaan: 'Aktif' },
-      { user_id: 23, no_anggota: 'KOP-2026-019', no_identitas: '1371191616050019', nama_lengkap: 'Siti Nurhaliza', tempat_lahir: 'Pontianak', tanggal_lahir: '2005-04-16', jabatan: 'Staff', divisi: 'Marketing', no_hp: '081234567905', no_rekening_bank: 'BNI - 000111237', alamat: 'Pontianak', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-06-05', status_keanggotaan: 'Keluar' },
-      { user_id: 24, no_anggota: 'KOP-2026-020', no_identitas: '1371201717060020', nama_lengkap: 'Tulus Widodo', tempat_lahir: 'Balikpapan', tanggal_lahir: '2006-05-17', jabatan: 'Staff', divisi: 'Operasional', no_hp: '081234567906', no_rekening_bank: 'BRI - 000111238', alamat: 'Balikpapan', tanggal_registrasi: new Date(), tanggal_bergabung: '2026-06-10', status_keanggotaan: 'Aktif' }
+    const memberNames = [
+      "Chaerul Baharuddin",
+      "Turimin",
+      "Hari Setiawan",
+      "Sapto Yuhartono",
+      "Elizabeth DS Pardede",
+      "Bonita Nursanti",
+      "Didit Juhdi",
+      "Dede Komarudin",
+      "Dedi Haryadi",
+      "Murnita",
+      "Yayah Sunaiyah",
+      "Wiwiek",
+      "Rossy Bestuty",
+      "Said Muinuddin",
+      "Riza Mauilidi",
+      "Riyadi",
+      "SYARIF TAUFIK",
+      "Wilson",
+      "Dadang Ahmad Dasuki",
+      "Heru Kurniawan",
+      "Sandri M",
+      "Denny Angga Setiawan",
+      "Wiwit Wiguna",
+      "Novita Handayani",
+      "Rahmat Hidayat",
+      "Ardi",
+      "Asroni",
+      "Zainal Arifin",
+      "Alex setiawan",
+      "Arsudin",
+      "Sri meriyana",
+      "M.Soleh",
+      "Suwandi",
+      "Titis Noritasari",
+      "Maman Suherman",
+      "FIRMAN WAREHOUSE",
+      "Slamet Supriyadi",
+      "Nur Soleh",
+      "Fani Arizka",
+      "Abdul Hakim",
+      "Hanafi Autopart",
+      "Nadiyah",
+      "Syarif Hidayat",
+      "Totok Hariyono",
+      "HENDRA",
+      "Muhamad Toha",
+      "SUHANDI",
+      "Iman",
+      "DWI ARIANTY SUMA",
+      "John Kennedy",
+      "Yahya",
+      "Firmansyah",
+      "Mirza Noviyanto Aji",
+      "SITI NURASIAH ROHMAH",
+      "JOHAN WAHYUDI",
+      "Yusli",
+      "Hadil Umam",
+      "Pinta Yulia",
+      "Very Setyowanto",
+      "Teddy Permadhi",
+      "Ari Hikmah Fitriyadi",
+      "Arland Asra",
+      "Perdana Raya Tambunan",
+      "Inke Riris Kurniati",
+      "Muhammad Ilham",
+      "Rini Agustina",
+      "Rya Casriyah",
+      "Adyansyah",
+      "Eko susanto",
+      "Ratna Puspita Dewi",
+      "WIWIT ARNIA",
+      "Indra Jaya Merkurius",
+      "Apriliana",
+      "Arif Maulana",
+      "Mustaqim",
+      "Eri Makmur",
+      "DIMAS OKTAVIANTO PUTRA",
+      "Ady Sulaiman",
+      "Berliana Mulya Casmita",
+      "Bintang Pertiwi",
+      "RIDWAN",
+      "Irma Oktaviana",
+      "SOFYAN"
     ];
+
+    function cleanName(rawName) {
+      let name = rawName.trim();
+      const parts = name.split(/\s+/);
+      if (parts.length > 2 && parts.every(part => part.length <= 2)) {
+        name = name.replace(/\s+/g, '');
+      } else {
+        name = name.replace(/\s+/g, ' ');
+      }
+      return name;
+    }
+
+    const divisions = ['Marketing', 'Purchasing', 'HRD', 'Admin', 'Keuangan', 'Lainnya'];
+    const cities = ['Padang', 'Jakarta', 'Bukittinggi', 'Solo', 'Malang', 'Batam', 'Medan', 'Bandung', 'Surabaya', 'Yogyakarta'];
+    const bankNames = ['BCA', 'Mandiri', 'BNI', 'BRI'];
+    const streets = ['Jl. Universitas Andalas', 'Jl. Jenderal Sudirman', 'Jl. H.R. Rasuna Said', 'Jl. MH Thamrin', 'Jl. Ahmad Yani', 'Jl. Gatot Subroto'];
+
+    const targetTotal = 1012853600;
+    const memberCount = memberNames.length; // 83
+    const pokokPerMember = 100000;
+    const totalPokok = memberCount * pokokPerMember;
+    const targetRemainder = targetTotal - totalPokok; // 1,004,553,600
+
+    let totalWajibSum = 0;
+    let totalSukarelaSum = 0;
+
+    const members = [];
+    for (let i = 0; i < memberCount; i++) {
+      const cleaned = cleanName(memberNames[i]);
+      const noAnggota = `KOP-2026-${String(i + 1).padStart(3, '0')}`;
+      const noIdentitas = `137101${String(Math.floor(1000000000 + Math.random() * 9000000000))}`;
+      const tempatLahir = cities[i % cities.length];
+      
+      const birthYear = 1975 + (i % 28);
+      const birthMonth = String(1 + (i % 12)).padStart(2, '0');
+      const birthDay = String(1 + (i % 28)).padStart(2, '0');
+      const tanggalLahir = `${birthYear}-${birthMonth}-${birthDay}`;
+
+      let jabatan = 'Staff';
+      if (i % 10 === 0) {
+        jabatan = 'Manager';
+      } else if (i % 5 === 0) {
+        jabatan = 'Assistant_Manager';
+      }
+      const divisi = divisions[i % divisions.length];
+
+      const noHp = `0812${String(Math.floor(10000000 + Math.random() * 90000000))}`;
+      const noRekeningBank = `${bankNames[i % bankNames.length]} - ${String(Math.floor(100000000 + Math.random() * 900000000))}`;
+      const alamat = `${streets[i % streets.length]} No. ${1 + (i % 50)}, ${tempatLahir}`;
+
+      let saldoWajib = 0;
+      let saldoSukarela = 0;
+
+      if (i < memberCount - 1) {
+        saldoWajib = 6000000 + ((i % 15) * 110000); 
+        saldoSukarela = 4500000 + ((i % 17) * 80000) + ((i % 5) * 30000);
+
+        saldoWajib = Math.round(saldoWajib / 10000) * 10000;
+        saldoSukarela = Math.round(saldoSukarela / 10000) * 10000;
+      } else {
+        const currentSum = totalWajibSum + totalSukarelaSum;
+        const finalRemainder = targetRemainder - currentSum;
+        saldoWajib = Math.round((finalRemainder * 0.55) / 10000) * 10000;
+        saldoSukarela = finalRemainder - saldoWajib;
+      }
+
+      totalWajibSum += saldoWajib;
+      totalSukarelaSum += saldoSukarela;
+
+      members.push({
+        user_id: i + 5, // user_id starts at 5 (Ketua=1, Sekretaris=2, Bendahara=3, Koordinator=4)
+        no_anggota: noAnggota,
+        no_identitas: noIdentitas,
+        nama_lengkap: cleaned,
+        tempat_lahir: tempatLahir,
+        tanggal_lahir: tanggalLahir,
+        jabatan,
+        divisi,
+        no_hp: noHp,
+        no_rekening_bank: noRekeningBank,
+        alamat,
+        tanggal_registrasi: new Date(),
+        tanggal_bergabung: '2026-01-10',
+        status_keanggotaan: 'Aktif',
+        saldo_pokok: pokokPerMember,
+        saldo_wajib: saldoWajib,
+        saldo_sukarela: saldoSukarela,
+        last_updated: new Date()
+      });
+    }
+
     return queryInterface.bulkInsert('anggota', members);
   },
 

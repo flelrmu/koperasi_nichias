@@ -59,7 +59,7 @@ export default function EditUser() {
   const [isSaving, setIsSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Form states
+  
   const [formData, setFormData] = useState({
     email: '',
     nama_lengkap: '',
@@ -82,7 +82,7 @@ export default function EditUser() {
   });
 
   useEffect(() => {
-    document.title = `Koperasi Nichias | Edit ${type}`;
+    document.title = `Koperasi Karyawan Nichias Sunijaya | Edit ${type}`;
     fetchUserDetail();
   }, [id, type]);
 
@@ -176,7 +176,7 @@ export default function EditUser() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
-      {/* Header */}
+      {}
       <div className="flex items-center justify-between">
         <button 
           onClick={() => navigate('/admin/users')}
@@ -197,7 +197,7 @@ export default function EditUser() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Info Card */}
+        {}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6 sticky top-6">
             <div className="flex flex-col items-center">
@@ -224,7 +224,7 @@ export default function EditUser() {
           </div>
         </div>
 
-        {/* Right Column: Form */}
+        {}
         <div className="lg:col-span-2">
             <motion.div
               initial="hidden"
@@ -248,7 +248,7 @@ export default function EditUser() {
                 </div>
 
                 <div className="space-y-6">
-                  {/* Account Info */}
+                  {}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-[11px] font-bold text-gray-500 ml-1 uppercase tracking-widest">Email Perusahaan</label>
@@ -259,7 +259,7 @@ export default function EditUser() {
                         value={formData.email}
                         onChange={handleChange}
                         required
-                        disabled // Email usually fixed
+                        disabled 
                       />
                     </div>
                     <div className="space-y-2">

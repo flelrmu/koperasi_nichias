@@ -92,16 +92,16 @@ export default function Invoice() {
   };
 
   const handlePrint = () => {
-    // Simpan judul asli
+    
     const originalTitle = document.title;
-    // Set judul dokumen sesuai nomor invoice untuk nama file PDF yang bagus
+    
     const invoiceNo = loan.nomor_invoice || `INV-PNJ-${loan.pinjaman_id}`;
     const memberName = loan.anggota?.nama_lengkap?.replace(/\s+/g, '_') || 'Member';
     document.title = `${invoiceNo}_${memberName}`;
     
     window.print();
     
-    // Kembalikan judul asli
+    
     document.title = originalTitle;
   };
 
@@ -156,7 +156,7 @@ export default function Invoice() {
         }
       `}} />
       
-      {/* Header Actions - Hidden on Print */}
+      {}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <Link to={isManagement(user?.role) ? "/admin/simpan-pinjam" : "/simpan-pinjam"} className="inline-flex w-full sm:w-auto">
           <Button className="w-full !bg-white border border-gray-200 !text-gray-700 hover:!bg-gray-50 flex items-center justify-center gap-2 shadow-sm rounded-xl py-3 px-6">
@@ -176,18 +176,18 @@ export default function Invoice() {
         </div>
       </div>
 
-      {/* Invoice Document */}
+      {}
       <motion.div 
         variants={containerVariants}
         initial="hidden"
         animate="visible"
         className="bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 border border-gray-100 overflow-hidden relative print:shadow-none print:border-none print:rounded-none"
       >
-        {/* Decorative Top Bar */}
+        {}
         <div className="h-3 w-full bg-gradient-to-r from-[#004A9C] via-blue-500 to-[#4A90E2] print:hidden"></div>
 
         <div className="p-8 sm:p-16">
-          {/* Header Section */}
+          {}
           <div className="flex flex-col md:flex-row justify-between items-start gap-10 mb-16 pb-12 border-b-2 border-gray-50">
             <div className="space-y-6">
               <div className="transform scale-125 origin-left mb-8">
@@ -220,7 +220,7 @@ export default function Invoice() {
             </div>
           </div>
 
-          {/* Member & Loan Summary Grid */}
+          {}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
             <div className="space-y-6">
               <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
@@ -273,7 +273,7 @@ export default function Invoice() {
             </div>
           </div>
 
-          {/* Financial Breakdown Table */}
+          {}
           <div className="mb-16">
             <div className="bg-gray-50 rounded-3xl overflow-hidden border border-gray-100">
               <table className="w-full">
@@ -318,7 +318,7 @@ export default function Invoice() {
             </div>
           </div>
 
-          {/* Payment Terms Section */}
+          {}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
             <div className="p-8 bg-white border-2 border-dashed border-gray-100 rounded-[2rem] text-center flex flex-col justify-center space-y-2">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tenor Pinjaman</p>
@@ -333,7 +333,7 @@ export default function Invoice() {
             </div>
           </div>
 
-          {/* Signatures Area */}
+          {}
           <div className="mt-20 pt-10 border-t border-gray-50 flex flex-col md:flex-row justify-between items-end gap-10">
              <div className="flex flex-col items-center justify-center text-center p-6 bg-gray-50 rounded-3xl border border-gray-100 max-w-[280px]">
                 <CheckCircle2 size={32} className="text-[#27AE60] mb-3" />
@@ -354,7 +354,7 @@ export default function Invoice() {
              </div>
           </div>
 
-          {/* Footer Info */}
+          {}
           <div className="mt-20 pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6 opacity-60 print:opacity-100">
             <div className="text-center md:text-left">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Syarat & Ketentuan</p>

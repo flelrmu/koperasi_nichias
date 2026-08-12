@@ -31,7 +31,7 @@ const DIVISI_OPTIONS = [
   { value: "Keuangan", label: "Keuangan" },
 ];
 
-// Password validation rules
+
 const PASSWORD_RULES = [
   { label: "Minimal 8 karakter", test: (p) => p.length >= 8 },
   { label: "Huruf besar (A-Z)", test: (p) => /[A-Z]/.test(p) },

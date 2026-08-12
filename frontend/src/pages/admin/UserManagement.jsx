@@ -8,7 +8,8 @@ import {
   Search,
   Settings,
   LogOut,
-  Info
+  Info,
+  Filter
 } from 'lucide-react';
 import { 
   BiChevronLeft, 
@@ -29,6 +30,38 @@ import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { isSekretaris } from '../../utils/roles';
 
+const months = [
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+];
+
+const CustomRadioButton = ({ label, checked, onChange }) => {
+  return (
+    <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-gray-600 hover:text-[#004A9C] transition-colors whitespace-nowrap">
+      <input
+        type="radio"
+        className="sr-only"
+        checked={checked}
+        onChange={onChange}
+      />
+      <div className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center transition-all ${checked ? 'border-[#004A9C] bg-[#004A9C]/5' : 'border-gray-300'}`}>
+        {checked && <div className="w-2.5 h-2.5 rounded-full bg-[#004A9C]" />}
+      </div>
+      <span>{label}</span>
+    </label>
+  );
+};
+
 export default function UserManagement() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,20 +70,27 @@ export default function UserManagement() {
   const canEdit = isSekretaris(user?.role);
   const highlightRef = useRef(null);
   
-  const [activeTab, setActiveTab] = useState('anggota'); // 'anggota' or 'pengurus'
+  const [activeTab, setActiveTab] = useState('anggota'); 
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [highlightedId, setHighlightedId] = useState(null);
   
-  // Data states
+  const [filterMonth, setFilterMonth] = useState('all');
+  const [filterYear, setFilterYear] = useState('all');
+  const [filterJabatan, setFilterJabatan] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterRole, setFilterRole] = useState('all');
+  const [showRadioFilters, setShowRadioFilters] = useState(false);
+  
+  
   const [anggotaData, setAnggotaData] = useState([]);
   const [pengurusData, setPengurusData] = useState([]);
 
-  // Pagination states
+  
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Modal states
+  
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReviewKeluarModalOpen, setIsReviewKeluarModalOpen] = useState(false);
@@ -118,7 +158,7 @@ export default function UserManagement() {
     fetchData();
   }, []);
 
-  // Handle highlight from notification link (?highlight=<anggota_id>) or review_keluar
+  
   useEffect(() => {
     if (isLoading) return;
     
@@ -128,10 +168,10 @@ export default function UserManagement() {
     if ((highlightId || reviewKeluarId) && anggotaData.length > 0) {
       const targetId = parseInt(highlightId || reviewKeluarId);
       
-      // Make sure we're on anggota tab
+      
       setActiveTab('anggota');
       
-      // Find the page where this anggota is located
+      
       const allData = anggotaData;
       const targetIndex = allData.findIndex(a => a.anggota_id === targetId);
       
@@ -140,7 +180,7 @@ export default function UserManagement() {
         setCurrentPage(targetPage);
         setHighlightedId(targetId);
         
-        // Auto-open detail/review modal after a brief delay
+        
         setTimeout(() => {
           const targetUser = allData[targetIndex];
           if (targetUser) {
@@ -153,25 +193,25 @@ export default function UserManagement() {
           }
         }, 800);
         
-        // Clear highlight after 5 seconds
+        
         setTimeout(() => {
           setHighlightedId(null);
         }, 5000);
       }
       
-      // Clean up the URL
+      
       setSearchParams({}, { replace: true });
     }
   }, [isLoading, searchParams, anggotaData, canEdit]);
 
-  // Scroll to highlighted row
+  
   useEffect(() => {
     if (highlightedId && highlightRef.current) {
       highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [highlightedId]);
 
-  // Listen for socket events
+  
   useEffect(() => {
     if (!socket) return;
 
@@ -223,14 +263,46 @@ export default function UserManagement() {
   const filteredData = useMemo(() => {
     const data = activeTab === 'anggota' ? anggotaData : pengurusData;
     const query = searchQuery.toLowerCase();
-    return data.filter(item => 
-      (item.nama_lengkap || '').toLowerCase().includes(query) ||
-      (item.no_anggota || '').toLowerCase().includes(query) ||
-      (item.user?.email || '').toLowerCase().includes(query)
-    );
-  }, [activeTab, anggotaData, pengurusData, searchQuery]);
+    
+    return data.filter(item => {
+      const matchesSearch = activeTab === 'anggota' 
+        ? (
+            (item.nama_lengkap || '').toLowerCase().includes(query) ||
+            (item.no_anggota || '').toLowerCase().includes(query) ||
+            (item.user?.email || '').toLowerCase().includes(query)
+          )
+        : (
+            (item.nama_lengkap || '').toLowerCase().includes(query) ||
+            (item.user?.email || '').toLowerCase().includes(query) ||
+            (item.no_hp || '').toLowerCase().includes(query)
+          );
 
-  // Pagination logic
+      if (!matchesSearch) return false;
+
+      if (activeTab === 'anggota') {
+        const dateStr = item.tanggal_bergabung || item.tanggal_registrasi;
+        if (dateStr) {
+          const d = new Date(dateStr);
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const y = String(d.getFullYear());
+          if (filterMonth !== 'all' && m !== filterMonth) return false;
+          if (filterYear !== 'all' && y !== filterYear) return false;
+        } else {
+          if (filterMonth !== 'all' || filterYear !== 'all') return false;
+        }
+
+        if (filterJabatan !== 'all' && item.jabatan !== filterJabatan) return false;
+
+        if (filterStatus !== 'all' && item.status_keanggotaan !== filterStatus) return false;
+      } else {
+        if (filterRole !== 'all' && item.jabatan !== filterRole) return false;
+      }
+
+      return true;
+    });
+  }, [activeTab, anggotaData, pengurusData, searchQuery, filterMonth, filterYear, filterJabatan, filterStatus, filterRole]);
+
+  
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -239,7 +311,17 @@ export default function UserManagement() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, searchQuery]);
+    setFilterMonth('all');
+    setFilterYear('all');
+    setFilterJabatan('all');
+    setFilterStatus('all');
+    setFilterRole('all');
+    setShowRadioFilters(false);
+  }, [activeTab]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterMonth, filterYear, filterJabatan, filterStatus, filterRole]);
 
   const handleDetailsClick = (user) => {
     setSelectedUser(user);
@@ -357,9 +439,9 @@ export default function UserManagement() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Premium Header Section */}
+      {}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 relative overflow-hidden">
-        {/* Decorative background blurs */}
+        {}
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#DFEAF4] rounded-full -mr-32 -mt-32 opacity-50 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#004A9C]/5 rounded-full -ml-24 -mb-24 opacity-40 blur-3xl"></div>
         
@@ -389,9 +471,10 @@ export default function UserManagement() {
         )}
       </div>
 
-      {/* Tabs and Search Section */}
-      <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 flex flex-col lg:flex-row gap-6 items-center justify-between">
-        <div className="flex p-1.5 bg-gray-50 rounded-2xl w-full lg:w-auto overflow-x-auto no-scrollbar">
+      {}
+      {}
+      <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 flex items-center">
+        <div className="flex p-1.5 bg-gray-50 rounded-2xl w-full overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('anggota')}
             className={`px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap ${
@@ -415,20 +498,189 @@ export default function UserManagement() {
             <span>Daftar Pengurus</span>
           </button>
         </div>
-
-        <div className="relative w-full lg:w-96 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#004A9C] transition-colors" size={20} />
-          <input
-            type="text"
-            placeholder="Cari nama, email, atau ID..."
-            className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#004A9C]/20 transition-all font-medium text-sm placeholder:text-gray-400"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
       </div>
 
-      {/* Data Table Container */}
+      {}
+      {activeTab === 'anggota' ? (
+        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-5">
+          {/* Search Input Row with Toggle Filter Button */}
+          <div className="flex gap-3 items-center w-full">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Cari nama, email, atau ID..."
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#004A9C]/20 outline-none text-gray-800"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            
+            <button
+              onClick={() => setShowRadioFilters(!showRadioFilters)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
+                showRadioFilters 
+                ? 'bg-[#004A9C] border-[#004A9C] text-white shadow-md shadow-[#004A9C]/25' 
+                : 'bg-white border-gray-200 text-gray-500 hover:text-[#004A9C] hover:border-[#004A9C] hover:bg-gray-50'
+              }`}
+            >
+              <Filter size={16} />
+              <span>Filter</span>
+            </button>
+          </div>
+
+          {/* Custom Radio Filters */}
+          <AnimatePresence>
+            {showRadioFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                <div className="space-y-4 pt-4 border-t border-gray-100 mt-2">
+                  {/* Jabatan Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider w-28 shrink-0">Jabatan:</span>
+                    <div className="flex flex-wrap items-center gap-4">
+                      <CustomRadioButton
+                        label="Semua Jabatan"
+                        checked={filterJabatan === 'all'}
+                        onChange={() => setFilterJabatan('all')}
+                      />
+                      <CustomRadioButton
+                        label="Manager"
+                        checked={filterJabatan === 'Manager'}
+                        onChange={() => setFilterJabatan('Manager')}
+                      />
+                      <CustomRadioButton
+                        label="Assistant Manager"
+                        checked={filterJabatan === 'Assistant_Manager'}
+                        onChange={() => setFilterJabatan('Assistant_Manager')}
+                      />
+                      <CustomRadioButton
+                        label="Staff"
+                        checked={filterJabatan === 'Staff'}
+                        onChange={() => setFilterJabatan('Staff')}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Status Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider w-28 shrink-0">Status:</span>
+                    <div className="flex flex-wrap items-center gap-4">
+                      <CustomRadioButton
+                        label="Semua Status"
+                        checked={filterStatus === 'all'}
+                        onChange={() => setFilterStatus('all')}
+                      />
+                      <CustomRadioButton
+                        label="Pending"
+                        checked={filterStatus === 'Pending'}
+                        onChange={() => setFilterStatus('Pending')}
+                      />
+                      <CustomRadioButton
+                        label="Aktif"
+                        checked={filterStatus === 'Aktif'}
+                        onChange={() => setFilterStatus('Aktif')}
+                      />
+                      <CustomRadioButton
+                        label="Pending Keluar"
+                        checked={filterStatus === 'Pending_Keluar'}
+                        onChange={() => setFilterStatus('Pending_Keluar')}
+                      />
+                      <CustomRadioButton
+                        label="Keluar"
+                        checked={filterStatus === 'Keluar'}
+                        onChange={() => setFilterStatus('Keluar')}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bulan Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider w-28 shrink-0 mt-0.5">Bulan Masuk:</span>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                      <CustomRadioButton
+                        label="Semua Bulan"
+                        checked={filterMonth === 'all'}
+                        onChange={() => setFilterMonth('all')}
+                      />
+                      {months.map((m, i) => {
+                        const val = String(i + 1).padStart(2, "0");
+                        return (
+                          <CustomRadioButton
+                            key={i}
+                            label={m}
+                            checked={filterMonth === val}
+                            onChange={() => setFilterMonth(val)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tahun Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider w-28 shrink-0">Tahun Masuk:</span>
+                    <div className="flex flex-wrap items-center gap-4">
+                      <CustomRadioButton
+                        label="Semua Tahun"
+                        checked={filterYear === 'all'}
+                        onChange={() => setFilterYear('all')}
+                      />
+                      {Array.from(
+                        { length: new Date().getFullYear() - 2024 + 2 },
+                        (_, i) => 2024 + i,
+                      )
+                        .reverse()
+                        .map((y) => (
+                          <CustomRadioButton
+                            key={y}
+                            label={String(y)}
+                            checked={filterYear === String(y)}
+                            onChange={() => setFilterYear(String(y))}
+                          />
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      ) : (
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Cari nama, email, atau HP..."
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#004A9C]/20 outline-none text-gray-800"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <select
+              className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none cursor-pointer focus:ring-2 focus:ring-[#004A9C]/20 text-gray-700 min-w-[150px]"
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+            >
+              <option value="all">Semua Jabatan</option>
+              <option value="Ketua">Ketua</option>
+              <option value="Wakil_Ketua">Wakil Ketua</option>
+              <option value="Sekretaris">Sekretaris</option>
+              <option value="Bendahara">Bendahara</option>
+              <option value="Koordinator_Simpan_Pinjam">Koordinator Simpan Pinjam</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {}
       <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/20 overflow-hidden min-h-[500px] flex flex-col">
         <div className="flex-1 overflow-x-auto">
           <AnimatePresence mode="wait">
@@ -621,11 +873,11 @@ export default function UserManagement() {
           </AnimatePresence>
         </div>
 
-        {/* Footer Features */}
+        {}
         {!isLoading && paginatedData.length > 0 && <Pagination />}
       </div>
 
-      {/* Details Modal */}
+      {}
       <UserDetailsModal
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
@@ -633,7 +885,7 @@ export default function UserManagement() {
         type={activeTab}
       />
 
-      {/* Delete Confirmation */}
+      {}
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -644,7 +896,7 @@ export default function UserManagement() {
         onConfirm={confirmDelete}
       />
 
-      {/* Review Keluar Modal */}
+      {}
       <Modal
         isOpen={isReviewKeluarModalOpen}
         onClose={() => setIsReviewKeluarModalOpen(false)}
@@ -686,7 +938,7 @@ export default function UserManagement() {
         </div>
       </Modal>
 
-      {/* Confirm Modal */}
+      {}
       <Modal
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
@@ -699,7 +951,7 @@ export default function UserManagement() {
         maxWidth="max-w-md"
       />
 
-      {/* Status Modal (Success/Error) */}
+      {}
       <Modal
         isOpen={statusModal.isOpen}
         onClose={() => setStatusModal({ ...statusModal, isOpen: false })}

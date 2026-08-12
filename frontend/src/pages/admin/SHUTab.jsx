@@ -39,7 +39,7 @@ export default function SHUTab({ api, showNotification, user }) {
     try {
       const res = await api.put(`/keuangan/shu/detail/${id}`, { pembulatan: numericVal });
       if (res.data.success) {
-        // Refresh preview data to update summary cards and rekap totals
+        
         const updatedRes = await api.get(`/keuangan/shu/preview?tahun=${tahun}`);
         if (updatedRes.data.success) {
           setPreviewData(updatedRes.data.data);
@@ -59,7 +59,7 @@ export default function SHUTab({ api, showNotification, user }) {
     setCurrentPage(1);
   }, [searchTerm, tahun]);
   
-  // Modal States
+  
   const [confirmProcess, setConfirmProcess] = useState(false);
   const [confirmFinalize, setConfirmFinalize] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -98,7 +98,7 @@ export default function SHUTab({ api, showNotification, user }) {
         tahun,
         ...finalAmounts
       });
-      // Notification removed per request
+      
       fetchPreview();
     } catch (error) {
       showNotification(error.response?.data?.message || 'Gagal memproses SHU', 'error');
@@ -112,7 +112,7 @@ export default function SHUTab({ api, showNotification, user }) {
     setIsFinalizing(true);
     try {
       await api.put('/keuangan/shu/finalize', { tahun });
-      // Notification removed per request
+      
       fetchPreview();
     } catch (error) {
       showNotification(error.response?.data?.message || 'Gagal menyimpan data SHU', 'error');
@@ -126,7 +126,7 @@ export default function SHUTab({ api, showNotification, user }) {
     setIsCancelling(true);
     try {
       await api.delete(`/keuangan/shu/${tahun}`);
-      // Notification removed per request
+      
       fetchPreview();
     } catch (error) {
       showNotification(error.response?.data?.message || 'Gagal membatalkan SHU', 'error');
@@ -140,7 +140,7 @@ export default function SHUTab({ api, showNotification, user }) {
     setIsCancellingFinalize(true);
     try {
       await api.put(`/keuangan/shu/cancel-finalize`, { tahun });
-      // Notification removed per request
+      
       fetchPreview();
     } catch (error) {
       showNotification(error.response?.data?.message || 'Gagal membatalkan finalisasi SHU', 'error');
@@ -328,7 +328,7 @@ export default function SHUTab({ api, showNotification, user }) {
 
   return (
     <div className="space-y-6">
-      {/* Header & Filter */}
+      {}
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-blue-50 rounded-2xl text-[#004A9C]">
@@ -354,7 +354,7 @@ export default function SHUTab({ api, showNotification, user }) {
       {previewData && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Summary Cards */}
+            {}
             <div className="lg:col-span-2 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gradient-to-br from-[#004A9C] to-blue-700 p-6 rounded-[32px] text-white shadow-xl relative overflow-hidden">
@@ -380,7 +380,7 @@ export default function SHUTab({ api, showNotification, user }) {
                 </div>
               </div>
 
-              {/* Config & Action */}
+              {}
               <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm space-y-6">
                  <div className="flex items-center justify-between gap-4 mb-2">
                    <div className="flex items-center gap-2">
@@ -512,7 +512,7 @@ export default function SHUTab({ api, showNotification, user }) {
               </div>
             </div>
 
-            {/* Right Info */}
+            {}
             <div className="bg-gray-50 p-6 rounded-[32px] border border-gray-200/50 flex flex-col gap-6">
               <div className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
                 <p className="text-[10px] font-black text-gray-400 uppercase mb-3">Ketentuan Pembagian</p>
@@ -549,7 +549,7 @@ export default function SHUTab({ api, showNotification, user }) {
             </div>
           </div>
 
-          {/* TABLE SECTION */}
+          {}
           {previewData.existingRekap && (
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
@@ -662,7 +662,7 @@ export default function SHUTab({ api, showNotification, user }) {
                 </table>
               </div>
 
-              {/* Pagination Footer */}
+              {}
               {filteredDetails.length > 0 && (
                 <div className="p-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between bg-[#F8FAFC]">
                   <div className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4 sm:mb-0">
@@ -747,7 +747,7 @@ export default function SHUTab({ api, showNotification, user }) {
             </motion.div>
           )}
 
-          {/* CONFIRMATION MODALS */}
+          {}
           <Modal 
             isOpen={confirmProcess} 
             onClose={() => setConfirmProcess(false)}

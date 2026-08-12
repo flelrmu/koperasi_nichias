@@ -6,16 +6,15 @@ const User = db.User;
 const Anggota = db.Anggota;
 const Pengurus = db.Pengurus;
 const Notifikasi = db.Notifikasi;
-const Simpanan = db.Simpanan;
 const TransaksiSimpanan = db.TransaksiSimpanan;
 const Konfigurasi = db.Konfigurasi;
 const Pinjaman = db.Pinjaman;
 const { Op } = require("sequelize");
 
-/**
- * POST /api/user/anggota/request-keluar
- * Anggota mengajukan pengunduran diri
- */
+
+
+
+
 const requestKeluar = async (req, res) => {
   const transaction = await db.sequelize.transaction();
   try {
@@ -34,11 +33,11 @@ const requestKeluar = async (req, res) => {
         .json({ success: false, message: "Data anggota tidak ditemukan." });
     }
 
-    // Cek hutang: Pinjaman yang belum lunas
+    
     const activeLoans = await Pinjaman.findAll({
       where: {
         anggota_id: anggota.anggota_id,
-        status: ["Approved", "Pending"], // Pending juga dicek agar tidak kabur saat ada pengajuan
+        status: ["Approved", "Pending"], 
         sisa_tagihan: { [Op.gt]: 0 },
       },
       transaction,
@@ -61,7 +60,7 @@ const requestKeluar = async (req, res) => {
       { transaction },
     );
 
-    // Buat notifikasi untuk Sekretaris
+    
     const secretaryUsers = await User.findAll({
       where: { role: "Sekretaris" },
       transaction,
@@ -89,9 +88,9 @@ const requestKeluar = async (req, res) => {
         data: { status_keanggotaan: "Pending_Keluar", alasan_keluar },
       });
 
-      // Emit real-time notification for management
+      
       req.io.emit("notifikasi:anggota-keluar", {
-        user_id: user_id, // Pengirim
+        user_id: user_id, 
         notifikasi: {
           judul: "Pengajuan Keluar Anggota 🚪",
           pesan: `${anggota.nama_lengkap} telah mengajukan pengunduran diri.`,
@@ -117,10 +116,10 @@ const requestKeluar = async (req, res) => {
   }
 };
 
-/**
- * POST /api/user/anggota/cancel-keluar
- * Anggota membatalkan pengajuan keluar
- */
+
+
+
+
 const cancelKeluar = async (req, res) => {
   const transaction = await db.sequelize.transaction();
   try {
@@ -181,10 +180,10 @@ const cancelKeluar = async (req, res) => {
   }
 };
 
-/**
- * POST /api/user/anggota/approve-keluar
- * Sekretaris menyetujui pengunduran diri anggota
- */
+
+
+
+
 const approveKeluar = async (req, res) => {
   const transaction = await db.sequelize.transaction();
   try {
@@ -210,7 +209,7 @@ const approveKeluar = async (req, res) => {
       { transaction },
     );
 
-    // Buat notifikasi untuk Anggota
+    
     await Notifikasi.create(
       {
         user_id: anggota.user_id,
@@ -248,10 +247,10 @@ const approveKeluar = async (req, res) => {
   }
 };
 
-/**
- * GET /api/user/anggota
- * Mengambil daftar seluruh anggota beserta data user-nya.
- */
+
+
+
+
 const getAnggotaList = async (req, res) => {
   try {
     const anggota = await Anggota.findAll({
@@ -279,10 +278,10 @@ const getAnggotaList = async (req, res) => {
   }
 };
 
-/**
- * GET /api/user/pengurus
- * Mengambil daftar seluruh pengurus jajaran manajemen.
- */
+
+
+
+
 const getPengurusList = async (req, res) => {
   try {
     const pengurus = await Pengurus.findAll({
@@ -310,12 +309,12 @@ const getPengurusList = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/user/:type/:id
- * Mengupdate data user (Anggota atau Pengurus).
- */
+
+
+
+
 const updateUser = async (req, res) => {
-  const { type, id } = req.params; // type: 'anggota' atau 'pengurus'
+  const { type, id } = req.params; 
   const updateData = req.body;
   const transaction = await db.sequelize.transaction();
 
@@ -331,7 +330,7 @@ const updateUser = async (req, res) => {
       }
       await anggota.update(updateData, { transaction });
 
-      // Update email/role di tabel User jika diperlukan
+      
       if (updateData.email || updateData.role) {
         await User.update(
           { email: updateData.email, role: updateData.role },
@@ -348,14 +347,14 @@ const updateUser = async (req, res) => {
           .json({ success: false, message: "Pengurus tidak ditemukan." });
       }
 
-      // Sinkronisasi jabatan dengan role jika role diubah
+      
       if (updateData.role && !updateData.jabatan) {
         updateData.jabatan = updateData.role;
       }
 
       await pengurus.update(updateData, { transaction });
 
-      // Update email/role/jabatan di tabel User
+      
       if (updateData.email || updateData.role) {
         await User.update(
           { email: updateData.email, role: updateData.role },
@@ -367,7 +366,7 @@ const updateUser = async (req, res) => {
 
     await transaction.commit();
 
-    // Re-fetch result with User association to include email in socket payload
+    
     if (type === "anggota") {
       result = await Anggota.findByPk(id, {
         include: [{ model: User, as: "user", attributes: ["email", "role"] }],
@@ -378,7 +377,7 @@ const updateUser = async (req, res) => {
       });
     }
 
-    // Emit event real-time
+    
     req.io.emit("user:updated", { type, id: parseInt(id), data: result });
     req.io.emit("dashboardUpdate");
 
@@ -400,10 +399,10 @@ const updateUser = async (req, res) => {
   }
 };
 
-/**
- * DELETE /api/user/:type/:id
- * Menghapus data user secara permanen.
- */
+
+
+
+
 const deleteUser = async (req, res) => {
   const { type, id } = req.params;
   const transaction = await db.sequelize.transaction();
@@ -420,7 +419,7 @@ const deleteUser = async (req, res) => {
       }
       userId = anggota.user_id;
 
-      // Cek apakah anggota masih memiliki pinjaman aktif / belum lunas
+      
       const activeLoans = await Pinjaman.findAll({
         where: {
           anggota_id: id,
@@ -438,14 +437,14 @@ const deleteUser = async (req, res) => {
         });
       }
 
-      // 1. Ambil list TransaksiSimpanan untuk mencari ID transaksi yang dihapus
+      
       const transaksiSimpananList = await TransaksiSimpanan.findAll({
         where: { anggota_id: id },
         transaction,
       });
       const transaksiIds = transaksiSimpananList.map((t) => t.transaksi_id);
 
-      // 2. Ambil list Pinjaman untuk mencari invoice / ID pinjaman yang dihapus
+      
       const pinjamanList = await Pinjaman.findAll({
         where: { anggota_id: id },
         transaction,
@@ -453,10 +452,10 @@ const deleteUser = async (req, res) => {
       const pinjamanIds = pinjamanList.map((p) => p.pinjaman_id);
       const invoiceNumbers = pinjamanList.map((p) => p.nomor_invoice).filter(Boolean);
 
-      // 3. Tentukan kondisi pencarian ArusKas terkait
+      
       const arusKasConditions = [];
 
-      // Kondisi Simpanan
+      
       if (transaksiIds.length > 0) {
         arusKasConditions.push(
           { kode_transaksi: { [Op.in]: transaksiIds.map((tid) => `TXS-${tid}`) } },
@@ -469,7 +468,7 @@ const deleteUser = async (req, res) => {
         { kode_transaksi: { [Op.like]: `BLK-WJB-${id}-%` } }
       );
 
-      // Kondisi Pinjaman & Angsuran
+      
       if (invoiceNumbers.length > 0) {
         invoiceNumbers.forEach((inv) => {
           arusKasConditions.push({ kode_transaksi: inv });
@@ -489,7 +488,7 @@ const deleteUser = async (req, res) => {
         });
       }
 
-      // Hapus data ArusKas terkait
+      
       await db.ArusKas.destroy({
         where: {
           [Op.or]: arusKasConditions,
@@ -497,17 +496,16 @@ const deleteUser = async (req, res) => {
         transaction,
       });
 
-      // Recalculate saldo akhir kas
+      
       await ArusKasService.recalculateSaldo({ transaction });
 
-      // Hapus data terkait di tabel lain (Cascade manual)
+      
       await db.TransaksiSimpanan.destroy({
         where: { anggota_id: id },
         transaction,
       });
-      await db.Simpanan.destroy({ where: { anggota_id: id }, transaction });
 
-      // Ambil ID pinjaman untuk menghapus angsuran
+      
       const pinjamanListToDestroy = await db.Pinjaman.findAll({
         where: { anggota_id: id },
         attributes: ["pinjaman_id"],
@@ -539,12 +537,12 @@ const deleteUser = async (req, res) => {
       await pengurus.destroy({ transaction });
     }
 
-    // Hapus juga data login-nya
+    
     await User.destroy({ where: { user_id: userId }, transaction });
 
     await transaction.commit();
 
-    // Emit event real-time menggunakan instance global
+    
     const globalIo = req.app.get("io") || req.io;
     globalIo.emit("user:deleted", { type: type.toLowerCase(), id: String(id) });
     globalIo.emit("dashboardUpdate");
@@ -567,10 +565,10 @@ const deleteUser = async (req, res) => {
   }
 };
 
-/**
- * GET /api/user/:type/:id
- * Mengambil detail satu user.
- */
+
+
+
+
 const getUserDetail = async (req, res) => {
   const { type, id } = req.params;
   try {
@@ -600,17 +598,17 @@ const getUserDetail = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/user/approve/:id
- * Menyetujui pendaftaran anggota (hanya aksi terima).
- * - Update status ke 'Aktif'
- * - Generate no_anggota
- * - Buat notifikasi untuk anggota yang diterima
- * - Emit member:approved event via Socket.IO
- */
+
+
+
+
+
+
+
+
 const approveMember = async (req, res) => {
   const { id } = req.params;
-  const { action, metode_pembayaran } = req.body; // Terima metode_pembayaran
+  const { action, metode_pembayaran } = req.body; 
   const transaction = await db.sequelize.transaction();
 
   try {
@@ -647,27 +645,18 @@ const approveMember = async (req, res) => {
     }
 
     const gNoAnggota = await generateNoAnggota();
+    
+    const configPokok = await Konfigurasi.findOne({
+      where: { nama_config: "SIMPANAN_POKOK" },
+      transaction,
+    });
+    const nominalPokok = configPokok ? parseFloat(configPokok.nilai) : 100000; 
+
     await anggota.update(
       {
         status_keanggotaan: "Aktif",
         no_anggota: gNoAnggota,
         tanggal_bergabung: new Date(),
-      },
-      { transaction },
-    );
-
-    // --- AUTO-GENERATE SIMPANAN POKOK ---
-    // Ambil nominal simpanan pokok dari konfigurasi
-    const configPokok = await Konfigurasi.findOne({
-      where: { nama_config: "SIMPANAN_POKOK" },
-      transaction,
-    });
-    const nominalPokok = configPokok ? parseFloat(configPokok.nilai) : 100000; // default 100rb jika tidak ada config
-
-    // 1. Buat record Simpanan
-    const newSimpanan = await Simpanan.create(
-      {
-        anggota_id: anggota.anggota_id,
         saldo_pokok: nominalPokok,
         saldo_wajib: 0,
         saldo_sukarela: 0,
@@ -676,7 +665,7 @@ const approveMember = async (req, res) => {
       { transaction },
     );
 
-    // 2. Buat record TransaksiSimpanan (Simpanan Pokok Awal)
+    
     await TransaksiSimpanan.create(
       {
         anggota_id: anggota.anggota_id,
@@ -689,7 +678,7 @@ const approveMember = async (req, res) => {
       { transaction },
     );
 
-    // --- INTEGRASI ARUS KAS ---
+    
     await ArusKasService.recordTransaction(
       {
         user_id: anggota.user_id,
@@ -704,7 +693,7 @@ const approveMember = async (req, res) => {
       req.io,
     );
 
-    // 3. Buat notifikasi pendaftaran diterima
+    
     await Notifikasi.create(
       {
         user_id: anggota.user_id,
@@ -718,7 +707,7 @@ const approveMember = async (req, res) => {
       { transaction },
     );
 
-    // 4. Buat notifikasi kedua khusus simpanan pokok
+    
     const formatRupiah = (val) =>
       new Intl.NumberFormat("id-ID", {
         style: "currency",
@@ -750,7 +739,7 @@ const approveMember = async (req, res) => {
       req.io.emit("arus-kas-updated");
     }
 
-    // Emit member:approved untuk notifikasi ke user yang diterima
+    
     console.log(`📤 Emitting member:approved for user_id: ${anggota.user_id}`);
     req.io.emit("member:approved", {
       user_id: anggota.user_id,
@@ -777,10 +766,10 @@ const approveMember = async (req, res) => {
   }
 };
 
-/**
- * GET /api/user/profile
- * Mendapatkan profil pengguna yang sedang login.
- */
+
+
+
+
 const getProfile = async (req, res) => {
   const { user_id, role } = req.user;
   try {
@@ -790,7 +779,6 @@ const getProfile = async (req, res) => {
         where: { user_id },
         include: [
           { model: User, as: "user", attributes: ["email", "role"] },
-          { model: db.Simpanan, as: "simpanan" },
           {
             model: db.Pinjaman,
             as: "pinjaman",
@@ -851,10 +839,10 @@ const getProfile = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/user/profile
- * Mengupdate data profil pengguna yang sedang login.
- */
+
+
+
+
 const updateProfile = async (req, res) => {
   const { user_id, role } = req.user;
   const updateData = req.body;
@@ -869,7 +857,7 @@ const updateProfile = async (req, res) => {
       });
       if (!anggota) throw new Error("Anggota tidak ditemukan");
 
-      // Keamanan: Cuma field tertentu yang boleh diubah secara mandiri
+      
       const safeData = {
         no_hp: updateData.no_hp,
         tempat_lahir: updateData.tempat_lahir,
@@ -937,10 +925,10 @@ const updateProfile = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/user/profile/password
- * Mengganti password pengguna yang sedang login.
- */
+
+
+
+
 const changePassword = async (req, res) => {
   const { user_id } = req.user;
   const { oldPassword, newPassword } = req.body;
@@ -991,10 +979,10 @@ const changePassword = async (req, res) => {
   }
 };
 
-/**
- * POST /api/user/profile/photo
- * Upload foto profil
- */
+
+
+
+
 const uploadProfilePhoto = async (req, res) => {
   if (!req.file) {
     return res

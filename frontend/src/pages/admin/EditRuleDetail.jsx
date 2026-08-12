@@ -38,7 +38,7 @@ export default function EditRuleDetail() {
   const [isSaving, setIsSaving] = useState(false);
   const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', title: '', message: '' });
 
-  // Fetch peraturan from API
+  
   useEffect(() => {
     const fetchRule = async () => {
       setIsLoading(true);
@@ -62,7 +62,7 @@ export default function EditRuleDetail() {
     fetchRule();
   }, [id]);
 
-  // WebSocket listener: auto-update if edited from another tab
+  
   useEffect(() => {
     if (!socket) return;
 
@@ -197,7 +197,7 @@ export default function EditRuleDetail() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Navigation Header */}
+      {}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button 
@@ -226,9 +226,9 @@ export default function EditRuleDetail() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content Form */}
+        {}
         <div className="lg:col-span-2 space-y-6">
-          {/* Basic Info Card */}
+          {}
           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-6">
             <div className="flex items-center gap-2 text-[#004A9C] mb-2 border-b border-gray-50 pb-4">
               <ShieldCheck size={20} />
@@ -293,8 +293,8 @@ export default function EditRuleDetail() {
                         const val = e.target.value;
                         const judulLower = rule.judul.toLowerCase();
                         
-                        // Strip ALL non-digit characters to get the raw number
-                        // This prevents "Rp 10.000" from being parsed as 10.000 (= 10)
+                        
+                        
                         const digitsOnly = val.replace(/[^0-9]/g, '');
                         
                         if (!digitsOnly) {
@@ -304,13 +304,13 @@ export default function EditRuleDetail() {
 
                         const numeric = parseFloat(digitsOnly);
                         
-                        // Auto-format for Bunga (percentage-based rules)
+                        
                         if (judulLower.includes('bunga') || judulLower.includes('suku')) {
                           setRule({ ...rule, ketentuan_utama: `${numeric}% Total`, nilai_numerik: numeric });
                           return;
                         }
                         
-                        // Auto-format for Rupiah-based rules (simpanan, pinjaman, limit, maksimal)
+                        
                         if (judulLower.includes('simpanan') || judulLower.includes('pinjaman') || judulLower.includes('limit') || judulLower.includes('maksimal')) {
                           const formatted = new Intl.NumberFormat('id-ID', {
                             style: 'currency',
@@ -322,13 +322,13 @@ export default function EditRuleDetail() {
                           return;
                         }
 
-                        // Auto-format for multiplier rules
+                        
                         if (judulLower.includes('kelipatan')) {
                           setRule({ ...rule, ketentuan_utama: `${numeric}x Total Simpanan`, nilai_numerik: numeric });
                           return;
                         }
                         
-                        // Fallback: keep text as-is with extracted numeric
+                        
                         setRule({ ...rule, ketentuan_utama: val, nilai_numerik: numeric });
                       }}
                       placeholder="Masukkan nominal atau ketentuan (Contoh: 100000)"
@@ -354,7 +354,7 @@ export default function EditRuleDetail() {
             </div>
           </div>
 
-          {/* Procedures Card */}
+          {}
           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-6">
             <div className="flex items-center justify-between border-b border-gray-50 pb-4">
               <div className="flex items-center gap-2 text-[#004A9C]">
@@ -405,9 +405,9 @@ export default function EditRuleDetail() {
           </div>
         </div>
 
-        {/* Sidebar Info Form */}
+        {}
         <div className="space-y-6">
-          {/* Purpose Card */}
+          {}
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
             <h4 className="font-bold text-gray-800 text-md border-b border-gray-50 pb-3">Tujuan Kebijakan</h4>
             <Textarea 
@@ -420,7 +420,7 @@ export default function EditRuleDetail() {
             />
           </div>
 
-          {/* Conditions Card */}
+          {}
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-gray-50 pb-3">
               <h4 className="font-bold text-gray-800 text-md">Syarat & Ketentuan</h4>
@@ -458,12 +458,12 @@ export default function EditRuleDetail() {
             </div>
           </div>
 
-          {/* Icon Picker */}
+          {}
           {canEdit && (
             <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
               <h4 className="font-bold text-gray-800 text-md border-b border-gray-50 pb-3">Icon & Warna</h4>
               
-              {/* Icon Preview */}
+              {}
               <div className="flex items-center gap-3 mb-3">
                 <div className={`w-12 h-12 ${rule.icon_bg_color} ${rule.icon_color} rounded-xl flex items-center justify-center`}>
                   <IconPreview size={24} />
@@ -474,7 +474,7 @@ export default function EditRuleDetail() {
                 </div>
               </div>
 
-              {/* Icon Select */}
+              {}
               <select
                 value={rule.icon_name}
                 onChange={(e) => setRule({ ...rule, icon_name: e.target.value })}
@@ -485,7 +485,7 @@ export default function EditRuleDetail() {
                 ))}
               </select>
 
-              {/* Color Preset */}
+              {}
               <div className="flex flex-wrap gap-2 mt-2">
                 {iconColorPresets.map(preset => (
                   <button
@@ -503,7 +503,7 @@ export default function EditRuleDetail() {
             </div>
           )}
 
-          {/* Terakhir Diperbarui (replaces tags) */}
+          {}
           <div className="bg-[#DFEAF4]/30 p-6 rounded-3xl border border-[#004A9C]/10 space-y-4">
             <h4 className="font-bold text-[#004A9C] text-sm uppercase tracking-wider flex items-center gap-2">
               <Clock size={14} />
@@ -522,7 +522,7 @@ export default function EditRuleDetail() {
         </div>
       </div>
 
-      {/* Status Modal */}
+      {}
       <Modal
         isOpen={statusModal.isOpen}
         onClose={() => {

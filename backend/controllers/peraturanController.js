@@ -3,9 +3,9 @@ const Peraturan = db.Peraturan;
 const User = db.User;
 const Konfigurasi = db.Konfigurasi;
 
-/**
- * Helper to sync Peraturan with Konfigurasi table
- */
+
+
+
 const syncWithKonfigurasi = async (peraturan, io = null, transaction = null) => {
   const mapping = {
     'Simpanan Pokok': 'SIMPANAN_POKOK',
@@ -39,7 +39,7 @@ const syncWithKonfigurasi = async (peraturan, io = null, transaction = null) => 
         { where: { nama_config: configKey }, transaction }
       );
       
-      // Emit config update for real-time frontend refresh
+      
       if (io) {
         io.emit('konfigurasi:updated', { 
           nama_config: configKey, 
@@ -50,10 +50,10 @@ const syncWithKonfigurasi = async (peraturan, io = null, transaction = null) => 
   }
 };
 
-/**
- * GET /api/peraturan
- * Mengambil semua peraturan koperasi.
- */
+
+
+
+
 const getAllPeraturan = async (req, res) => {
   try {
     const peraturan = await Peraturan.findAll({
@@ -75,10 +75,10 @@ const getAllPeraturan = async (req, res) => {
   }
 };
 
-/**
- * GET /api/peraturan/:id
- * Mengambil detail satu peraturan.
- */
+
+
+
+
 const getPeraturanById = async (req, res) => {
   const { id } = req.params;
   try {
@@ -107,10 +107,10 @@ const getPeraturanById = async (req, res) => {
   }
 };
 
-/**
- * POST /api/peraturan
- * Membuat peraturan baru (hanya Sekretaris).
- */
+
+
+
+
 const createPeraturan = async (req, res) => {
   const {
     judul,
@@ -142,15 +142,15 @@ const createPeraturan = async (req, res) => {
       updated_by: req.user.user_id,
     });
 
-    // Sync with Konfigurasi
+    
     await syncWithKonfigurasi(peraturan, req.io);
 
-    // Fetch with updater association
+    
     const created = await Peraturan.findByPk(peraturan.peraturan_id, {
       include: [{ model: User, as: 'updater', attributes: ['email'] }],
     });
 
-    // Emit WebSocket event
+    
     req.io.emit('peraturan:created', { data: created });
     console.log(`📤 Emitting peraturan:created: ${judul}`);
 
@@ -169,10 +169,10 @@ const createPeraturan = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/peraturan/:id
- * Mengupdate peraturan (hanya Sekretaris).
- */
+
+
+
+
 const updatePeraturan = async (req, res) => {
   const { id } = req.params;
   const updateData = req.body;
@@ -186,20 +186,20 @@ const updatePeraturan = async (req, res) => {
       });
     }
 
-    // Set updated_by to current user
+    
     updateData.updated_by = req.user.user_id;
 
     await peraturan.update(updateData);
 
-    // Sync with Konfigurasi if nilai_numerik was updated
+    
     await syncWithKonfigurasi(peraturan, req.io);
 
-    // Fetch updated with updater
+    
     const updated = await Peraturan.findByPk(id, {
       include: [{ model: User, as: 'updater', attributes: ['email'] }],
     });
 
-    // Emit WebSocket event
+    
     req.io.emit('peraturan:updated', { id: parseInt(id), data: updated });
     console.log(`📤 Emitting peraturan:updated: ${updated.judul}`);
 
@@ -218,10 +218,10 @@ const updatePeraturan = async (req, res) => {
   }
 };
 
-/**
- * DELETE /api/peraturan/:id
- * Menghapus peraturan (hanya Sekretaris).
- */
+
+
+
+
 const deletePeraturan = async (req, res) => {
   const { id } = req.params;
 
@@ -234,7 +234,7 @@ const deletePeraturan = async (req, res) => {
       });
     }
 
-    // Protection: Prevent deleting system-critical rules
+    
     const PROTECTED_TITLES = [
       'Simpanan Pokok', 'Simpanan Wajib', 'Simpanan Sukarela',
       'Suku Bunga', 'Maksimal Pinjaman Uang', 'Pengunduran Diri',
@@ -252,7 +252,7 @@ const deletePeraturan = async (req, res) => {
     const judul = peraturan.judul;
     await peraturan.destroy();
 
-    // Emit WebSocket event
+    
     req.io.emit('peraturan:deleted', { id: parseInt(id) });
     console.log(`📤 Emitting peraturan:deleted: ${judul}`);
 

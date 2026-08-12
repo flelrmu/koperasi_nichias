@@ -5,7 +5,7 @@ const AuthContext = createContext(null);
 
 const API_URL = 'http://localhost:5000/api';
 
-// Setup axios interceptor untuk auto-inject token
+
 const api = axios.create({ baseURL: API_URL });
 
 export function AuthProvider({ children }) {
@@ -13,7 +13,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Auto-load dari localStorage saat mount
+  
   useEffect(() => {
     const savedToken = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');

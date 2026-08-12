@@ -25,7 +25,7 @@ export default function LoginForm() {
     message: "",
   });
 
-  // Store redirect path for after modal close
+  
   const [pendingRedirect, setPendingRedirect] = useState(null);
 
   const handleChange = (e) => {
@@ -36,7 +36,7 @@ export default function LoginForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate empty fields
+    
     if (!formData.email || !formData.password) {
       setModalConfig({
         isOpen: true,

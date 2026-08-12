@@ -34,6 +34,7 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     tableName: 'PeriodeKeuangan',
     timestamps: true,
+    underscored: false,
     indexes: [
       {
         unique: true,
@@ -44,6 +45,7 @@ module.exports = (sequelize, DataTypes) => {
 
   PeriodeKeuangan.associate = (models) => {
     PeriodeKeuangan.belongsTo(models.User, { foreignKey: 'closed_by', as: 'closedBy' });
+    PeriodeKeuangan.hasMany(models.ArusKas, { foreignKey: 'periode_id', as: 'arusKas' });
   };
 
   return PeriodeKeuangan;

@@ -40,15 +40,22 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DATE
     },
     processed_by: {
-      type: DataTypes.INTEGER
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'user_id',
+      },
     }
   }, {
     tableName: 'RekapShu',
-    timestamps: true
+    timestamps: true,
+    underscored: false
   });
 
   RekapShu.associate = (models) => {
     RekapShu.hasMany(models.PembagianShu, { foreignKey: 'rekap_id', as: 'details' });
+    RekapShu.belongsTo(models.User, { foreignKey: 'processed_by', as: 'processor' });
   };
 
   return RekapShu;

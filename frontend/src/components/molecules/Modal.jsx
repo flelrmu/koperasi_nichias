@@ -18,18 +18,18 @@ export default function Modal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* Backdrop */}
+      {}
       <div 
         className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" 
         onClick={onClose}
       />
       
-      {/* Modal Box */}
+      {}
       <div className={`relative bg-white rounded-2xl shadow-xl w-full ${maxWidth} flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200`}>
         
         {children ? (
           <>
-            {/* Modal with Custom Content (Children) */}
+            {}
             <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-white shrink-0">
               <h3 className="font-bold text-[#004A9C] text-lg">{title}</h3>
               <button 
@@ -56,7 +56,7 @@ export default function Modal({
             )}
           </>
         ) : (
-          /* Alert/Confirmation Modal (No Children) */
+          
            <>
             <div className="flex justify-end p-2 shrink-0">
               <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">

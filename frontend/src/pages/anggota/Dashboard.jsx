@@ -180,7 +180,7 @@ export default function Dashboard() {
       0,
     ) || 0;
 
-  // Unified Activity Feed: Merge Savings and Loans
+  
   const recentActivities = [
     ...(profileData?.transaksiSimpanan?.map((t) => ({
       id: `trx-${t.transaksi_id}`,
@@ -211,7 +211,7 @@ export default function Dashboard() {
       const dateA = new Date(a.tanggal);
       const dateB = new Date(b.tanggal);
       if (dateB - dateA !== 0) return dateB - dateA;
-      // Secondary sort by ID if dates are equal
+      
       return (b.realId || 0) - (a.realId || 0);
     })
     .slice(0, 7);
@@ -247,7 +247,7 @@ export default function Dashboard() {
       variants={containerVariants}
       className="space-y-8 pb-10"
     >
-      {/* Premium Header Section */}
+      {}
       <motion.div
         variants={itemVariants}
         className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-blue-900/5 relative overflow-hidden"
@@ -292,7 +292,7 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* Stats Grid */}
+      {}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {stats.map((stat, idx) => (
           <motion.div
@@ -302,7 +302,7 @@ export default function Dashboard() {
             onMouseLeave={() => setHoveredCard(null)}
             className="bg-white rounded-[2.5rem] shadow-sm p-8 border border-gray-100 hover:shadow-2xl hover:shadow-blue-900/10 transition-all group relative overflow-hidden aspect-square flex flex-col items-center justify-center text-center cursor-help"
           >
-            {/* Clipping container for decorative background effects */}
+            {}
             <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] pointer-events-none">
               <div
                 className="absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-5 transition-transform duration-700 group-hover:scale-150"
@@ -353,9 +353,9 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Main Content Sections */}
+      {}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Transactions Table */}
+        {}
         <motion.div
           variants={itemVariants}
           className="lg:col-span-2 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-500"
@@ -468,10 +468,10 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* Member Info / Rules Card */}
+        {}
         <motion.div variants={itemVariants} className="space-y-6">
           <div className="bg-gradient-to-br from-[#004A9C] via-[#004A9C] to-[#0a56ad] rounded-[2.5rem] p-8 text-white relative overflow-hidden group shadow-2xl shadow-blue-900/20">
-            {/* Decorative pattern */}
+            {}
             <div className="absolute inset-0 opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-700">
               <svg
                 width="100%"
