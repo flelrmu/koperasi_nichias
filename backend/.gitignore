@@ -57,6 +57,11 @@ Thumbs.db
 .cache
 
 # ========================
+# Seeders
+# ========================
+/seeders
+
+# ========================
 # Development Scratchpads
 # ========================
 /scratch
